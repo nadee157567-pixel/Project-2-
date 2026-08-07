@@ -3,6 +3,7 @@ const cors = require('cors');
 
 const catRouter = require('./routes/catRoutes');
 const matchingRouter = require('./routes/matchingRoutes');
+const evaluateRoute = require('./routes/evaluate');
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.get('/',(req,res) => {
 
 app.use('/api/cats',catRouter);
 app.use('/api/matching', matchingRouter);
+app.use('/api/evaluate', evaluateRoute);
 
 //กรณีเรียก URL ที่ไม่มีอยู่
 

@@ -109,8 +109,129 @@ async function getCatById(req, res){
     }
 }
 
+async function createCat(req, res) {
+    try {
+        const {
+            userId,
+            name,
+            breed,
+            gender,
+            ageRange,
+            sterilization,
+            vaccination,
+            healthDetails,
+            reqHousing,
+            reqTime,
+            reqOtherPets
+        } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'กรุณาระบุ userId' });
+        }
+
+        // Mapping values
+        const pet_gender = gender === 'ผู้' ? 'male' : 'female';
+        
+        let age_months = 12; // default
+        if (ageRange === 'ต่ำกว่า 2 เดือน (ยังไม่หย่านม)') age_months = 1;
+        else if (ageRange === '2 - 6 เดือน (ลูกแมว)') age_months = 4;
+        else if (ageRange === '6 เดือน - 1 ปี (แมววัยรุ่น)') age_months = 9;
+        else if (ageRange === '1 - 7 ปี (แมวโตเต็มวัย)') age_months = 36;
+        else if (ageRange === '7 ปีขึ้นไป (แมวสูงวัย)') age_months = 96;
+
+        let req_space_level = 'medium';
+        if (reqHousing === 'พื้นที่โล่งกว้างๆ') req_space_level = 'large';
+        else if (reqHousing === 'ไม่ต้องการพื้นที่มาก') req_space_level = 'small';
+
+        let req_attention = 'medium';
+        if (reqTime === 'น้อย') req_attention = 'small';
+        else if (reqTime === 'มาก') req_attention = 'large';
+
+        const personality_mapped = reqOtherPets ? `เข้ากับสัตว์อื่น: ${reqOtherPets}` : null;
+
+        const [result] = await pool.query(`
+            INSERT INTO cats 
+            (poster_id, pet_name, pet_breed, gender, age_months, is_sterilized, is_vaccinated, health_note, req_space_level, req_attention, personality, est_monthly_cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            userId, 
+            name || null, 
+            breed || 'ไม่ทราบสายพันธุ์', 
+            pet_gender, 
+            age_months, 
+            sterilization || null, 
+            vaccination || null, 
+            healthDetails || null, 
+            req_space_level, 
+            req_attention, 
+            personality_mapped,
+            3000 // default est_monthly_cost
+        ]);
+
+        // อัปเดต role ของผู้ใช้ให้เป็น 'poster' หากผู้ใช้ยังเป็น 'user' ธรรมดาอยู่
+        await pool.query(`
+            UPDATE users 
+            SET role = 'poster' 
+            WHERE user_id = ? AND role = 'user'
+        `, [userId]);
+
+        return res.status(201).json({
+            success: true,
+            message: 'บันทึกข้อมูลแมวสำเร็จ',
+            catId: result.insertId
+        });
+
+    } catch (error) {
+        console.error('createCat error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'ไม่สามารถบันทึกข้อมูลแมวได้'
+        });
+    }
+}
+
+async function getCatsByPosterId(req, res) {
+    try {
+        const posterId = req.params.id;
+        const [rows] = await pool.query(`
+            SELECT
+                c.cat_id,
+                c.pet_name,
+                c.pet_breed,
+                c.gender,
+                c.age_months,
+                c.status,
+                c.created_at,
+                (
+                    SELECT cp.image_url
+                    FROM catphotos AS cp
+                    WHERE cp.cat_id = c.cat_id
+                    ORDER BY cp.photo_id ASC
+                    LIMIT 1
+                ) AS image_url
+            FROM cats AS c
+            WHERE c.poster_id = ?
+            ORDER BY c.created_at DESC
+        `, [posterId]);
+
+        return res.status(200).json({
+            success: true,
+            count: rows.length,
+            data: rows,
+        });
+    } catch (error) {
+        console.error('getCatsByPosterId error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'ไม่สามารถดึงข้อมูลประวัติการโพสต์ได้'
+        });
+    }
+}
+
 module.exports = {
     getAllCats,
-    getCatById
-}
+    getCatById,
+    createCat,
+    getCatsByPosterId
+};
 

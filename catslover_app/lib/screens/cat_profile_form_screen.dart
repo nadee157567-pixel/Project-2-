@@ -5,7 +5,9 @@ import 'package:http/http.dart' as http;
 
 class CatProfileFormScreen extends StatefulWidget {
   final int userId;
-  const CatProfileFormScreen({super.key, required this.userId});
+  final Map<String, dynamic>? editCatData;
+
+  const CatProfileFormScreen({super.key, required this.userId, this.editCatData});
 
   @override
   State<CatProfileFormScreen> createState() => _CatProfileFormScreenState();
@@ -33,9 +35,9 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
   final List<String> catAgeRanges = [
     "ต่ำกว่า 2 เดือน (ยังไม่หย่านม)",
     "2 - 6 เดือน (ลูกแมว)",
-    "6 เดือน - 1 ปี (แมววัยรุ่น)",
-    "1 - 7 ปี (แมวโตเต็มวัย)",
-    "7 ปีขึ้นไป (แมวสูงวัย)"
+    "มากกว่า 6 เดือน - 1 ปี (แมววัยรุ่น)",
+    "มากกว่า 1 ปี - 7 ปี (แมวโตเต็มวัย)",
+    "มากกว่า 7 ปี (แมวสูงวัย)"
   ];
 
   // ==============================
@@ -46,6 +48,40 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
   String? requiredOtherPets;
   bool okWithCat = false; 
   bool okWithDog = false; 
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.editCatData != null) {
+      final data = widget.editCatData!;
+      _catNameController.text = data['pet_name'] ?? '';
+      _healthDetailsController.text = data['health_details'] ?? '';
+      
+      if (catBreeds.contains(data['pet_breed'])) {
+        selectedBreed = data['pet_breed'];
+      }
+
+      selectedGender = data['gender'] == 'male' ? 'ผู้' : 'เมีย';
+      
+      int age = data['age_months'] ?? 12;
+      if (age < 2) selectedAge = catAgeRanges[0];
+      else if (age <= 6) selectedAge = catAgeRanges[1];
+      else if (age <= 12) selectedAge = catAgeRanges[2];
+      else if (age <= 84) selectedAge = catAgeRanges[3];
+      else selectedAge = catAgeRanges[4];
+
+      sterilizationStatus = data['is_spayed_neutered'] == 1 ? 'ทำหมันแล้ว' : 'ยังไม่ทำหมัน';
+      vaccinationStatus = data['is_vaccinated'] == 1 ? 'รับวัคซีนครบแล้ว' : 'ยังไม่รับวัคซีน';
+      
+      requiredHousing = data['living_space_type'];
+      requiredTime = data['daily_free_hours'];
+      requiredOtherPets = data['has_other_pets'];
+      if (requiredOtherPets == 'เลี้ยงรวมกับสัตว์อื่นได้') {
+        okWithCat = true;
+        okWithDog = true;
+      }
+    }
+  } 
 
   void _nextPage() {
     setState(() => _currentPage = 1);
@@ -74,13 +110,20 @@ Future<void> _submitCatPost() async {
     try {
       print("กำลังส่งข้อมูลไปยัง Backend: $catData");
       
-      // 2. ยิง API (POST) ไปที่ Backend
-      // ⚠️ ข้อควรระวัง: ถ้าใช้ Android Emulator ให้ใช้ IP 10.0.2.2 แทน localhost
-      final response = await http.post(
-        Uri.parse('http://10.0.2.2:3000/api/cats'), // เปลี่ยน URL และ Port ให้ตรงกับ Backend ของคุณ
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(catData),
-      );
+      http.Response response;
+      if (widget.editCatData != null) {
+        response = await http.put(
+          Uri.parse('http://10.0.2.2:3000/api/cats/${widget.editCatData!['cat_id']}'),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(catData),
+        );
+      } else {
+        response = await http.post(
+          Uri.parse('http://10.0.2.2:3000/api/cats'),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(catData),
+        );
+      }
 
       // 3. เช็กผลลัพธ์ ถ้าเซิร์ฟเวอร์ตอบกลับว่าสำเร็จ (200 หรือ 201)
       if (response.statusCode == 200 || response.statusCode == 201) {

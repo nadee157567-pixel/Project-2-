@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'cat_profile_form_screen.dart';
 import 'cat_detail_screen.dart';
+import 'user_profile_screen.dart';
+import 'cat_adopters_list_screen.dart';
 
 class PosterDashboardScreen extends StatefulWidget {
   final int userId;
@@ -77,14 +79,24 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                       // Profile Header
                       Row(
                         children: [
-                          Container(
-                            width: 70,
-                            height: 70,
-                            decoration: BoxDecoration(
-                              color: Colors.indigo[200],
-                              shape: BoxShape.circle,
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => UserProfileScreen(userId: widget.userId),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: 70,
+                              height: 70,
+                              decoration: BoxDecoration(
+                                color: Colors.indigo[200],
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.person, size: 40, color: Colors.white),
                             ),
-                            child: const Icon(Icons.person, size: 40, color: Colors.white),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -235,11 +247,14 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 0.75, // Adjust for image + text
+        childAspectRatio: 0.6, // Adjusted for second button
       ),
       itemCount: cats.length,
       itemBuilder: (context, index) {
-        final cat = cats[index];
+        // Create a modifiable copy of the cat data and ensure poster_id is set
+        final Map<String, dynamic> cat = Map<String, dynamic>.from(cats[index]);
+        cat['poster_id'] = widget.userId;
+        
         return GestureDetector(
           onTap: () {
             Navigator.push(
@@ -295,7 +310,7 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                 ),
               ),
               const SizedBox(height: 4),
-              // Action Button Placeholder
+              // Details Button
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 4),
@@ -309,6 +324,36 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                     Text("รายละเอียด", style: TextStyle(color: Colors.white, fontSize: 10)),
                     Icon(Icons.arrow_right, color: Colors.white, size: 14),
                   ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Adopters Button
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CatAdoptersListScreen(
+                        catId: int.tryParse(cat['cat_id'].toString()) ?? 0, 
+                        catName: cat['pet_name'].toString(),
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.pink[400],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Text("ดูผู้ขอรับเลี้ยง", style: TextStyle(color: Colors.white, fontSize: 10)),
+                      Icon(Icons.group, color: Colors.white, size: 14),
+                    ],
+                  ),
                 ),
               ),
             ],

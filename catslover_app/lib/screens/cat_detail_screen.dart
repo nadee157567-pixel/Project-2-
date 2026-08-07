@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'adopter_profile_screen.dart';
 import 'cat_evaluation_screen.dart';
+import 'cat_profile_form_screen.dart';
+import 'poster_profile_screen.dart';
 
 class CatDetailScreen extends StatefulWidget {
   final int userId;
@@ -24,7 +26,7 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
       MaterialPageRoute(
         builder: (context) => EvaluationScreen(
           userId: widget.userId,
-          catId: widget.catData['cat_id'],
+          catId: int.tryParse(widget.catData['cat_id'].toString()) ?? 0,
           catImageUrl: widget.catData['image_url'] ?? '',
         ),
       ),
@@ -181,52 +183,73 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                 ),
                 
                 // 4. Poster Profile mini
-                Padding(
-                  padding: const EdgeInsets.only(right: 20, top: 10),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: GestureDetector(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('ระบบโปรไฟล์ผู้โพสต์จะเปิดให้บริการเร็วๆ นี้')),
-                        );
-                      },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.indigo[100],
-                              shape: BoxShape.circle,
+                if (cat['poster_id'].toString() != widget.userId.toString())
+                  Padding(
+                    padding: const EdgeInsets.only(right: 20, top: 10),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PosterProfileScreen(
+                                posterId: int.tryParse(cat['poster_id'].toString()) ?? 0,
+                                currentUserId: widget.userId,
+                              ),
                             ),
-                            child: const Icon(Icons.person, size: 16, color: Colors.indigo),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "ดูโปรไฟล์ผู้โพสต์",
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12, decoration: TextDecoration.underline),
-                          )
-                        ],
+                          );
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.indigo[100],
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.person, size: 16, color: Colors.indigo),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "ดูโปรไฟล์ผู้โพสต์",
+                              style: TextStyle(color: Colors.grey[600], fontSize: 12, decoration: TextDecoration.underline),
+                            )
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
                 
                 const SizedBox(height: 100), // Space for bottom button
               ],
             ),
           ),
           
-          // 5. Evaluate Button (Bottom Fixed)
+          // 5. Evaluate / Edit Button (Bottom Fixed)
           Positioned(
             bottom: 30,
             left: 40,
             right: 40,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleEvaluationClick,
+              onPressed: _isLoading ? null : () {
+                if (cat['poster_id'].toString() == widget.userId.toString()) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CatProfileFormScreen(
+                        userId: widget.userId,
+                        editCatData: cat,
+                      ),
+                    ),
+                  );
+                } else {
+                  _handleEvaluationClick();
+                }
+              },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFB6B6), // Light red/pink
+                backgroundColor: cat['poster_id'].toString() == widget.userId.toString() ? Colors.orange : const Color(0xFFFFB6B6),
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 elevation: 5,
@@ -234,9 +257,9 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
               ),
               child: _isLoading 
                 ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text(
-                    "ประเมินความเหมาะสมกับคุณ",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                : Text(
+                    cat['poster_id'].toString() == widget.userId.toString() ? "แก้ไขข้อมูลแมว" : "ประเมินความเหมาะสมกับคุณ",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: cat['poster_id'].toString() == widget.userId.toString() ? Colors.white : Colors.black87),
                   ),
             ),
           ),

@@ -42,9 +42,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         final userId = data['userId'];
         if (!mounted) return;
-        Navigator.pushReplacement(
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => HomeScreen(userId: userId)),
+          (route) => false,
         );
       } else {
         if (!mounted) return;

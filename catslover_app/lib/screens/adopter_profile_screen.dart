@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'cat_evaluation_screen.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'user_profile_screen.dart';
 
 class AdopterProfileScreen extends StatefulWidget {
   final int userId;
@@ -54,11 +55,13 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
             housingType = 'บ้านเดี่ยว';
           }
 
-          hasPets = profile['has_other_pets'] == 1 ? 'มี' : 'ไม่มี';
+          int hasOtherPets = profile['has_other_pets'] is int ? profile['has_other_pets'] : int.tryParse(profile['has_other_pets']?.toString() ?? '0') ?? 0;
+          hasPets = hasOtherPets == 1 ? 'มี' : 'ไม่มี';
 
-          if (profile['daily_free_hours'] <= 2) {
+          int dailyHours = profile['daily_free_hours'] is int ? profile['daily_free_hours'] : int.tryParse(profile['daily_free_hours']?.toString() ?? '0') ?? 0;
+          if (dailyHours <= 2) {
             freeTime = 'น้อย';
-          } else if (profile['daily_free_hours'] >= 6) {
+          } else if (dailyHours >= 6) {
             freeTime = 'มาก';
           } else {
             freeTime = 'ปานกลาง';
@@ -72,11 +75,18 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
             experience = 'มือใหม่';
           }
 
-          hasChildren = profile['has_children'] == 1 ? 'มี' : 'ไม่มี';
+          int hasChild = profile['has_children'] is int ? profile['has_children'] : int.tryParse(profile['has_children']?.toString() ?? '0') ?? 0;
+          hasChildren = hasChild == 1 ? 'มี' : 'ไม่มี';
 
-          if (profile['max_monthly_budget'] <= 1000) {
+          double maxBudget = profile['max_monthly_budget'] is double 
+              ? profile['max_monthly_budget'] 
+              : (profile['max_monthly_budget'] is int 
+                  ? profile['max_monthly_budget'].toDouble() 
+                  : double.tryParse(profile['max_monthly_budget']?.toString() ?? '0') ?? 0.0);
+
+          if (maxBudget <= 1000) {
             budget = 'น้อย';
-          } else if (profile['max_monthly_budget'] >= 5000) {
+          } else if (maxBudget >= 5000) {
             budget = 'มาก';
           } else {
             budget = 'ปานกลาง';
@@ -232,14 +242,24 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.brown[300],
-                    shape: BoxShape.circle,
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => UserProfileScreen(userId: widget.userId),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.brown[300],
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person, color: Colors.white, size: 30),
                   ),
-                  child: const Icon(Icons.person, color: Colors.white, size: 30),
                 )
               ],
             ),

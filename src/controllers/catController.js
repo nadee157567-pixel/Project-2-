@@ -63,10 +63,15 @@ async function getCatById(req, res){
                 c.*,
                 u.fullname AS poster_name,
                 u.phonenumber AS poster_phone,
-                u.line_id As poster_line_id
+                u.line_id As poster_line_id,
+                ac.living_space_type,
+                ac.daily_free_hours,
+                ac.has_other_pets
             FROM cats AS c
             JOIN users AS u
               ON c.poster_id = u.user_id
+            LEFT JOIN adoptionconditions AS ac
+              ON c.cat_id = ac.cat_id
             WHERE c.cat_id = ?`,[catId]);
 
         if (cats.length === 0) {
@@ -135,9 +140,9 @@ async function createCat(req, res) {
         let age_months = 12; // default
         if (ageRange === 'ต่ำกว่า 2 เดือน (ยังไม่หย่านม)') age_months = 1;
         else if (ageRange === '2 - 6 เดือน (ลูกแมว)') age_months = 4;
-        else if (ageRange === '6 เดือน - 1 ปี (แมววัยรุ่น)') age_months = 9;
-        else if (ageRange === '1 - 7 ปี (แมวโตเต็มวัย)') age_months = 36;
-        else if (ageRange === '7 ปีขึ้นไป (แมวสูงวัย)') age_months = 96;
+        else if (ageRange === 'มากกว่า 6 เดือน - 1 ปี (แมววัยรุ่น)') age_months = 9;
+        else if (ageRange === 'มากกว่า 1 ปี - 7 ปี (แมวโตเต็มวัย)') age_months = 36;
+        else if (ageRange === 'มากกว่า 7 ปี (แมวสูงวัย)') age_months = 96;
 
         let req_space_level = 'medium';
         if (reqHousing === 'พื้นที่โล่งกว้างๆ') req_space_level = 'large';
@@ -200,8 +205,14 @@ async function getCatsByPosterId(req, res) {
                 c.pet_breed,
                 c.gender,
                 c.age_months,
+                c.personality,
+                c.health_note,
+                c.req_space_level,
+                c.req_attention,
                 c.status,
+                c.est_monthly_cost,
                 c.created_at,
+                c.poster_id,
                 (
                     SELECT cp.image_url
                     FROM catphotos AS cp
@@ -228,10 +239,67 @@ async function getCatsByPosterId(req, res) {
     }
 }
 
+async function updateCat(req, res) {
+    try {
+        const catId = req.params.id;
+        const {
+            name,
+            breed,
+            gender,
+            ageRange,
+            sterilization,
+            vaccination,
+            healthDetails,
+            reqHousing,
+            reqTime,
+            reqOtherPets
+        } = req.body;
+
+        const pet_gender = gender === 'ผู้' ? 'male' : 'female';
+        
+        let age_months = 12; // default
+        if (ageRange === 'ต่ำกว่า 2 เดือน (ยังไม่หย่านม)') age_months = 1;
+        else if (ageRange === '2 - 6 เดือน (ลูกแมว)') age_months = 4;
+        else if (ageRange === 'มากกว่า 6 เดือน - 1 ปี (แมววัยรุ่น)') age_months = 9;
+        else if (ageRange === 'มากกว่า 1 ปี - 7 ปี (แมวโตเต็มวัย)') age_months = 36;
+        else if (ageRange === 'มากกว่า 7 ปี (แมวสูงวัย)') age_months = 96;
+
+        let sterilizationStatus = 0;
+        if (sterilization === 'ทำหมันแล้ว') sterilizationStatus = 1;
+        
+        let vaccinationStatus = 0;
+        if (vaccination === 'รับวัคซีนครบแล้ว') vaccinationStatus = 1;
+
+        await pool.query(
+            `UPDATE cats SET 
+                pet_name = ?, pet_breed = ?, gender = ?, age_months = ?,
+                health_details = ?, is_spayed_neutered = ?, is_vaccinated = ?
+             WHERE cat_id = ?`,
+            [name, breed, pet_gender, age_months, healthDetails, sterilizationStatus, vaccinationStatus, catId]
+        );
+
+        await pool.query(
+            `UPDATE adoptionconditions SET
+                living_space_type = ?, daily_free_hours = ?, has_other_pets = ?
+             WHERE cat_id = ?`,
+            [reqHousing, reqTime, reqOtherPets, catId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'อัปเดตข้อมูลแมวสำเร็จ'
+        });
+    } catch (error) {
+        console.error('updateCat error:', error);
+        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลแมว' });
+    }
+}
+
 module.exports = {
     getAllCats,
     getCatById,
     createCat,
-    getCatsByPosterId
+    getCatsByPosterId,
+    updateCat
 };
 

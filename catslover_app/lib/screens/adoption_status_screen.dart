@@ -321,8 +321,8 @@ class AdoptionStatusScreen extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
-                      // กลับไปหน้าแรกสุด (หน้าค้นหาแมว)
-                      Navigator.popUntil(context, (route) => route.isFirst);
+                      // กลับไปหน้าก่อนหน้า (AdoptionRequestsScreen)
+                      Navigator.pop(context);
                     },
                     style: OutlinedButton.styleFrom(
                       backgroundColor: Colors.white,

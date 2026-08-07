@@ -152,6 +152,7 @@ const calculateLevelScore = (
 
     const maxScore = Number(criterion.max_score);
     const scoreRatio = Number(criterion.score_ratio);
+    const isBlocking = Number(criterion.is_blockind) === 1;
 
     return {
         score: maxScore * scoreRatio,
@@ -233,7 +234,7 @@ const calculateBudgetScore =(
         conditionValue = 'ratio_080_099';
     }else if(ratio >= 0.6){
         conditionValue = 'ratio_060_079';
-    }else {conditionValue = 'ratio_080_099';}
+    }else {conditionValue = 'ratio_080_060';}
 
     const criterion = findCriterion(
         criteriaList,
@@ -253,6 +254,7 @@ const calculateBudgetScore =(
 
     const maxScore =Number(criterion.max_score);
     const scoreRatio = Number(criterion.score_ratio);
+    const isBlocking = Number(criterion.is_blockind) === 1;
 
     return{
         score: maxScore * scoreRatio,
@@ -261,7 +263,7 @@ const calculateBudgetScore =(
         ratio,
         valid: true,
         criterion,
-        };
+    };
 
     // // ถ้าแมวยังไม่มีข้อมูลค่าใช้จ่าย ค่าใช้จ่ายเป็น 0 ถือว่างบประมาณเพียงพอ
     // if(cost === 0){
@@ -470,34 +472,6 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
         attentionResult.maxScore +
         experienceResult.maxScore;
 
-    /*
-    * เงื่อนไขไม่ผ่านเบื้องต้น
-    * - พื้นที่ต่ำกว่าความต้องการสองระดับ
-    * - งบประมาณต่ำกว่า 60% ของค่าใช้จ่าย
-    * - เวลาดูแลต่ำกว่าความต้องการสองระดับ
-    */
-    // const disqualifications = [];
-
-    // if (
-    //     spaceResult.valid &&
-    //     spaceResult.difference <= -2
-    // ) {
-    //     disqualifications.push('พื้นที่ไม่เพียงพอต่อความต้องการของแมว');
-    // }
-
-    // if (
-    //     budgetResult.valid &&
-    //     budgetResult.ratio < 0.6
-    // ) {
-    //     disqualifications.push('งบประมาณต่ำกว่าค่าใช้จ่ายขั้นต่ำมากเกินไป');
-    // }
-
-    // if (
-    //     attentionResult.valid &&
-    //     attentionResult.difference <= -2
-    // ) {
-    //     disqualifications.push('ไม่มีเวลาดูแลเพียงพอ');
-    // }
 
     const matchPercentage = totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0;
 
@@ -505,12 +479,6 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
         matchPercentage.toFixed(2)
     );
 
-    return {
-        match_score: Number(totalScore.toFixed(2)),
-        total_max_score: Number(totalMaxScore.toFixed(2)),
-        match_percentage: roundedPercentage,
-        match_level: getMatchLevel(roundedPercentage),
-    }
 
     return {
         cat_id: cat.cat_id,
@@ -588,49 +556,51 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
             },
         },
 
-
-        match_score: totalScore,
-        match_percentage:matchPercentage,
-        match_level: getMatchLevel(matchPercentage),
+        
+        match_score: Number(totalScore.toFixed(2)),
+        total_max_score: Number(totalMaxScore.toFixed(2)),
+        match_percentage: roundedPercentage,
+        match_level: getMatchLevel(roundedPercentage),
 
         eligible: disqualifications.length === 0,
         reasons,
         warnings,
         disqualifications,
+    
     };
 };
 
 const CAT_SELECT_SQL = `
-  SELECT
-    c.cat_id,
-    c.poster_id,
-    c.pet_name,
-    c.pet_breed,
-    c.gender,
-    c.age_months,
-    c.personality,
-    c.health_note,
-    c.req_space_level,
-    c.req_attention,
-    c.req_experience_level,
-    c.est_monthly_cost,
-    c.good_with_children,
-    c.good_with_cats,
-    c.good_with_dogs,
-    c.has_special_needs,
-    c.status,
-    c.created_at,
-    u.fullname AS poster_name,
-    (
-      SELECT cp.image_url
-      FROM catphotos AS cp
-      WHERE cp.cat_id = c.cat_id
-      ORDER BY cp.photo_id ASC
-      LIMIT 1
-    ) AS image_url
-  FROM cats AS c
-  JOIN users AS u
-    ON c.poster_id = u.user_id
+    SELECT
+        c.cat_id,
+        c.poster_id,
+        c.pet_name,
+        c.pet_breed,
+        c.gender,
+        c.age_months,
+        c.personality,
+        c.health_note,
+        c.req_space_level,
+        c.req_attention,
+        c.req_experience_level,
+        c.est_monthly_cost,
+        c.good_with_children,
+        c.good_with_cats,
+        c.good_with_dogs,
+        c.has_special_needs,
+        c.status,
+        c.created_at,
+        u.fullname AS poster_name,
+        (
+            SELECT cp.image_url
+            FROM catphotos AS cp
+            WHERE cp.cat_id = c.cat_id
+            ORDER BY cp.photo_id ASC
+            LIMIT 1
+        ) AS image_url
+    FROM cats AS c
+    JOIN users AS u
+        ON c.poster_id = u.user_id
 `;
 
 
@@ -701,7 +671,6 @@ const validateProfile = (body) =>{
     }
 
 
-
     return{
         errors,
         profile:{
@@ -714,6 +683,21 @@ const validateProfile = (body) =>{
     };
 };
 
+const convertMatchLevelToDatabase = (score) => {
+    if(score >= 80){
+        return 'highly_suitable';
+    }
+
+    if(score >= 60){
+        return 'suitable';
+    }
+
+    if(score >= 40){
+        return 'consider';
+    }
+
+    return 'not_suitable';
+};
 
 //POST /api/matching 
 // ประเมินเฉพาะแมวที่ผู้ใช้เลือก
@@ -830,8 +814,83 @@ const matchSelectedCat = async (req, res) => {
 
         const criteriaByCode = groupCriteriaByCode(criteriaRows);
 
-
         const result = evaluateCat(profile, cats[0], criteriaByCode);
+
+        const applicantId = req.user?.user_id ?? req.body?.applicant_id;
+
+        if(!applicantId){
+            return res.status(400).json({
+                success: false,
+                message: 'ไม่พบ applicant_id',
+            });
+        }
+
+        const [assessmentResult] = await pool.query
+    (
+        `
+        INSERT INTO assessments (
+            applicant_id,
+            cat_id,
+            total_score,
+            match_percentange,
+            suitability_level,
+            eligible,
+            recommendation
+        )
+        VALUES (?,?,?,?,?,?)
+        `,
+        [
+            profile.user_id,
+            catId,
+            result.match_score,
+            result.matchPercentage,
+            convertMatchLevelToDatabase(
+                result.match_percentage
+            ),
+            result.eligible ? 1 : 0,
+            [
+                ...result.reasons,
+                ...result.warnings,
+                ...result.disqualifications,
+            ].join(' | '),
+        ]
+    );
+
+    
+
+    const assessmentId = assessmentResult.insertId;
+
+    await saveAssessmentDetail({
+        assessmentId,
+        detail: result.score_detail.space,
+        applicantValue: profile.space_level,
+        requireValue: cats[0].req_space_level,
+        explanation: 'ผลการเปรียบเทียบด้านพื้นที่'
+    });
+
+    await saveAssessmentDetail({
+        assessmentId,
+        detail: result.score_detail.budget,
+        applicantValue: profile.monthly_budget,
+        requireValue: cats[0].est_monthly_cost,
+        explanation: 'ผลการเปรียบเทียบด้านงบประมาณ'
+    });
+
+    await saveAssessmentDetail({
+        assessmentId,
+        detail: result.score_detail.attention,
+        applicantValue: profile.attention_level,
+        requireValue: cats[0].req_attention,
+        explanation: 'ผลการเปรียบเทียบด้านเวลาการดูแล'
+    });
+
+    await saveAssessmentDetail({
+        assessmentId,
+        detail: result.score_detail.experience,
+        applicantValue: profile.experience_level,
+        requireValue: cats[0].req_experience_level,
+        explanation: 'ผลการเปรียบเทียบด้านประสบการณ์'
+    });
 
         // const matches = cats
         // .map((cat) => evaluateCat(profile, cat))
@@ -861,8 +920,54 @@ const matchSelectedCat = async (req, res) => {
             error: error.message,
         });
     }
+
+    
 };
 
+
+const saveAssessmentDetail = async({
+    assessmentId,
+    detail,
+    applicantValue,
+    requireValue,
+    explanation,
+}) => {
+    if(!detail.criteria_id) {
+        return;
+    }
+
+    await pool.query(
+        `
+        INSERT INTO assessment_details (
+            assessment_id,
+            criteria_id,
+            applicant_value,
+            required_value,
+            weight_used,
+            score_ratio_used,
+            max_score,
+            score_received,
+            stars,
+            passed,
+            explanation
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+            assessmentId,
+            detail.criteria_id,
+            String(applicantValue),
+            String(requireValue),
+            detail.max_score,
+            detail.score_ratio,
+            detail.max_score,
+            detail.score,
+            detail.stars,
+            detail.score > 0 ? 1 :0,
+            explanation,
+        ]
+    );
+};
 
 //POST /api/matching 
 // ประเมินแมวทุกตัวและเรียงตามคะแนนความเหมาะสม

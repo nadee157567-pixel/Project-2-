@@ -152,7 +152,7 @@ const calculateLevelScore = (
 
     const maxScore = Number(criterion.max_score);
     const scoreRatio = Number(criterion.score_ratio);
-    const isBlocking = Number(criterion.is_blockind) === 1;
+    const isBlocking = Number(criterion.is_blocking) === 1;
 
     return {
         score: maxScore * scoreRatio,
@@ -254,7 +254,7 @@ const calculateBudgetScore =(
 
     const maxScore =Number(criterion.max_score);
     const scoreRatio = Number(criterion.score_ratio);
-    const isBlocking = Number(criterion.is_blockind) === 1;
+    const isBlocking = Number(criterion.is_blocking) === 1;
 
     return{
         score: maxScore * scoreRatio,
@@ -456,7 +456,7 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
         warnings.push('ประสบการณ์ต่ำกว่าที่แนะนำเล็กน้อย');
     } else {
         warnings.push('ประสบการณ์ต่ำกว่าที่แมวต้องการมาก');
-        disqualifications.push('ประสบการณ์ไม่เพียงพอต่อการดูแลแมว');
+        if(experienceResult.isBlocking){disqualifications.push('ประสบการณ์ไม่เพียงพอต่อการดูแลแมว');}
     }
 
 
@@ -679,6 +679,7 @@ const validateProfile = (body) =>{
             monthly_budget: Number(monthly_budget),
             attention_level,
             experience_level,
+            ...normalizeBoolean,
         },
     };
 };
@@ -832,15 +833,15 @@ const matchSelectedCat = async (req, res) => {
             applicant_id,
             cat_id,
             total_score,
-            match_percentange,
+            match_percentage,
             suitability_level,
             eligible,
             recommendation
         )
-        VALUES (?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?)
         `,
         [
-            profile.user_id,
+            applicantId,
             catId,
             result.match_score,
             result.matchPercentage,
@@ -963,7 +964,7 @@ const saveAssessmentDetail = async({
             detail.max_score,
             detail.score,
             detail.stars,
-            detail.score > 0 ? 1 :0,
+            detail.passed !== undefined ? (detail.passed ? 1 : 0) : (detail.score > 0 ? 1 : 0),
             explanation,
         ]
     );

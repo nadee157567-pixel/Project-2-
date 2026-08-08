@@ -1,6 +1,42 @@
 const pool = require('../config/database');
 
-// ดึงเกณฑ์จากฐานข้อมูล
+const levelToNumber = (level) => {
+    if(level === undefined || level === null || level === ''){
+        return 0;
+    }
+
+    const normalizedLevel = String(level).trim().toLowerCase();
+
+    const levelMap = {
+        low: 1, small: 1, beginner: 1, เล็ก: 1, น้อย: 1,
+        medium: 2, intermediate: 2, ปานกลาง: 2, กลาง: 2,
+        high: 3, large: 3, experienced: 3, ใหญ่: 3, มาก: 3,
+    };
+
+    return levelMap[normalizedLevel] ?? 0;
+};
+
+const normalizeBoolean = (value) => {
+    if (typeof value === 'boolean') return value;
+    if (value === 1 || value === '1' || value === 'true') return true;
+    if (value === 0 || value === '0' || value === 'false') return false;
+    return null;
+};
+
+const mysqlBoolean = (value) => Number(value) === 1;
+
+// ดึงเกณฑ์จากฐานข้อมูล (แบบ api)
+const getActiveCriteria = async () => {
+    const [rows] = await pool.query(`
+        SELECT criteria_id, criteria_code, criteria_name, profile_field, condition_value, criteria_type, comparison_type, score_ratio, max_score, is_blocking
+        FROM evaluation_criteria
+        WHERE is_active = 1
+        ORDER BY criteria_code, criteria_id
+    `);
+    return rows;
+};
+
+// ดึงเกณฑ์จากฐานข้อมูล (แบบ main ที่ใช้งานกับระบบเก่า)
 const getCriteria = async () => {
     const [rows] = await pool.query(`SELECT criteria_id, profile_field, condition_value, scoreweight FROM evaluation_criteria`);
     const criteria = {};
@@ -10,21 +46,50 @@ const getCriteria = async () => {
             id: row.criteria_id,
             weight: row.scoreweight
         };
-นี่คือโค้ดสำหรับ `matchingController.js` ที่แก้ Conflict ทั้งหมดและรวมการทำงานของ `api` กับ `main` ตามที่คุณต้องการแล้วครับ
+    });
+    return criteria;
+};
 
-**การแก้ไขที่เกิดขึ้น:**
-1. **เก็บฟังก์ชันตัวช่วยขั้นสูงทั้งหมด** จากฝั่ง `api` (เช่น `evaluateCat`, `calculateBudgetScore` ฯลฯ) เอาไว้เพื่อให้สามารถใช้ในฟีเจอร์อื่นๆ ได้อย่างครบถ้วน
-2. **สำหรับ `matchSelectedCat`:** ฝั่ง `api` มีระบบเขียนลงตาราง Detail ซ้ำซ้อนและขาดตัวแปรบางตัว ผมจึง **ยึดการทำงานจาก `main` เป็นหลัก** เพราะส่งค่ากลับไปตรงกับที่แอป (Frontend) ใช้งานอยู่ แต่ดึงเอา "กฎห้ามเจ้าของแมวประเมินแมวตัวเอง" จากฝั่ง `api` มาเสริมให้สมบูรณ์
-3. **สำหรับ `matchAllCats`:** ยึดของ `api` ทั้งหมด เพราะฝั่ง `main` ยังไม่ได้พัฒนา (Not implemented)
+const groupCriteriaByCode = (criteriaRows) => {
+    return criteriaRows.reduce((grouped, item) => {
+        const code = item.criteria_code.toUpperCase();
+        if(!grouped[code]) { grouped[code] = []; }
+        grouped[code].push(item);
+        return grouped;
+    }, {});
+};
 
-คุณสามารถ **คัดลอกโค้ดด้านล่างนี้ ไปวางทับตั้งแต่บรรทัด `<<<<<<< api` บนสุด ยาวไปจนถึงบรรทัด `>>>>>>> main` ล่างสุด** ได้เลยครับ:
+const findCriterion = (criteriaList, conditionValue) => {
+    return criteriaList.find((item) => item.condition_value === conditionValue);
+};
 
-```javascript
+const calculateLevelScore = (userLevel, requireLevel, criteriaList) => {
+    const userValue = levelToNumber(userLevel);
+    const requireValue = levelToNumber(requireLevel);
+
+    if(userValue === 0 || requireValue === 0){
+        return { score: 0, maxScore: 0, scoreRatio: 0, difference: null, valid: false, criterion: null };
+    }
+
+    const difference = userValue - requireValue;
+    let conditionValue;
+
+    if(difference >= 0){
+        conditionValue = 'equal_or_higher';
+    }else if (difference === -1) {
+        conditionValue = 'lower_one_level';
+    }else {
+        conditionValue = 'lower_two_levels';
+    }
+
+    const criterion = findCriterion(criteriaList, conditionValue);
+
+    if(!criterion) {
+        return { score: 0, maxScore: 0, scoreRatio: 0, difference, valid: false, criterion: null };
     }
 
     const maxScore = Number(criterion.max_score);
     const scoreRatio = Number(criterion.score_ratio);
-    const isBlocking = Number(criterion.is_blocking) === 1;
 
     return {
         score: maxScore * scoreRatio,
@@ -34,23 +99,11 @@ const getCriteria = async () => {
         valid: true,
         criterion,
     };
-}; 
+};
 
-// === ฟังก์ชัน Helper สำหรับการประเมินจากฝั่ง api ===
-
-const calculateBudgetScore =(
-    monthlyBudget,
-    estimatedMonthlyCost,
-    criteriaList
-) => {
-    if (
-        monthlyBudget === undefined ||
-        monthlyBudget === null ||
-        monthlyBudget === '' ||
-        estimatedMonthlyCost === undefined ||
-        estimatedMonthlyCost === null ||
-        estimatedMonthlyCost === ''
-    ) {
+const calculateBudgetScore =(monthlyBudget, estimatedMonthlyCost, criteriaList) => {
+    if (monthlyBudget === undefined || monthlyBudget === null || monthlyBudget === '' ||
+        estimatedMonthlyCost === undefined || estimatedMonthlyCost === null || estimatedMonthlyCost === '') {
         return { score: 0, maxScore: 0, scoreRatio: 0, ratio: 0, valid: false, criterion: null };
     }
 
@@ -64,13 +117,10 @@ const calculateBudgetScore =(
     const ratio = cost === 0 ? 1 : budget / cost;
     let conditionValue;
 
-    if(ratio >= 1){
-        conditionValue = 'ratio_gte_1';
-    }else if(ratio >= 0.8){
-        conditionValue = 'ratio_080_099';
-    }else if(ratio >= 0.6){
-        conditionValue = 'ratio_060_079';
-    }else { conditionValue = 'ratio_080_060'; }
+    if(ratio >= 1) conditionValue = 'ratio_gte_1';
+    else if(ratio >= 0.8) conditionValue = 'ratio_080_099';
+    else if(ratio >= 0.6) conditionValue = 'ratio_060_079';
+    else conditionValue = 'ratio_080_060';
 
     const criterion = findCriterion(criteriaList, conditionValue);
 
@@ -81,14 +131,7 @@ const calculateBudgetScore =(
     const maxScore = Number(criterion.max_score);
     const scoreRatio = Number(criterion.score_ratio);
 
-    return{
-        score: maxScore * scoreRatio,
-        maxScore,
-        scoreRatio,
-        ratio,
-        valid: true,
-        criterion,
-    };
+    return { score: maxScore * scoreRatio, maxScore, scoreRatio, ratio, valid: true, criterion };
 };
 
 const scoreToStars = (score, maxScore ) => {
@@ -139,7 +182,7 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
     if (!experienceResult.valid) warnings.push('ข้อมูลประสบการณ์ของแมวหรือผู้รับเลี้ยงไม่สมบูรณ์');
     else if (experienceResult.difference >= 0) reasons.push('ผู้รับเลี้ยงมีประสบการณ์เหมาะสม');
     else if (experienceResult.difference === -1) warnings.push('ประสบการณ์ต่ำกว่าที่แนะนำเล็กน้อย');
-    else { warnings.push('ประสบการณ์ต่ำกว่าที่แมวต้องการมาก'); if(experienceResult.isBlocking) disqualifications.push('ประสบการณ์ไม่เพียงพอต่อการดูแลแมว'); }
+    else { warnings.push('ประสบการณ์ต่ำกว่าที่แมวต้องการมาก'); if(experienceResult.criterion?.is_blocking) disqualifications.push('ประสบการณ์ไม่เพียงพอต่อการดูแลแมว'); }
 
     const totalScore = spaceResult.score + budgetResult.score + attentionResult.score + experienceResult.score;
     const totalMaxScore = spaceResult.maxScore + budgetResult.maxScore + attentionResult.maxScore + experienceResult.maxScore;
@@ -196,7 +239,7 @@ const CAT_SELECT_SQL = `
     JOIN users AS u ON c.poster_id = u.user_id
 `;
 
-const validateProfile = (body) =>{
+const validateProfile = (body) => {
     const{ housing_type, space_level, monthly_budget, attention_level, experience_level } = body;
     const errors = [];
     if(!space_level){ errors.push('กรุณาระบุระดับพื้นที่'); } else if(levelToNumber(space_level) === 0){ errors.push('ระดับพื้นที่ไม่ถูกต้อง'); }
@@ -234,9 +277,17 @@ const convertMatchLevelToDatabase = (score) => {
     return 'not_suitable';
 };
 
-// === ปิดท้ายฟังก์ชัน getCriteria จากฝั่ง main ===
-    });
-    return criteria;
+const saveAssessmentDetail = async({
+    assessmentId, detail, applicantValue, requireValue, explanation
+}) => {
+    if(!detail.criteria_id) return;
+    await pool.query(`
+        INSERT INTO assessment_details (
+            assessment_id, criteria_id, applicant_value, required_value, weight_used, score_ratio_used, max_score, score_received, stars, passed, explanation
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+        assessmentId, detail.criteria_id, String(applicantValue), String(requireValue), detail.max_score, detail.score_ratio, detail.max_score, detail.score, detail.stars, detail.passed !== undefined ? (detail.passed ? 1 : 0) : (detail.score > 0 ? 1 : 0), explanation,
+    ]);
 };
 
 
@@ -273,7 +324,7 @@ const matchSelectedCat = async (req, res) => {
             });
         }
 
-        // 3. Get Criteria
+        // 3. Get Criteria (แบบเก่า จากฝั่ง main เพื่อใช้คำนวณ)
         const criteria = await getCriteria();
         let totalScore = 0;
         const details = [];
@@ -358,11 +409,10 @@ const matchSelectedCat = async (req, res) => {
     }
 };
 
-
 // === matchAllCats คงฟังก์ชันของ api ไว้ใช้งาน ===
 const matchAllCats = async (req, res) => {
-    try{
-        const{errors,profile} = validateProfile(req.body);
+    try {
+        const { errors, profile } = validateProfile(req.body);
 
         if(errors.length > 0){
             return res.status(400).json({
@@ -401,7 +451,7 @@ const matchAllCats = async (req, res) => {
         const criteriaByCode = groupCriteriaByCode(criteriaRows);
 
         const matches = cats
-            .map((cat) => evaluateCat(profile, cat))
+            .map((cat) => evaluateCat(profile, cat, criteriaByCode))
             .sort((firstCat, secondCat) => {
                 if(firstCat.eligible !== secondCat.eligible){
                     return firstCat.eligible ? -1 : 1;
@@ -419,9 +469,8 @@ const matchAllCats = async (req, res) => {
             count: matches.length,
             data: matches,
         });
-    }catch (error){
+    } catch (error){
         console.error('Matching all cats error:', error);
-    
         return res.status(500).json({
             success: false,
             message: 'เกิดข้อผิดพลาดในการประเมินความเหมาะสม',

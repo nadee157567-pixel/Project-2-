@@ -826,6 +826,13 @@ const matchSelectedCat = async (req, res) => {
             });
         }
 
+        if (Number(applicantId) === Number(cats[0].poster_id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'เจ้าของแมวไม่สามารถทำแบบประเมินแมวของตนเองได้',
+            });
+        }
+
         const [assessmentResult] = await pool.query
     (
         `
@@ -984,11 +991,22 @@ const matchAllCats = async (req, res) => {
             });
         }
 
-        const [cats] = await pool.query(`   
+        const applicantId = req.user?.user_id ?? req.body?.applicant_id;
+
+        let query = `   
             ${CAT_SELECT_SQL}
             WHERE c.status = 'available'
-            ORDER BY c.created_at DESC
-        `);
+        `;
+        const queryParams = [];
+
+        if (applicantId) {
+            query += ` AND c.poster_id != ?`;
+            queryParams.push(applicantId);
+        }
+
+        query += ` ORDER BY c.created_at DESC`;
+
+        const [cats] = await pool.query(query, queryParams);
 
         const criteriaRows = await getActiveCriteria();
 

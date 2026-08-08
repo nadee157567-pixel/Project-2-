@@ -1,10 +1,12 @@
 const express = require('express');
-const { createAdopterProfile, getAdopterProfile, getAdopterProfileDetails } = require('../controllers/adopterController');
+const verifyToken = require('../middleware/authMiddleware');
+const { createAdopterProfile, getAdopterProfile, getAdopterProfileDetails, updateAdopterProfile } = require('../controllers/adopterController');
 
 const router = express.Router();
 
-router.post('/', createAdopterProfile);
-router.get('/user/:userId', getAdopterProfile);
-router.get('/profile/:userId', getAdopterProfileDetails);
+router.post('/', verifyToken, createAdopterProfile);
+router.get('/user/:userId', verifyToken, getAdopterProfile);
+router.get('/profile/:userId', verifyToken, getAdopterProfileDetails);
+router.put('/profile/:id', verifyToken, updateAdopterProfile);
 
 module.exports = router;

@@ -1,0 +1,87 @@
+### =====================================
+### 1. 🔑 ระบบสมาชิก (Auth)
+### =====================================
+
+### 1.1 สมัครสมาชิก (Signup)
+POST http://localhost:3000/api/auth/signup
+Content-Type: application/json
+
+{
+    "username": "testuser",
+    "email": "testuser@example.com",
+    "password": "password123",
+    "phone": "0812345678"
+}
+
+### 1.2 เข้าสู่ระบบ (Login)
+# ⚠️ ก๊อปปี้ "token" ที่ได้จาก Response ตรงนี้เอาไปใช้ในขั้นตอนต่อไป
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+    "username": "testuser",
+    "password": "password123"
+}
+
+### =====================================
+### 2. 👤 ระบบโปรไฟล์ (Adopter Profiles)
+### =====================================
+
+### 2.1 อัปเดต/สร้างข้อมูลความพร้อมของผู้รับเลี้ยง (ต้องแนบ Token)
+@token = ใส่_TOKEN_ที่ได้จาก_LOGIN_ตรงนี้
+POST http://localhost:3000/api/adopters
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "userId": 1,
+    "housing_type": "house",
+    "space_level": "medium",
+    "monthly_budget": 5000,
+    "attention_level": "medium",
+    "experience_level": "beginner",
+    "pets_allowed": true,
+    "has_children": false,
+    "has_cats": false,
+    "has_dogs": false,
+    "has_severe_allergy": false,
+    "accepts_special_needs": false
+}
+
+### =====================================
+### 3. 🐱 ระบบโพสต์แมว (Cats)
+### =====================================
+
+### 3.1 สร้างโพสต์หาบ้านให้แมว (ต้องแนบ Token)
+POST http://localhost:3000/api/cats
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "poster_id": 1,
+    "pet_name": "มีมี่",
+    "pet_breed": "สลิด",
+    "gender": "female",
+    "age_months": 5,
+    "req_space_level": "small",
+    "req_attention": "medium"
+}
+
+### 3.2 เรียกดูแมวทั้งหมด (ไม่ต้องใช้ Token)
+GET http://localhost:3000/api/cats
+
+### =====================================
+### 4. 💖 ระบบประเมิน (Matching)
+### =====================================
+
+### 4.1 ประเมินแมวทั้งหมด 
+POST http://localhost:3000/api/matching/all
+Content-Type: application/json
+
+{
+    "housing_type": "house",
+    "space_level": "medium",
+    "monthly_budget": 5000,
+    "attention_level": "medium",
+    "experience_level": "beginner"
+}

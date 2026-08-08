@@ -13,7 +13,7 @@ CREATE TABLE users (
     username VARCHAR(50) NOT NULL UNIQUE,
 	phonenumber VARCHAR(15),
     line_id VARCHAR(50),
-    role ENUM('user','poster','admin') NOT NULL ,
+    role ENUM('user','admin') NOT NULL ,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const http = require('http');
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 
 const app = require('./src/app');
 const pool = require('./src/config/database');
@@ -18,8 +19,25 @@ const io = new Server(server, {
   }
 });
 
+// Middleware สำหรับเช็ค JWT ใน Socket.io
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.split(' ')[1];
+  
+  if (!token) {
+    return next(new Error('Authentication error: Token is required'));
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = decoded; // เก็บข้อมูลผู้ใช้ไว้ใช้ต่อ
+    next();
+  } catch (error) {
+    return next(new Error('Authentication error: Invalid or expired token'));
+  }
+});
+
 io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
+  console.log(`User connected: ${socket.user.username} (Socket ID: ${socket.id})`);
 
   // เมื่อผู้ใช้เข้าสู่ห้องแชท
   socket.on('join_room', (roomId) => {

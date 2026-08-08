@@ -127,8 +127,43 @@ async function getAdopterProfileDetails(req, res) {
     }
 }
 
+async function updateAdopterProfile(req, res) {
+    try {
+        const userId = req.params.id;
+        const {
+            living_space_type,
+            space_size,
+            max_monthly_budget,
+            daily_free_hours,
+            has_other_pets,
+            has_children,
+            experience
+        } = req.body;
+
+        const [result] = await pool.query(`
+            UPDATE user_profiles 
+            SET living_space_type = ?, space_size = ?, max_monthly_budget = ?, daily_free_hours = ?, has_other_pets = ?, has_children = ?, experience = ?
+            WHERE user_id = ?
+        `, [living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children, experience, userId]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'ไม่พบโปรไฟล์ผู้รับเลี้ยง' });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'อัปเดตข้อมูลแบบประเมินสำเร็จ'
+        });
+
+    } catch (error) {
+        console.error('updateAdopterProfile error:', error);
+        return res.status(500).json({ success: false, message: 'ไม่สามารถอัปเดตข้อมูลแบบประเมินได้' });
+    }
+}
+
 module.exports = {
     createAdopterProfile,
     getAdopterProfile,
-    getAdopterProfileDetails
+    getAdopterProfileDetails,
+    updateAdopterProfile
 };

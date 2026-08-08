@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'adopter_profile_screen.dart'; 
 import 'adoption_status_screen.dart';
+import 'adoption_requests_screen.dart';
+import '../config/api_config.dart';
 
 class EvaluationScreen extends StatefulWidget {
   final int userId;
@@ -37,12 +39,12 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
     setState(() => isLoading = true);
     
     try {
-      final url = Uri.parse('http://10.0.2.2:3000/api/evaluate/${widget.userId}/${widget.catId}');
+      final url = Uri.parse(ApiConfig.baseUrl + '/evaluate/${widget.userId}/${widget.catId}');
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
-        if (jsonResponse['success']) {
+        if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
           setState(() {
             evaluationResult = jsonResponse['data'];
             isEvaluated = true;
@@ -213,7 +215,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                if (canAdopt && !EvaluationScreen.requestedCats.contains(widget.catId))
+                if (canAdopt && !requestedCats.contains(widget.catId))
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -222,59 +224,87 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                       ),
-                      onPressed: () {
-                        // เพิ่ม ID แมวเข้าไปใน Set ว่ากดขอรับเลี้ยงไปแล้ว
-                        EvaluationScreen.requestedCats.add(widget.catId);
-                        setState(() {}); // อัพเดต UI ทันที
-                        // ปิด dialog หรืออื่นๆ
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (context) => AlertDialog(
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            title: const Row(
-                              children: [
-                                Icon(Icons.check_circle, color: Colors.green),
-                                SizedBox(width: 10),
-                                Text("ส่งคำขอสำเร็จ!", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                              ],
-                            ),
-                            content: const Text("คำขอรับเลี้ยงของคุณได้ถูกส่งไปยังผู้โพสต์เรียบร้อยแล้ว"),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.pop(context); // ปิด Dialog
-                                  Navigator.pop(context); // กลับไปหน้า Cat Detail หรือ Home
-                                },
-                                child: const Text("กลับหน้าหลัก", style: TextStyle(color: Colors.grey)),
-                              ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(context); // ปิด Dialog
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => AdoptionStatusScreen(
-                                        evaluationResult: evaluationResult!,
-                                        catImageUrl: widget.catImageUrl,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.pink[400],
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      onPressed: () async {
+                        try {
+                          final response = await http.post(
+                            Uri.parse(ApiConfig.baseUrl + '/adoption/request'),
+                            headers: {"Content-Type": "application/json"},
+                            body: jsonEncode({
+                              "catId": widget.catId,
+                              "applicantId": widget.userId,
+                              "matchscore": evaluationResult?['matchPercent'] ?? 0,
+                              "uploadRemark": "ยื่นคำขอผ่านระบบจับคู่แมว"
+                            }),
+                          );
+
+                          if (response.statusCode == 201) {
+                            setState(() {
+                              requestedCats.add(widget.catId);
+                            });
+
+                            if (!mounted) return;
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (context) => AlertDialog(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                title: const Row(
+                                  children: [
+                                    Icon(Icons.check_circle, color: Colors.green),
+                                    SizedBox(width: 10),
+                                    Text("ส่งคำขอสำเร็จ!", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                  ],
                                 ),
-                                child: const Text("เช็คสถานะคำขอ", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                        );
+                                content: const Text("คำขอรับเลี้ยงของคุณได้ถูกส่งไปยังผู้โพสต์เรียบร้อยแล้ว"),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(context); // ปิด Dialog
+                                      Navigator.pop(context); // กลับไปหน้า Cat Detail หรือ Home
+                                    },
+                                    child: const Text("กลับหน้าหลัก", style: TextStyle(color: Colors.grey)),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.pop(context); // ปิด Dialog
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => AdoptionStatusScreen(
+                                            evaluationResult: evaluationResult!,
+                                            catImageUrl: widget.catImageUrl,
+                                            status: 'pending',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.pink[400],
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                    ),
+                                      child: const Text("เช็คสถานะคำขอ", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                          } else {
+                            if (!mounted) return;
+                            final data = jsonDecode(response.body);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(data['message'] ?? 'เกิดข้อผิดพลาดในการส่งคำขอ')),
+                            );
+                          }
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้')),
+                          );
+                        }
                       },
                       child: const Text('ส่งคำขอรับเลี้ยง', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   )
-                else if (canAdopt && EvaluationScreen.requestedCats.contains(widget.catId))
+                else if (canAdopt && requestedCats.contains(widget.catId))
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

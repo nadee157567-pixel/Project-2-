@@ -1,5 +1,6 @@
 const pool = require('../config/database');
 
+
 //POST /api/applications (ส่งคำร้องขอรับเลี้ยง)
 const createApplication = async (req, res) => {
     // ดึง connection ออกมาใช้งานสำหรับทำ Transaction

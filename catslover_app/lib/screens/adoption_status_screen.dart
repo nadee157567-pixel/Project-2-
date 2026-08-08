@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 class AdoptionStatusScreen extends StatelessWidget {
   final Map<String, dynamic> evaluationResult;
   final String catImageUrl;
+  final String status;
 
   const AdoptionStatusScreen({
     super.key,
     required this.evaluationResult,
     required this.catImageUrl,
+    required this.status,
   });
 
   Widget _buildStep(String title, bool isCompleted, bool isActive, bool isLast) {
@@ -161,43 +163,83 @@ class AdoptionStatusScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 24),
                       
-                      // Stepper
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Row(
-                          children: [
-                            _buildStep("ส่งคำขอสำเร็จ", true, false, false),
-                            _buildStep("พูดคุย/สัมภาษณ์", false, true, false),
-                            _buildStep("กำลังพิจารณา", false, false, false),
-                            _buildStep("ทราบผล", false, false, true),
-                          ],
-                        ),
+                      // Stepper Logic based on status
+                      Builder(
+                        builder: (context) {
+                          bool s1Comp = true, s1Act = false;
+                          bool s2Comp = false, s2Act = false;
+                          bool s3Comp = false, s3Act = false;
+                          bool s4Comp = false, s4Act = false;
+
+                          if (status == 'pending') {
+                            s1Comp = true;
+                            s2Act = true;
+                          } else if (status == 'interview') {
+                            s1Comp = true; s2Comp = true;
+                            s3Act = true;
+                          } else if (status == 'approved' || status == 'rejected') {
+                            s1Comp = true; s2Comp = true; s3Comp = true; s4Comp = true;
+                          }
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Row(
+                              children: [
+                                _buildStep("ส่งคำขอสำเร็จ", s1Comp, s1Act, false),
+                                _buildStep("กำลังพิจารณา", s2Comp, s2Act, false),
+                                _buildStep("พูดคุย/สัมภาษณ์", s3Comp, s3Act, false),
+                                _buildStep("ทราบผล", s4Comp, s4Act, true),
+                              ],
+                            ),
+                          );
+                        }
                       ),
                       
                       const SizedBox(height: 30),
                       
-                      // Hero Image (Cat with clock)
-                      Image.network(
-                        'https://cdn-icons-png.flaticon.com/512/3209/3209971.png', // Placeholder cat with clock
-                        height: 120,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.pets, size: 80, color: Colors.orange),
-                      ),
-                      
-                      const SizedBox(height: 20),
-                      
-                      const Text(
-                        "ใบสมัครของคุณอยู่ระหว่างการพิจารณา",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1C3A5B)),
-                      ),
-                      
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 32.0, vertical: 8.0),
-                        child: Text(
-                          "ผู้โพสต์ได้รับข้อมูลการประเมินของคุณแล้ว\nกรุณารอการติดต่อกลับ หรือการอนุมัติเลี้ยงดู",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.5),
-                        ),
-                      ),
+                      // Hero Image and Title dynamic based on status
+                      Builder(builder: (context) {
+                        String iconUrl = 'https://cdn-icons-png.flaticon.com/512/3209/3209971.png';
+                        String titleText = "ใบสมัครของคุณอยู่ระหว่างการพิจารณา";
+                        String subtitleText = "ผู้โพสต์ได้รับข้อมูลการประเมินของคุณแล้ว\nกรุณารอการติดต่อกลับ หรือการอนุมัติเลี้ยงดู";
+                        
+                        if (status == 'approved') {
+                          iconUrl = 'https://cdn-icons-png.flaticon.com/512/1904/1904425.png'; // success
+                          titleText = "ยินดีด้วย! คุณได้รับการอนุมัติ";
+                          subtitleText = "ผู้โพสต์เลือกคุณเป็นผู้รับเลี้ยงน้องแมว\nกรุณาติดต่อนัดรับน้องแมวตามช่องทางที่ให้ไว้";
+                        } else if (status == 'rejected') {
+                          iconUrl = 'https://cdn-icons-png.flaticon.com/512/1904/1904428.png'; // fail
+                          titleText = "เสียใจด้วย ใบสมัครไม่ผ่านการอนุมัติ";
+                          subtitleText = "ผู้โพสต์พิจารณาแล้วเห็นว่าอาจยังไม่เหมาะสมในขณะนี้\nแต่ยังมีน้องแมวอีกหลายตัวที่รอคุณอยู่!";
+                        } else if (status == 'interview') {
+                          iconUrl = 'https://cdn-icons-png.flaticon.com/512/9374/9374944.png'; // interview
+                          titleText = "ใบสมัครอยู่ระหว่างพิจารณาสัมภาษณ์";
+                          subtitleText = "ผู้โพสต์กำลังพิจารณาและอาจติดต่อคุณเร็วๆนี้";
+                        }
+                        
+                        return Column(
+                          children: [
+                            Image.network(
+                              iconUrl,
+                              height: 120,
+                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.pets, size: 80, color: Colors.orange),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              titleText,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1C3A5B)),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 8.0),
+                              child: Text(
+                                subtitleText,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 12, color: Colors.black54, height: 1.5),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
                       
                       const SizedBox(height: 20),
                       
@@ -321,8 +363,8 @@ class AdoptionStatusScreen extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
-                      // กลับไปหน้าแรกสุด (หน้าค้นหาแมว)
-                      Navigator.popUntil(context, (route) => route.isFirst);
+                      // กลับไปหน้าก่อนหน้า (AdoptionRequestsScreen)
+                      Navigator.pop(context);
                     },
                     style: OutlinedButton.styleFrom(
                       backgroundColor: Colors.white,

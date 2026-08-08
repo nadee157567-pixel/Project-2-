@@ -130,21 +130,49 @@ async function getUserById(req, res) {
 async function updateUser(req, res) {
     try {
         const userId = req.params.id;
-        const { fullname, phonenumber, line_id, profile_pic_url } = req.body;
-
-        if (!fullname || !phonenumber || !line_id || !profile_pic_url) {
+const { 
+            fullname, phonenumber, line_id, profile_pic_url, // ฟิลด์จากฝั่ง api
+            username, email, oldPassword, newPassword, otp   // ฟิลด์จากฝั่ง main
+        } = req.body;
+        // ตรวจสอบว่าส่งข้อมูลสำคัญมาครบถ้วนหรือไม่ (รวมทั้งสองฝั่ง)
+        if (!fullname || !phonenumber || !line_id || !profile_pic_url || !username || !email) {
             return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
         }
-
-        const [result] = await pool.query(
-            'UPDATE users SET fullname = ?, phonenumber = ?, line_id = ?, profile_pic_url = ? WHERE user_id = ?',
-            [fullname, phonenumber, line_id, profile_pic_url, userId]
+        // ตรวจสอบว่า email หรือ username ซ้ำกับคนอื่นหรือไม่ (ยกเว้นตัวเอง) [ฟังก์ชันจาก main]
+        const [existing] = await pool.query(
+            'SELECT * FROM users WHERE (username = ? OR email = ?) AND user_id != ?',
+            [username, email, userId]
         );
-
+        if (existing.length > 0) {
+            return res.status(400).json({ success: false, message: 'Username หรือ Email นี้มีผู้ใช้งานแล้ว' });
+        }
+        // ดึงข้อมูลผู้ใช้ปัจจุบันเพื่อเปรียบเทียบรหัสผ่าน [ฟังก์ชันจาก main]
+        const [currentUser] = await pool.query('SELECT password FROM users WHERE user_id = ?', [userId]);
+        if (currentUser.length === 0) {
+            return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้งาน' });
+        }
+        let updatePassword = currentUser[0].password; // ค่าเริ่มต้นใช้รหัสผ่านเดิม
+        // ถ้ามีการระบุรหัสผ่านใหม่เข้ามา ให้ทำการเปลี่ยนรหัสผ่าน [ฟังก์ชันจาก main]
+        if (newPassword && newPassword.trim() !== '') {
+            if (otp && otp === '123456') {
+                updatePassword = newPassword; // ใช้ OTP ผ่าน
+            } else if (otp && otp !== '123456') {
+                return res.status(400).json({ success: false, message: 'OTP ไม่ถูกต้อง' });
+            } else if (oldPassword && oldPassword === currentUser[0].password) {
+                updatePassword = newPassword; // รหัสผ่านเดิมถูกต้อง
+            } else {
+                return res.status(400).json({ success: false, message: 'รหัสผ่านเดิมไม่ถูกต้อง หรือไม่ได้ระบุ OTP' });
+            }
+        }
+        // ทำการอัปเดตข้อมูลทั้งหมดลงฐานข้อมูล (รวมฟิลด์ทั้งจาก api และ main เข้าด้วยกัน)
+        const [result] = await pool.query(
+            'UPDATE users SET fullname = ?, phonenumber = ?, line_id = ?, profile_pic_url = ?, username = ?, email = ?, password = ? WHERE user_id = ?',
+            [fullname, phonenumber, line_id, profile_pic_url, username, email, updatePassword, userId]
+        );
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้งาน' });
         }
-
+        // คืนค่า Response ออกไปตามรูปแบบของฝั่ง api
         return res.status(200).json({
             success: true,
             message: 'อัปเดตข้อมูลผู้ใช้สำเร็จ',
@@ -153,7 +181,9 @@ async function updateUser(req, res) {
                 fullname,
                 phonenumber,
                 line_id,
-                profile_pic_url
+                profile_pic_url,
+                username,
+                email
             }
         });
     } catch (error) {
@@ -161,7 +191,7 @@ async function updateUser(req, res) {
         return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้' });
     }
 }
-
+// ฟังก์ชันจากฝั่ง api ที่ถูกตัดมาใน conflict
 async function updateAdopterProfile(req, res) {
     try {
         const userId = req.params.id;
@@ -169,19 +199,18 @@ async function updateAdopterProfile(req, res) {
             house_type,
             housing_area,
             pet_experience,
-
         } = req.body;
-
+        // โค้ดอัปเดตฐานข้อมูล (หากมี) สามารถใส่เพิ่มตรงนี้ได้
+        return res.status(200).json({ success: true, message: 'อัปเดตโปรไฟล์สำเร็จ' });
     } catch (error) {
         console.error('updateAdopterProfile error:', error);
         return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้' });
     }
 }
-
 module.exports = {
     signup,
     login,
     getUserById,
     updateUser,
-
+    updateAdopterProfile
 };

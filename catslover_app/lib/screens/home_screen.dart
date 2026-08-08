@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'poster_dashboard_screen.dart';
 import 'cat_detail_screen.dart';
+import 'user_profile_screen.dart';
+import 'poster_dashboard_screen.dart';
 import 'adopter_profile_screen.dart';
+import '../config/api_config.dart';
 
 class HomeScreen extends StatefulWidget {
   final int userId;
@@ -18,7 +20,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // สำหรับหน้า Feed
   List cats = [];
+  List filteredCats = [];
   bool isLoading = true;
+
+  // State สำหรับ Filter
+  String searchQuery = "";
+  List<String> selectedBreeds = [];
+  List<String> selectedAgeRanges = [];
+
+  final List<String> allBreeds = [
+    'วิเชียรมาศ',
+    'ขาวมณี',
+    'เปอร์เซีย',
+    'สีสวาด',
+    'สก็อตติช โฟลด์',
+    'อเมริกัน ช็อตแฮร์',
+    'ศุภลักษณ์',
+    'แมวไทย',
+    'ไม่ทราบสายพันธุ์'
+  ];
+
+  final List<String> allAgeRanges = [
+    'ต่ำกว่า 2 เดือน (ยังไม่หย่านม)',
+    '2 - 6 เดือน (ลูกแมว)',
+    'มากกว่า 6 เดือน - 1 ปี (แมววัยรุ่น)',
+    'มากกว่า 1 ปี - 7 ปี (แมวโตเต็มวัย)',
+    'มากกว่า 7 ปี (แมวสูงวัย)'
+  ];
 
   @override
   void initState() {
@@ -26,17 +54,31 @@ class _HomeScreenState extends State<HomeScreen> {
     fetchCats();
   }
 
+  List<int> _requestedCatIds = [];
+
   Future<void> fetchCats() async {
     // เปลี่ยน URL ให้ใช้พอร์ต 3000 ตามที่เซ็ตไว้บน Backend
-    final url = Uri.parse('http://10.0.2.2:3000/api/cats'); 
+    final url = Uri.parse(ApiConfig.baseUrl + '/cats'); 
 
+    final reqUrl = Uri.parse(ApiConfig.baseUrl + '/adoption/adopter/${widget.userId}');
     try {
       final response = await http.get(url);
+      final reqResponse = await http.get(reqUrl);
+      
+      if (reqResponse.statusCode == 200) {
+        final reqData = json.decode(reqResponse.body);
+        if (reqData['success'] == true && reqData['data'] != null) {
+          final List requests = reqData['data'];
+          _requestedCatIds = requests.map<int>((r) => r['cat_id'] as int).toList();
+        }
+      }
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
         setState(() {
           // ดึงข้อมูลจาก responseData['data'] เพราะ API ส่ง { success: true, count: X, data: [...] }
           cats = responseData['data'] ?? [];
+          _applyFilters();
           isLoading = false;
         });
       } else {
@@ -48,6 +90,236 @@ class _HomeScreenState extends State<HomeScreen> {
       print('เกิดข้อผิดพลาด: $error');
     }
   }
+  void _applyFilters() {
+    setState(() {
+      filteredCats = cats.where((cat) {
+        // ห้ามเห็นแมวที่ตัวเองโพสต์
+        if (cat['poster_id'] == widget.userId) return false;
+        
+        // ห้ามเห็นแมวที่เคยขอรับเลี้ยงไปแล้ว
+        if (_requestedCatIds.contains(cat['cat_id'])) return false;
+        
+        // ห้ามเห็นแมวที่ถูกรับเลี้ยงไปแล้ว
+        if (cat['status'] == 'adopted') return false;
+
+        // Search Query
+        bool matchesSearch = true;
+        if (searchQuery.isNotEmpty) {
+          final query = searchQuery.toLowerCase().trim();
+          final name = (cat['pet_name'] ?? '').toString().toLowerCase();
+          final breed = (cat['pet_breed'] ?? '').toString().toLowerCase();
+          matchesSearch = name.contains(query) || breed.contains(query);
+        }
+
+        // Breed Filter
+        bool matchesBreed = true;
+        if (selectedBreeds.isNotEmpty) {
+          final breed = (cat['pet_breed'] ?? 'ไม่ทราบสายพันธุ์').toString().trim().toLowerCase();
+          matchesBreed = selectedBreeds.any((selected) {
+            final sel = selected.toLowerCase().replaceAll('แมว', '').trim();
+            return breed.contains(sel) || sel.contains(breed);
+          });
+        }
+
+        // Age Filter
+        bool matchesAge = true;
+        if (selectedAgeRanges.isNotEmpty) {
+          final rawAge = cat['age_months'];
+          double ageMonths = 0;
+          if (rawAge is num) {
+            ageMonths = rawAge.toDouble();
+          } else if (rawAge != null) {
+            ageMonths = double.tryParse(rawAge.toString()) ?? 0;
+          }
+
+          matchesAge = false;
+          if (selectedAgeRanges.contains('ต่ำกว่า 2 เดือน (ยังไม่หย่านม)') && ageMonths < 2) matchesAge = true;
+          if (selectedAgeRanges.contains('2 - 6 เดือน (ลูกแมว)') && ageMonths >= 2 && ageMonths <= 6) matchesAge = true;
+          if (selectedAgeRanges.contains('มากกว่า 6 เดือน - 1 ปี (แมววัยรุ่น)') && ageMonths > 6 && ageMonths <= 12) matchesAge = true;
+          if (selectedAgeRanges.contains('มากกว่า 1 ปี - 7 ปี (แมวโตเต็มวัย)') && ageMonths > 12 && ageMonths <= 84) matchesAge = true;
+          if (selectedAgeRanges.contains('มากกว่า 7 ปี (แมวสูงวัย)') && ageMonths > 84) matchesAge = true;
+        }
+
+        return matchesSearch && matchesBreed && matchesAge;
+      }).toList();
+    });
+  }
+
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              backgroundColor: Colors.white,
+              child: Stack(
+                children: [
+                  Container(
+                    width: MediaQuery.of(context).size.width * 0.9,
+                    padding: const EdgeInsets.fromLTRB(24, 36, 24, 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Left Column: Breeds
+                            Expanded(
+                              flex: 4,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.red[200]!),
+                                      borderRadius: BorderRadius.circular(10),
+                                      color: Colors.red[50],
+                                    ),
+                                    child: const Text("ค้นหาตามสายพันธุ์", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ...allBreeds.map((breed) {
+                                    return InkWell(
+                                      onTap: () {
+                                        setStateDialog(() {
+                                          if (selectedBreeds.contains(breed)) {
+                                            selectedBreeds.remove(breed);
+                                          } else {
+                                            selectedBreeds.add(breed);
+                                          }
+                                        });
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              selectedBreeds.contains(breed) ? Icons.check_box : Icons.check_box_outline_blank,
+                                              size: 20,
+                                              color: selectedBreeds.contains(breed) ? Colors.black87 : Colors.black54,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(child: Text(breed, style: const TextStyle(fontSize: 13))),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Right Column: Age Ranges
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.red[200]!),
+                                      borderRadius: BorderRadius.circular(10),
+                                      color: Colors.red[50],
+                                    ),
+                                    child: const Text("ช่วงอายุ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ...allAgeRanges.map((age) {
+                                    return InkWell(
+                                      onTap: () {
+                                        setStateDialog(() {
+                                          if (selectedAgeRanges.contains(age)) {
+                                            selectedAgeRanges.remove(age);
+                                          } else {
+                                            selectedAgeRanges.add(age);
+                                          }
+                                        });
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              selectedAgeRanges.contains(age) ? Icons.check_box : Icons.check_box_outline_blank,
+                                              size: 20,
+                                              color: selectedAgeRanges.contains(age) ? Colors.black87 : Colors.black54,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(child: Text(age, style: const TextStyle(fontSize: 13))),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        // Buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            TextButton(
+                              onPressed: () {
+                                _applyFilters();
+                                Navigator.pop(context);
+                              },
+                              child: const Text(
+                                "ดูผลลัพธ์",
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                setStateDialog(() {
+                                  selectedBreeds.clear();
+                                  selectedAgeRanges.clear();
+                                });
+                                _applyFilters();
+                              },
+                              child: const Text(
+                                "ล้างค่า",
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.black54),
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: 'ปิด',
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   Future<void> _onCatCardTapped(Map<String, dynamic> cat) async {
     // Show loading indicator
@@ -58,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     try {
-      final response = await http.get(Uri.parse('http://10.0.2.2:3000/api/adopters/user/${widget.userId}'));
+      final response = await http.get(Uri.parse(ApiConfig.baseUrl + '/adopters/user/${widget.userId}'));
       if (!mounted) return;
       Navigator.pop(context); // Close loading
 
@@ -101,7 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   MaterialPageRoute(
                     builder: (context) => AdopterProfileScreen(
                       userId: widget.userId,
-                      catId: cat['cat_id'], 
+                      catId: int.tryParse(cat['cat_id'].toString()) ?? 0, 
                     ),
                   ),
                 );
@@ -157,14 +429,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.brown[300],
-                      shape: BoxShape.circle,
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => UserProfileScreen(userId: widget.userId),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.brown[300],
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.person, color: Colors.white, size: 30),
                     ),
-                    child: const Icon(Icons.person, color: Colors.white, size: 30),
                   )
                 ],
               ),
@@ -186,11 +468,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 child: TextField(
+                  onChanged: (value) {
+                    searchQuery = value;
+                    _applyFilters();
+                  },
                   decoration: InputDecoration(
                     hintText: "ค้นหาเจ้าเหมียว",
                     hintStyle: TextStyle(color: Colors.grey[400]),
                     prefixIcon: const Icon(Icons.search, color: Colors.black54),
-                    suffixIcon: const Icon(Icons.tune, color: Colors.black54),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.tune, color: Colors.black54),
+                      onPressed: _showFilterDialog,
+                    ),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   ),
@@ -225,8 +514,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: isLoading
                   ? Center(child: CircularProgressIndicator(color: Colors.pink[300]))
-                  : cats.isEmpty
-                      ? const Center(child: Text('ยังไม่มีข้อมูลน้องแมวหาบ้านในขณะนี้'))
+                  : filteredCats.isEmpty
+                      ? const Center(child: Text('ยังไม่มีข้อมูลน้องแมวที่ตรงกับเงื่อนไข'))
                       : GridView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -235,9 +524,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             mainAxisSpacing: 16,
                             childAspectRatio: 0.75, // Adjust based on image vs text height
                           ),
-                          itemCount: cats.length,
+                          itemCount: filteredCats.length,
                           itemBuilder: (context, index) {
-                            final cat = cats[index];
+                            final cat = filteredCats[index];
                             return GestureDetector(
                               onTap: () => _onCatCardTapped(cat),
                               child: Container(

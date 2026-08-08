@@ -7,6 +7,7 @@ const matchingRouter = require('./routes/matchingRoutes');
 const evaluateRoute = require('./routes/evaluate');
 const authRouter = require('./routes/authRoutes');
 const adopterRouter = require('./routes/adopterRoutes');
+
 const chatRouter = require('./routes/chatRoutes');
 const adoptionRoutes = require('./routes/adoptionRoutes');
 
@@ -32,9 +33,11 @@ app.use('/api/matching', matchingRouter);
 app.use('/api/evaluate', evaluateRoute);
 app.use('/api/auth', authRouter);
 app.use('/api/adopters', adopterRouter);
+
 app.use('/api/chats', chatRouter);
 app.use('/api/applications', adoptionRoutes);
 app.use('/upload', express.static(path.join(__dirname, '../upload')));
+
 
 //กรณีเรียก URL ที่ไม่มีอยู่
 

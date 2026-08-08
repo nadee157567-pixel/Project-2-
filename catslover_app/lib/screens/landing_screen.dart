@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'login_screen.dart';
 import 'signup_screen.dart';
+import '../config/api_config.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -23,7 +24,7 @@ class _LandingScreenState extends State<LandingScreen> {
 
   Future<void> fetchFeaturedCats() async {
     try {
-      final response = await http.get(Uri.parse('http://10.0.2.2:3000/api/cats'));
+      final response = await http.get(Uri.parse(ApiConfig.baseUrl + '/cats'));
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
         setState(() {

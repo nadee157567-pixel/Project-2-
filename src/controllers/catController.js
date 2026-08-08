@@ -32,6 +32,7 @@ async function getAllCats(req, res) {
             JOIN users AS u
               ON c.poster_id = u.user_id
               
+            WHERE c.status != 'adopted' OR c.status IS NULL
             ORDER BY c.created_at DESC`);
         return res.status(200).json({
             success: true,
@@ -135,9 +136,9 @@ async function createCat(req, res) {
         let age_months = 12; // default
         if (ageRange === 'ต่ำกว่า 2 เดือน (ยังไม่หย่านม)') age_months = 1;
         else if (ageRange === '2 - 6 เดือน (ลูกแมว)') age_months = 4;
-        else if (ageRange === '6 เดือน - 1 ปี (แมววัยรุ่น)') age_months = 9;
-        else if (ageRange === '1 - 7 ปี (แมวโตเต็มวัย)') age_months = 36;
-        else if (ageRange === '7 ปีขึ้นไป (แมวสูงวัย)') age_months = 96;
+        else if (ageRange === 'มากกว่า 6 เดือน - 1 ปี (แมววัยรุ่น)') age_months = 9;
+        else if (ageRange === 'มากกว่า 1 ปี - 7 ปี (แมวโตเต็มวัย)') age_months = 36;
+        else if (ageRange === 'มากกว่า 7 ปี (แมวสูงวัย)') age_months = 96;
 
         let req_space_level = 'medium';
         if (reqHousing === 'พื้นที่โล่งกว้างๆ') req_space_level = 'large';
@@ -200,8 +201,14 @@ async function getCatsByPosterId(req, res) {
                 c.pet_breed,
                 c.gender,
                 c.age_months,
+                c.personality,
+                c.health_note,
+                c.req_space_level,
+                c.req_attention,
                 c.status,
+                c.est_monthly_cost,
                 c.created_at,
+                c.poster_id,
                 (
                     SELECT cp.image_url
                     FROM catphotos AS cp
@@ -239,7 +246,7 @@ async function uploadCatPhoto(req, res) {
                 message: 'กรุณาอัปโหลดรูปภาพ'
             });
         }
-        const image_url = files.map(files => files.path);
+        const image_url = files.map(file => file.path);
         const [result] = await pool.query(`
             INSERT INTO catphotos (cat_id, image_url) VALUES (?,?)`,
             [catId, image_url]);
@@ -257,7 +264,7 @@ async function uploadCatPhoto(req, res) {
     }
 }
 
-async function deleteCatPhoto(params) {
+async function deleteCatPhoto(req, res) {
     try {
         const { catId, photoId } = req.params;
         const [result] = await pool.query(`
@@ -283,7 +290,6 @@ async function deleteCatPhoto(params) {
         });
     }
 }
-
 
 async function updateCatPhoto(req, res) {
     try {
@@ -335,35 +341,73 @@ async function updateCat(req, res) {
     try {
         const catId = req.params.id;
         const {
-            pet_name,
-            pet_breed,
-            gender,
-            age_months,
-            is_sterilized,
-            is_vaccinated,
-            health_note,
-            req_space_level,
-            req_attention,
-            personality,
-            status
+            // ฟิลด์หลักจากฝั่ง api
+            pet_name, pet_breed, gender, age_months,
+            is_sterilized, is_vaccinated, health_note,
+            req_space_level, req_attention, personality, status,
+
+            // ฟิลด์จากฝั่ง main เผื่อกรณี Frontend ส่งมาแบบเก่า
+            name, breed, ageRange, sterilization, vaccination,
+            healthDetails, reqHousing, reqTime, reqOtherPets
         } = req.body;
+
+        // --- ผสมข้อมูลและแปลงค่า (Mapping) เพื่อให้ใช้งานได้กับทั้งสองฝั่ง ---
+        const final_pet_name = pet_name || name || null;
+        const final_pet_breed = pet_breed || breed || null;
+        
+        // แปลงเพศถ้าส่งมาเป็นภาษาไทย
+        let final_gender = gender || null;
+        if (final_gender === 'ผู้') final_gender = 'male';
+        else if (final_gender === 'เมีย') final_gender = 'female';
+
+        // แปลงอายุ (Default 12)
+        let final_age_months = age_months || 12; 
+        if (ageRange) {
+            if (ageRange === 'ต่ำกว่า 2 เดือน (ยังไม่หย่านม)') final_age_months = 1;
+            else if (ageRange === '2 - 6 เดือน (ลูกแมว)') final_age_months = 4;
+            else if (ageRange === 'มากกว่า 6 เดือน - 1 ปี (แมววัยรุ่น)') final_age_months = 9;
+            else if (ageRange === 'มากกว่า 1 ปี - 7 ปี (แมวโตเต็มวัย)') final_age_months = 36;
+            else if (ageRange === 'มากกว่า 7 ปี (แมวสูงวัย)') final_age_months = 96;
+        }
+
+        const final_is_sterilized = is_sterilized || sterilization || null;
+        const final_is_vaccinated = is_vaccinated || vaccination || null;
+        const final_health_note = health_note || healthDetails || null;
+
+        // แปลงความต้องการพื้นที่
+        let final_req_space_level = req_space_level || 'medium';
+        if (reqHousing === 'พื้นที่โล่งกว้างๆ') final_req_space_level = 'large';
+        else if (reqHousing === 'ไม่ต้องการพื้นที่มาก') final_req_space_level = 'small';
+
+        // แปลงความต้องการเวลา
+        let final_req_attention = req_attention || 'medium';
+        if (reqTime === 'น้อย') final_req_attention = 'small';
+        else if (reqTime === 'มาก') final_req_attention = 'large';
+
+        // จัดการนิสัย
+        let final_personality = personality || null;
+        if (!final_personality && reqOtherPets) {
+            final_personality = `เข้ากับสัตว์อื่น: ${reqOtherPets}`;
+        }
+
+        const final_status = status || null;
 
         const [result] = await pool.query(`
             UPDATE cats 
-            SET pet_name = ?, pet_breed = ?, gender = ?, age_months = ?, is_sterilized = ?, is_vaccinated = ?, health_note = ?, req_space_level = ?, req_attention = ?, personality = ?, status = ?
+            SET pet_name = ?, pet_breed = ?, gender = ?, age_months = ?, is_sterilized = ?, is_vaccinated = ?, health_note = ?, req_space_level = ?, req_attention = ?, personality = ?, status = COALESCE(?, status)
             WHERE cat_id = ?
         `, [
-            pet_name || null, 
-            pet_breed || null, 
-            gender || null, 
-            age_months || null, 
-            is_sterilized || null, 
-            is_vaccinated || null, 
-            health_note || null, 
-            req_space_level || null, 
-            req_attention || null, 
-            personality || null, 
-            status || null, 
+            final_pet_name, 
+            final_pet_breed, 
+            final_gender, 
+            final_age_months, 
+            final_is_sterilized, 
+            final_is_vaccinated, 
+            final_health_note, 
+            final_req_space_level, 
+            final_req_attention, 
+            final_personality, 
+            final_status, 
             catId
         ]);
 

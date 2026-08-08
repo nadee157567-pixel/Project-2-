@@ -39,18 +39,27 @@ const {
     getCatById,
     createCat,
     getCatsByPosterId,
-    updateCat,
-    deleteCat,
-    uploadCatPhoto,
-    deleteCatPhoto,
-    updateCatPhoto
+    updateCat,              // ฟังก์ชันจากฝั่ง main และ api
+    deleteCat,              // ฟังก์ชันจากฝั่ง api
+    uploadCatPhoto,         // ฟังก์ชันจากฝั่ง api
+    deleteCatPhoto,         // ฟังก์ชันจากฝั่ง api
+    updateCatPhoto          // ฟังก์ชันจากฝั่ง api
 } = require('../controllers/catController');
 
 const router = express.Router();
 
+// เส้นทางจัดการข้อมูลแมวทั่วไป (รวมกันทั้งจากฝั่ง api และ main)
 router.get('/', getAllCats);
 router.get('/:id', getCatById);
+router.post('/', createCat);
+router.put('/:id', updateCat);
+router.delete('/:id', deleteCat);
 router.get('/poster/:id', getCatsByPosterId);
+
+// เส้นทางสำหรับจัดการรูปภาพแมวโดยเฉพาะ (จากฝั่ง api)
+router.post('/:catId/photos', uploadCatPhoto);
+router.put('/:catId/photos/:photoId', updateCatPhoto);
+router.delete('/:catId/photos/:photoId', deleteCatPhoto);
 
 // Protected routes (requires Login)
 router.post('/', verifyToken, validateCatPost, createCat);

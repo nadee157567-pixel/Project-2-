@@ -5,6 +5,7 @@ import 'cat_profile_form_screen.dart';
 import 'cat_detail_screen.dart';
 import 'user_profile_screen.dart';
 import 'cat_adopters_list_screen.dart';
+import '../config/api_config.dart';
 
 class PosterDashboardScreen extends StatefulWidget {
   final int userId;
@@ -30,17 +31,23 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
     setState(() => _isLoading = true);
     try {
       // 1. Fetch User Profile
-      final userRes = await http.get(Uri.parse('http://10.0.2.2:3000/api/auth/user/${widget.userId}'));
+      final userRes = await http.get(Uri.parse(ApiConfig.baseUrl + '/auth/user/${widget.userId}'));
       if (userRes.statusCode == 200) {
-        _userProfile = jsonDecode(userRes.body)['data'];
+        final userData = jsonDecode(userRes.body);
+        if (userData['success'] == true && userData['data'] != null) {
+          _userProfile = userData['data'];
+        }
       }
 
       // 2. Fetch Poster Cats
-      final catRes = await http.get(Uri.parse('http://10.0.2.2:3000/api/cats/poster/${widget.userId}'));
+      final catRes = await http.get(Uri.parse(ApiConfig.baseUrl + '/cats/poster/${widget.userId}'));
       if (catRes.statusCode == 200) {
-        final cats = jsonDecode(catRes.body)['data'] as List;
-        _availableCats = cats.where((c) => c['status'] == 'available').toList();
-        _adoptedCats = cats.where((c) => c['status'] != 'available').toList();
+        final catData = jsonDecode(catRes.body);
+        if (catData['success'] == true && catData['data'] != null) {
+          final cats = catData['data'] as List;
+          _availableCats = cats.where((c) => c['status'] == 'available').toList();
+          _adoptedCats = cats.where((c) => c['status'] != 'available').toList();
+        }
       }
     } catch (e) {
       print("Error fetching dashboard data: $e");
@@ -84,7 +91,7 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => UserProfileScreen(userId: widget.userId),
+                                  builder: (context) => UserProfileScreen(userId: widget.userId, isPosterMode: true),
                                 ),
                               );
                             },
@@ -287,7 +294,12 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                   child: cat['image_url'] != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(10),
-                          child: Image.network(cat['image_url'], fit: BoxFit.cover),
+                          child: Image.network(
+                            cat['image_url'],
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.pets, color: Colors.grey, size: 50),
+                          ),
                         )
                       : const Icon(Icons.pets, color: Colors.grey),
                 ),
@@ -336,6 +348,7 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                       builder: (context) => CatAdoptersListScreen(
                         catId: int.tryParse(cat['cat_id'].toString()) ?? 0, 
                         catName: cat['pet_name'].toString(),
+                        isAdopted: !isAvailable,
                       ),
                     ),
                   );
@@ -349,9 +362,9 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Text("ดูผู้ขอรับเลี้ยง", style: TextStyle(color: Colors.white, fontSize: 10)),
-                      Icon(Icons.group, color: Colors.white, size: 14),
+                    children: [
+                      Text(isAvailable ? "ดูผู้ขอรับเลี้ยง" : "ดูรายละเอียดผู้รับเลี้ยง", style: const TextStyle(color: Colors.white, fontSize: 10)),
+                      const Icon(Icons.group, color: Colors.white, size: 14),
                     ],
                   ),
                 ),

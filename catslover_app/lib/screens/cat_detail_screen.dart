@@ -66,6 +66,8 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                               child: Image.network(
                                 cat['image_url'],
                                 fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(Icons.pets, color: Colors.grey, size: 80),
                               ),
                             )
                           : const Icon(Icons.pets, size: 80, color: Colors.grey),
@@ -156,71 +158,73 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                 ),
                 
                 // 3. Requirements Card
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
+                if (!(cat['status'] == 'adopted' && cat['poster_id'].toString() != widget.userId.toString())) ...[
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildReqRow("พื้นที่ที่ต้องการ", _mapSpace(cat['req_space_level'])),
+                        const SizedBox(height: 8),
+                        _buildReqRow("เวลาที่ต้องให้", _mapAttention(cat['req_attention'])),
+                        const SizedBox(height: 8),
+                        _buildReqRow("ค่าใช้จ่ายโดยประมาณ", "${cat['est_monthly_cost'] ?? '3,000'} บาท/เดือน"),
+                      ],
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildReqRow("พื้นที่ที่ต้องการ", _mapSpace(cat['req_space_level'])),
-                      const SizedBox(height: 8),
-                      _buildReqRow("เวลาที่ต้องให้", _mapAttention(cat['req_attention'])),
-                      const SizedBox(height: 8),
-                      _buildReqRow("ค่าใช้จ่ายโดยประมาณ", "${cat['est_monthly_cost'] ?? '3,000'} บาท/เดือน"),
-                    ],
-                  ),
-                ),
-                
-                // 4. Poster Profile mini
-                if (cat['poster_id'].toString() != widget.userId.toString())
-                  Padding(
-                    padding: const EdgeInsets.only(right: 20, top: 10),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => PosterProfileScreen(
-                                posterId: int.tryParse(cat['poster_id'].toString()) ?? 0,
-                                currentUserId: widget.userId,
+                  
+                  // 4. Poster Profile mini
+                  if (cat['poster_id'].toString() != widget.userId.toString())
+                    Padding(
+                      padding: const EdgeInsets.only(right: 20, top: 10),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PosterProfileScreen(
+                                  posterId: int.tryParse(cat['poster_id'].toString()) ?? 0,
+                                  currentUserId: widget.userId,
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.indigo[100],
-                                shape: BoxShape.circle,
+                            );
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.indigo[100],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.person, size: 16, color: Colors.indigo),
                               ),
-                              child: const Icon(Icons.person, size: 16, color: Colors.indigo),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              "ดูโปรไฟล์ผู้โพสต์",
-                              style: TextStyle(color: Colors.grey[600], fontSize: 12, decoration: TextDecoration.underline),
-                            )
-                          ],
+                              const SizedBox(width: 8),
+                              Text(
+                                "ดูโปรไฟล์ผู้โพสต์",
+                                style: TextStyle(color: Colors.grey[600], fontSize: 12, decoration: TextDecoration.underline),
+                              )
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                ],
                 
                 const SizedBox(height: 100), // Space for bottom button
               ],
@@ -232,7 +236,21 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
             bottom: 30,
             left: 40,
             right: 40,
-            child: ElevatedButton(
+            child: cat['status'] == 'adopted' && cat['poster_id'].toString() != widget.userId.toString()
+                ? Container(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[400],
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        "ได้บ้านที่อบอุ่นแล้ว",
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                  )
+                : ElevatedButton(
               onPressed: _isLoading ? null : () {
                 if (cat['poster_id'].toString() == widget.userId.toString()) {
                   Navigator.push(
@@ -249,7 +267,7 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: cat['poster_id'].toString() == widget.userId.toString() ? Colors.orange : const Color(0xFFFFB6B6),
+                backgroundColor: cat['poster_id'].toString() == widget.userId.toString() ? Colors.pink[400] : const Color(0xFFFFB6B6),
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 elevation: 5,

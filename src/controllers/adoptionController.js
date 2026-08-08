@@ -105,8 +105,68 @@ async function getRequestsByCat(req, res) {
     }
 }
 
+// อัปเดตสถานะคำขอรับเลี้ยง (อนุมัติ/ไม่อนุมัติ)
+async function updateRequestStatus(req, res) {
+    const connection = await pool.getConnection();
+    try {
+        const { matchId } = req.params;
+        const { status } = req.body; // 'approved' หรือ 'rejected'
+
+        if (!['approved', 'rejected'].includes(status)) {
+            return res.status(400).json({ success: false, message: 'สถานะไม่ถูกต้อง' });
+        }
+
+        await connection.beginTransaction();
+
+        // อัปเดตสถานะของคำขอนี้
+        await connection.query(
+            'UPDATE adoptionapplications SET status = ? WHERE match_id = ?',
+            [status, matchId]
+        );
+
+        if (status === 'approved') {
+            // ดึง cat_id ของคำขอนี้
+            const [rows] = await connection.query(
+                'SELECT cat_id FROM adoptionapplications WHERE match_id = ?',
+                [matchId]
+            );
+            
+            if (rows.length > 0) {
+                const catId = rows[0].cat_id;
+
+                // อัปเดตคำขออื่นๆ ของแมวตัวนี้ให้เป็น rejected
+                await connection.query(
+                    'UPDATE adoptionapplications SET status = ? WHERE cat_id = ? AND match_id != ? AND status = ?',
+                    ['rejected', catId, matchId, 'pending']
+                );
+
+                // อัปเดตสถานะแมวให้เป็นได้บ้านแล้ว ('adopted' หรือสถานะที่คุณตั้งไว้)
+                await connection.query(
+                    'UPDATE cats SET status = ? WHERE cat_id = ?',
+                    ['adopted', catId]
+                );
+            }
+        }
+
+        await connection.commit();
+        
+        return res.status(200).json({
+            success: true,
+            message: 'อัปเดตสถานะสำเร็จ'
+        });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error('updateRequestStatus error:', error);
+        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตสถานะ' });
+    } finally {
+        connection.release();
+    }
+}
+
 module.exports = {
     createAdoptionRequest,
     getRequestsByAdopter,
-    getRequestsByCat
+    getRequestsByCat,
+    updateRequestStatus
 };

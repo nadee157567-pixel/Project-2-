@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../config/api_config.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final int userId;
@@ -104,7 +105,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       // 1. Update User Data
       final userRes = await http.put(
-        Uri.parse('http://10.0.2.2:3000/api/auth/user/${widget.userId}'),
+        Uri.parse(ApiConfig.baseUrl + '/auth/user/${widget.userId}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'username': _usernameController.text,
@@ -123,7 +124,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // 2. Update Adopter Data
       final adopterRes = await http.post(
-        Uri.parse('http://10.0.2.2:3000/api/adopters'),
+        Uri.parse(ApiConfig.baseUrl + '/adopters'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'userId': widget.userId,
@@ -165,9 +166,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFFF5F5),
       appBar: AppBar(
         title: const Text('แก้ไขข้อมูล', style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFFFF5F5),
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: _isLoading
@@ -226,7 +229,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             const SnackBar(content: Text('ระบบได้ทำการส่ง OTP ไปยังเบอร์โทรศัพท์ของคุณแล้ว')),
                           );
                         },
-                        child: const Text('ลืมรหัสผ่านเดิม? (ส่ง OTP)', style: TextStyle(color: Colors.orange)),
+                        child: const Text('ลืมรหัสผ่านเดิม? (ส่ง OTP)', style: TextStyle(color: Colors.pink)),
                       ),
                     ),
                     if (_isOtpSent)
@@ -267,8 +270,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ElevatedButton(
                       onPressed: _saveProfile,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
+                        backgroundColor: Colors.pink[400],
                         padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                       ),
                       child: const Text('บันทึกข้อมูล', style: TextStyle(color: Colors.white, fontSize: 16)),
                     ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 
 
 class CatProfileFormScreen extends StatefulWidget {
@@ -55,7 +56,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
     if (widget.editCatData != null) {
       final data = widget.editCatData!;
       _catNameController.text = data['pet_name'] ?? '';
-      _healthDetailsController.text = data['health_details'] ?? '';
+      _healthDetailsController.text = data['health_note'] ?? '';
       
       if (catBreeds.contains(data['pet_breed'])) {
         selectedBreed = data['pet_breed'];
@@ -70,13 +71,27 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       else if (age <= 84) selectedAge = catAgeRanges[3];
       else selectedAge = catAgeRanges[4];
 
-      sterilizationStatus = data['is_spayed_neutered'] == 1 ? 'ทำหมันแล้ว' : 'ยังไม่ทำหมัน';
-      vaccinationStatus = data['is_vaccinated'] == 1 ? 'รับวัคซีนครบแล้ว' : 'ยังไม่รับวัคซีน';
+      sterilizationStatus = data['is_sterilized'];
+      vaccinationStatus = data['is_vaccinated'];
       
-      requiredHousing = data['living_space_type'];
-      requiredTime = data['daily_free_hours'];
-      requiredOtherPets = data['has_other_pets'];
-      if (requiredOtherPets == 'เลี้ยงรวมกับสัตว์อื่นได้') {
+      if (data['req_space_level'] == 'large') requiredHousing = 'พื้นที่โล่งกว้างๆ';
+      else if (data['req_space_level'] == 'small') requiredHousing = 'ไม่ต้องการพื้นที่มาก';
+      else requiredHousing = 'พอประมาณ';
+
+      if (data['req_attention'] == 'small') requiredTime = 'น้อย';
+      else if (data['req_attention'] == 'large') requiredTime = 'มาก';
+      else requiredTime = 'ปานกลาง';
+
+      if (data['personality'] != null) {
+        String p = data['personality'].toString();
+        if (p.contains('เข้ากับสัตว์อื่น: ')) {
+          requiredOtherPets = p.replaceAll('เข้ากับสัตว์อื่น: ', '');
+        } else {
+          requiredOtherPets = p;
+        }
+      }
+
+      if (requiredOtherPets == 'เข้ากันได้ดี') {
         okWithCat = true;
         okWithDog = true;
       }
@@ -113,13 +128,13 @@ Future<void> _submitCatPost() async {
       http.Response response;
       if (widget.editCatData != null) {
         response = await http.put(
-          Uri.parse('http://10.0.2.2:3000/api/cats/${widget.editCatData!['cat_id']}'),
+          Uri.parse(ApiConfig.baseUrl + '/cats/${widget.editCatData!['cat_id']}'),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode(catData),
         );
       } else {
         response = await http.post(
-          Uri.parse('http://10.0.2.2:3000/api/cats'),
+          Uri.parse(ApiConfig.baseUrl + '/cats'),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode(catData),
         );
@@ -138,7 +153,7 @@ Future<void> _submitCatPost() async {
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF9EC), // Light yellow/cream background
+                  color: const Color(0xFFFFF5F5), // Light pink background
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
@@ -155,9 +170,9 @@ Future<void> _submitCatPost() async {
                       width: 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.orange[100],
+                        color: Colors.pink[100],
                       ),
-                      child: const Icon(Icons.pets, size: 60, color: Colors.orange),
+                      child: Icon(Icons.pets, size: 60, color: Colors.pink[400]),
                     ),
                     const SizedBox(height: 30),
                     ElevatedButton(
@@ -210,7 +225,7 @@ Future<void> _submitCatPost() async {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFFFF5F5),
         appBar: AppBar(
           backgroundColor: Colors.pink[300],
           elevation: 0,

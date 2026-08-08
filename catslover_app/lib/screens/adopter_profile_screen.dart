@@ -3,6 +3,7 @@ import 'cat_evaluation_screen.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'user_profile_screen.dart';
+import '../config/api_config.dart';
 
 class AdopterProfileScreen extends StatefulWidget {
   final int userId;
@@ -40,58 +41,60 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
     setState(() => _isFetching = true);
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:3000/api/adopters/profile/${widget.userId}')
+        Uri.parse(ApiConfig.baseUrl + '/adopters/profile/${widget.userId}')
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final profile = data['profile'];
-        
-        setState(() {
-          if (profile['living_space_type'] == 'condo') {
-            housingType = 'คอนโด';
-          } else if (profile['living_space_type'] == 'apartment') {
-            housingType = 'หอพัก';
-          } else {
-            housingType = 'บ้านเดี่ยว';
-          }
+        if (data['success'] == true && data['profile'] != null) {
+          final profile = data['profile'];
+          
+          setState(() {
+            if (profile['living_space_type'] == 'condo') {
+              housingType = 'คอนโด';
+            } else if (profile['living_space_type'] == 'apartment') {
+              housingType = 'หอพัก';
+            } else {
+              housingType = 'บ้านเดี่ยว';
+            }
 
-          int hasOtherPets = profile['has_other_pets'] is int ? profile['has_other_pets'] : int.tryParse(profile['has_other_pets']?.toString() ?? '0') ?? 0;
-          hasPets = hasOtherPets == 1 ? 'มี' : 'ไม่มี';
+            int hasOtherPets = profile['has_other_pets'] is int ? profile['has_other_pets'] : int.tryParse(profile['has_other_pets']?.toString() ?? '0') ?? 0;
+            hasPets = hasOtherPets == 1 ? 'มี' : 'ไม่มี';
 
-          int dailyHours = profile['daily_free_hours'] is int ? profile['daily_free_hours'] : int.tryParse(profile['daily_free_hours']?.toString() ?? '0') ?? 0;
-          if (dailyHours <= 2) {
-            freeTime = 'น้อย';
-          } else if (dailyHours >= 6) {
-            freeTime = 'มาก';
-          } else {
-            freeTime = 'ปานกลาง';
-          }
+            int dailyHours = profile['daily_free_hours'] is int ? profile['daily_free_hours'] : int.tryParse(profile['daily_free_hours']?.toString() ?? '0') ?? 0;
+            if (dailyHours <= 2) {
+              freeTime = 'น้อย';
+            } else if (dailyHours >= 6) {
+              freeTime = 'มาก';
+            } else {
+              freeTime = 'ปานกลาง';
+            }
 
-          if (profile['experience'] == 'beginner') {
-            experience = 'พื้นฐาน';
-          } else if (profile['experience'] == 'experienced') {
-            experience = 'ระดับสูง';
-          } else {
-            experience = 'มือใหม่';
-          }
+            if (profile['experience'] == 'beginner') {
+              experience = 'พื้นฐาน';
+            } else if (profile['experience'] == 'experienced') {
+              experience = 'ระดับสูง';
+            } else {
+              experience = 'มือใหม่';
+            }
 
-          int hasChild = profile['has_children'] is int ? profile['has_children'] : int.tryParse(profile['has_children']?.toString() ?? '0') ?? 0;
-          hasChildren = hasChild == 1 ? 'มี' : 'ไม่มี';
+            int hasChild = profile['has_children'] is int ? profile['has_children'] : int.tryParse(profile['has_children']?.toString() ?? '0') ?? 0;
+            hasChildren = hasChild == 1 ? 'มี' : 'ไม่มี';
 
-          double maxBudget = profile['max_monthly_budget'] is double 
-              ? profile['max_monthly_budget'] 
-              : (profile['max_monthly_budget'] is int 
-                  ? profile['max_monthly_budget'].toDouble() 
-                  : double.tryParse(profile['max_monthly_budget']?.toString() ?? '0') ?? 0.0);
+            double maxBudget = profile['max_monthly_budget'] is double 
+                ? profile['max_monthly_budget'] 
+                : (profile['max_monthly_budget'] is int 
+                    ? profile['max_monthly_budget'].toDouble() 
+                    : double.tryParse(profile['max_monthly_budget']?.toString() ?? '0') ?? 0.0);
 
-          if (maxBudget <= 1000) {
-            budget = 'น้อย';
-          } else if (maxBudget >= 5000) {
-            budget = 'มาก';
-          } else {
-            budget = 'ปานกลาง';
-          }
-        });
+            if (maxBudget <= 1000) {
+              budget = 'น้อย';
+            } else if (maxBudget >= 5000) {
+              budget = 'มาก';
+            } else {
+              budget = 'ปานกลาง';
+            }
+          });
+        }
       }
     } catch (e) {
       print("Error fetching profile: $e");
@@ -126,7 +129,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:3000/api/adopters'),
+        Uri.parse(ApiConfig.baseUrl + '/adopters'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(adopterData),
       );

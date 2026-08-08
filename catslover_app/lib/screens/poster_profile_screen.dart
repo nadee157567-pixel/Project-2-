@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'cat_detail_screen.dart';
+import '../config/api_config.dart';
 
 class PosterProfileScreen extends StatefulWidget {
   final int posterId;
@@ -28,22 +29,29 @@ class _PosterProfileScreenState extends State<PosterProfileScreen> {
   Future<void> fetchPosterData() async {
     try {
       // 1. Fetch poster profile info
-      final userResponse = await http.get(Uri.parse('http://10.0.2.2:3000/api/auth/user/${widget.posterId}'));
+      final userResponse = await http.get(Uri.parse(ApiConfig.baseUrl + '/auth/user/${widget.posterId}'));
       if (userResponse.statusCode == 200) {
-        final userData = jsonDecode(userResponse.body)['data'];
-        posterInfo = userData;
+        final userData = jsonDecode(userResponse.body);
+        if (userData['success'] == true && userData['data'] != null) {
+          posterInfo = userData['data'];
+        }
       }
 
       // 2. Fetch poster's cats
-      final catsResponse = await http.get(Uri.parse('http://10.0.2.2:3000/api/cats/poster/${widget.posterId}'));
+      final catsResponse = await http.get(Uri.parse(ApiConfig.baseUrl + '/cats/poster/${widget.posterId}'));
       if (catsResponse.statusCode == 200) {
-        final catsData = jsonDecode(catsResponse.body)['data'] as List;
-        
-        setState(() {
-          activeCats = catsData.where((cat) => cat['status'] == 'หาบ้าน' || cat['status'] == 'กำลังหาบ้าน').toList();
-          adoptedCats = catsData.where((cat) => cat['status'] != 'หาบ้าน' && cat['status'] != 'กำลังหาบ้าน').toList();
-          isLoading = false;
-        });
+        final catData = jsonDecode(catsResponse.body);
+        if (catData['success'] == true && catData['data'] != null) {
+          final cats = catData['data'] as List;
+          
+          setState(() {
+            activeCats = cats.where((cat) => cat['status'] != 'adopted').toList();
+            adoptedCats = cats.where((cat) => cat['status'] == 'adopted').toList();
+            isLoading = false;
+          });
+        } else {
+          setState(() { isLoading = false; });
+        }
       } else {
         setState(() { isLoading = false; });
       }

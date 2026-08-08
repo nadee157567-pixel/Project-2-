@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'adoption_status_screen.dart';
+import '../config/api_config.dart';
 
 class AdoptionRequestsScreen extends StatefulWidget {
   final int userId;
@@ -23,12 +24,16 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
 
   Future<void> _fetchRequests() async {
     try {
-      final response = await http.get(Uri.parse('http://10.0.2.2:3000/api/adoption/adopter/${widget.userId}'));
+      final response = await http.get(Uri.parse(ApiConfig.baseUrl + '/adoption/adopter/${widget.userId}'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() {
-          _requests = data['data'];
-        });
+        if (data['success'] == true && data['data'] != null) {
+          setState(() {
+            _requests = data['data'];
+          });
+        } else {
+          setState(() { _requests = []; });
+        }
       }
     } catch (e) {
       print("Error fetching adoption requests: $e");
@@ -156,6 +161,8 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
               height: 180,
               width: double.infinity,
               fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.pets, color: Colors.grey, size: 50),
             ),
           ),
           Padding(
@@ -211,6 +218,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
                               builder: (context) => AdoptionStatusScreen(
                                 evaluationResult: evaluationResult,
                                 catImageUrl: imageUrl,
+                                status: status,
                               ),
                             ),
                           );

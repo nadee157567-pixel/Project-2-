@@ -32,6 +32,7 @@ async function getAllCats(req, res){
             JOIN users AS u
               ON c.poster_id = u.user_id
               
+            WHERE c.status != 'adopted' OR c.status IS NULL
             ORDER BY c.created_at DESC`);
         return res.status(200).json({
             success: true,
@@ -63,15 +64,10 @@ async function getCatById(req, res){
                 c.*,
                 u.fullname AS poster_name,
                 u.phonenumber AS poster_phone,
-                u.line_id As poster_line_id,
-                ac.living_space_type,
-                ac.daily_free_hours,
-                ac.has_other_pets
+                u.line_id As poster_line_id
             FROM cats AS c
             JOIN users AS u
               ON c.poster_id = u.user_id
-            LEFT JOIN adoptionconditions AS ac
-              ON c.cat_id = ac.cat_id
             WHERE c.cat_id = ?`,[catId]);
 
         if (cats.length === 0) {
@@ -264,25 +260,23 @@ async function updateCat(req, res) {
         else if (ageRange === 'มากกว่า 1 ปี - 7 ปี (แมวโตเต็มวัย)') age_months = 36;
         else if (ageRange === 'มากกว่า 7 ปี (แมวสูงวัย)') age_months = 96;
 
-        let sterilizationStatus = 0;
-        if (sterilization === 'ทำหมันแล้ว') sterilizationStatus = 1;
-        
-        let vaccinationStatus = 0;
-        if (vaccination === 'รับวัคซีนครบแล้ว') vaccinationStatus = 1;
+        let req_space_level = 'medium';
+        if (reqHousing === 'พื้นที่โล่งกว้างๆ') req_space_level = 'large';
+        else if (reqHousing === 'ไม่ต้องการพื้นที่มาก') req_space_level = 'small';
+
+        let req_attention = 'medium';
+        if (reqTime === 'น้อย') req_attention = 'small';
+        else if (reqTime === 'มาก') req_attention = 'large';
+
+        const personality_mapped = reqOtherPets ? `เข้ากับสัตว์อื่น: ${reqOtherPets}` : null;
 
         await pool.query(
             `UPDATE cats SET 
                 pet_name = ?, pet_breed = ?, gender = ?, age_months = ?,
-                health_details = ?, is_spayed_neutered = ?, is_vaccinated = ?
+                health_note = ?, is_sterilized = ?, is_vaccinated = ?,
+                req_space_level = ?, req_attention = ?, personality = ?
              WHERE cat_id = ?`,
-            [name, breed, pet_gender, age_months, healthDetails, sterilizationStatus, vaccinationStatus, catId]
-        );
-
-        await pool.query(
-            `UPDATE adoptionconditions SET
-                living_space_type = ?, daily_free_hours = ?, has_other_pets = ?
-             WHERE cat_id = ?`,
-            [reqHousing, reqTime, reqOtherPets, catId]
+            [name, breed, pet_gender, age_months, healthDetails, sterilization, vaccination, req_space_level, req_attention, personality_mapped, catId]
         );
 
         return res.status(200).json({

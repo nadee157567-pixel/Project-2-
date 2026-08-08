@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'adopter_profile_screen.dart'; 
 import 'adoption_status_screen.dart';
 import 'adoption_requests_screen.dart';
+import '../config/api_config.dart';
 
 class EvaluationScreen extends StatefulWidget {
   final int userId;
@@ -38,12 +39,12 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
     setState(() => isLoading = true);
     
     try {
-      final url = Uri.parse('http://10.0.2.2:3000/api/evaluate/${widget.userId}/${widget.catId}');
+      final url = Uri.parse(ApiConfig.baseUrl + '/evaluate/${widget.userId}/${widget.catId}');
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
-        if (jsonResponse['success']) {
+        if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
           setState(() {
             evaluationResult = jsonResponse['data'];
             isEvaluated = true;
@@ -226,7 +227,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                       onPressed: () async {
                         try {
                           final response = await http.post(
-                            Uri.parse('http://10.0.2.2:3000/api/adoption/request'),
+                            Uri.parse(ApiConfig.baseUrl + '/adoption/request'),
                             headers: {"Content-Type": "application/json"},
                             body: jsonEncode({
                               "catId": widget.catId,
@@ -272,6 +273,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                                           builder: (context) => AdoptionStatusScreen(
                                             evaluationResult: evaluationResult!,
                                             catImageUrl: widget.catImageUrl,
+                                            status: 'pending',
                                           ),
                                         ),
                                       );

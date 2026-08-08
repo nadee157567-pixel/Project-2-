@@ -5,6 +5,7 @@ import 'cat_detail_screen.dart';
 import 'user_profile_screen.dart';
 import 'poster_dashboard_screen.dart';
 import 'adopter_profile_screen.dart';
+import '../config/api_config.dart';
 
 class HomeScreen extends StatefulWidget {
   final int userId;
@@ -53,12 +54,25 @@ class _HomeScreenState extends State<HomeScreen> {
     fetchCats();
   }
 
+  List<int> _requestedCatIds = [];
+
   Future<void> fetchCats() async {
     // เปลี่ยน URL ให้ใช้พอร์ต 3000 ตามที่เซ็ตไว้บน Backend
-    final url = Uri.parse('http://10.0.2.2:3000/api/cats'); 
+    final url = Uri.parse(ApiConfig.baseUrl + '/cats'); 
 
+    final reqUrl = Uri.parse(ApiConfig.baseUrl + '/adoption/adopter/${widget.userId}');
     try {
       final response = await http.get(url);
+      final reqResponse = await http.get(reqUrl);
+      
+      if (reqResponse.statusCode == 200) {
+        final reqData = json.decode(reqResponse.body);
+        if (reqData['success'] == true && reqData['data'] != null) {
+          final List requests = reqData['data'];
+          _requestedCatIds = requests.map<int>((r) => r['cat_id'] as int).toList();
+        }
+      }
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
         setState(() {
@@ -81,6 +95,12 @@ class _HomeScreenState extends State<HomeScreen> {
       filteredCats = cats.where((cat) {
         // ห้ามเห็นแมวที่ตัวเองโพสต์
         if (cat['poster_id'] == widget.userId) return false;
+        
+        // ห้ามเห็นแมวที่เคยขอรับเลี้ยงไปแล้ว
+        if (_requestedCatIds.contains(cat['cat_id'])) return false;
+        
+        // ห้ามเห็นแมวที่ถูกรับเลี้ยงไปแล้ว
+        if (cat['status'] == 'adopted') return false;
 
         // Search Query
         bool matchesSearch = true;
@@ -310,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     try {
-      final response = await http.get(Uri.parse('http://10.0.2.2:3000/api/adopters/user/${widget.userId}'));
+      final response = await http.get(Uri.parse(ApiConfig.baseUrl + '/adopters/user/${widget.userId}'));
       if (!mounted) return;
       Navigator.pop(context); // Close loading
 

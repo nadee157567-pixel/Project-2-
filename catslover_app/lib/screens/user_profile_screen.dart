@@ -4,11 +4,15 @@ import 'dart:convert';
 import 'edit_profile_screen.dart';
 import 'adoption_requests_screen.dart';
 import 'poster_dashboard_screen.dart';
+import 'poster_history_screen.dart';
+import 'landing_screen.dart';
+import '../config/api_config.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final int userId;
+  final bool isPosterMode;
 
-  const UserProfileScreen({super.key, required this.userId});
+  const UserProfileScreen({super.key, required this.userId, this.isPosterMode = false});
 
   @override
   State<UserProfileScreen> createState() => _UserProfileScreenState();
@@ -32,19 +36,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     try {
       // 1. Fetch User Data
-      final userRes = await http.get(Uri.parse('http://10.0.2.2:3000/api/auth/user/${widget.userId}'));
+      final userRes = await http.get(Uri.parse(ApiConfig.baseUrl + '/auth/user/${widget.userId}'));
       if (userRes.statusCode == 200) {
         final data = json.decode(userRes.body);
-        if (data['success']) {
+        if (data['success'] == true && data['data'] != null) {
           userData = data['data'];
         }
       }
 
       // 2. Fetch Adopter Data
-      final adopterRes = await http.get(Uri.parse('http://10.0.2.2:3000/api/adopters/profile/${widget.userId}'));
+      final adopterRes = await http.get(Uri.parse(ApiConfig.baseUrl + '/adopters/profile/${widget.userId}'));
       if (adopterRes.statusCode == 200) {
         final data = json.decode(adopterRes.body);
-        if (data['success']) {
+        if (data['success'] == true && data['profile'] != null) {
           adopterData = data['profile'];
         }
       }
@@ -104,10 +108,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFFF5F5),
       appBar: AppBar(
         title: const Text('โปรไฟล์ของคุณ', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFFFF5F5),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
       ),
@@ -122,15 +126,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   Container(
                     padding: const EdgeInsets.all(16.0),
                     decoration: BoxDecoration(
-                      color: Colors.orange[50],
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(16.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
                     child: Column(
                       children: [
-                        const CircleAvatar(
+                        CircleAvatar(
                           radius: 40,
-                          backgroundColor: Colors.orange,
-                          child: Icon(Icons.person, size: 50, color: Colors.white),
+                          backgroundColor: Colors.brown[300],
+                          child: const Icon(Icons.person, size: 50, color: Colors.white),
                         ),
                         const SizedBox(height: 16),
                         _buildInfoRow('ชื่อผู้ใช้', userData?['username'] ?? '-'),
@@ -145,8 +156,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   Container(
                     padding: const EdgeInsets.all(16.0),
                     decoration: BoxDecoration(
-                      color: Colors.orange[50],
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(16.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,32 +176,55 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         _buildAdopterRow('👶', 'เด็กเล็กในบ้าน/แพ้ขนแมว', (adopterData?['has_children']?.toString() == '1') ? 'มี' : 'ไม่มี'),
                         _buildAdopterRow('🐶', 'สัตว์เลี้ยงอื่น', (adopterData?['has_other_pets']?.toString() == '1') ? 'มี' : 'ไม่มี'),
                         const SizedBox(height: 16),
-                        Center(
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => EditProfileScreen(
-                                    userId: widget.userId,
-                                    userData: userData,
-                                    adopterData: adopterData,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => EditProfileScreen(
+                                      userId: widget.userId,
+                                      userData: userData,
+                                      adopterData: adopterData,
+                                    ),
                                   ),
+                                );
+                                if (result == true) {
+                                  fetchProfileData();
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.pink[400],
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                              );
-                              if (result == true) {
-                                fetchProfileData();
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text('แก้ไขข้อมูล'),
+                            ),
+                            const SizedBox(width: 16),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                // Logout action - Go back to landing screen, remove all routes
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const LandingScreen()),
+                                  (route) => false,
+                                );
+                              },
+                              icon: const Icon(Icons.logout, size: 18),
+                              label: const Text('ออกจากระบบ'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red[400],
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
                               ),
                             ),
-                            child: const Text('แก้ไขข้อมูล'),
-                          ),
+                          ],
                         ),
                       ],
                     ),
@@ -191,11 +232,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   const SizedBox(height: 30),
                   ElevatedButton(
                     onPressed: () {
-                      if (userData?['role'] == 'poster') {
+                      if (widget.isPosterMode) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => PosterDashboardScreen(userId: widget.userId),
+                            builder: (context) => PosterHistoryScreen(userId: widget.userId),
                           ),
                         );
                       } else {
@@ -208,7 +249,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange[800],
+                      backgroundColor: Colors.pink[400],
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -216,7 +257,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       ),
                     ),
                     child: Text(
-                      userData?['role'] == 'poster' ? 'สัตว์เลี้ยงที่ประกาศหาบ้าน' : 'ดูคำขอรับเลี้ยงทั้งหมดของคุณ',
+                      widget.isPosterMode ? 'สัตว์เลี้ยงที่ประกาศหาบ้าน' : 'ดูคำขอรับเลี้ยงทั้งหมดของคุณ',
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),

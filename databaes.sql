@@ -13,7 +13,7 @@ CREATE TABLE users (
     username VARCHAR(50) NOT NULL UNIQUE,
 	phonenumber VARCHAR(15),
     line_id VARCHAR(50),
-    role ENUM('user','poster','admin') NOT NULL ,
+    role ENUM('user','admin') NOT NULL ,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -670,3 +670,58 @@ DESCRIBE users;
 DESCRIBE cats;
 
 DESCRIBE catphotos;
+
+-- ==========================================
+-- Chat System Tables
+-- ==========================================
+
+CREATE TABLE conversations (
+    room_id INT AUTO_INCREMENT PRIMARY KEY,
+    match_id INT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (match_id) 
+    REFERENCES adoptionapplications(match_id)
+    ON DELETE CASCADE
+);
+
+SELECT * FROM conversations;
+
+INSERT INTO conversations (room_id, match_id) 
+VALUES 
+(1, 1), -- แชทสำหรับการขอรับเลี้ยงแมว 'มะลิ' (match_id = 1)
+(2, 2); -- แชทสำหรับการขอรับเลี้ยงแมว 'โมจิ' (match_id = 2)
+
+
+CREATE TABLE messages (
+    message_id INT AUTO_INCREMENT PRIMARY KEY,
+    room_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    message_text TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (room_id) 
+    REFERENCES conversations(room_id)
+    ON DELETE CASCADE,
+    
+    FOREIGN KEY (sender_id) 
+    REFERENCES users(user_id)
+    ON DELETE CASCADE
+);
+
+SELECT * FROM messages;
+
+INSERT INTO messages (message_id, room_id, sender_id, message_text, is_read, sent_at)
+VALUES
+-- ห้องแชท 1 (match_id 1: มะลิ, Applicant = สมชาย(4), Poster = สมหญิง(2))
+(1, 1, 4, 'สวัสดีครับ ผมสนใจรับเลี้ยงน้องมะลิครับ พอดีมีคำถามนิดหน่อยครับ', TRUE, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(2, 1, 2, 'สวัสดีค่ะ ยินดีค่ะ สอบถามได้เลยนะคะ น้องมะลิขี้อ้อนมากค่ะ', TRUE, DATE_SUB(NOW(), INTERVAL 1 HOUR)),
+(3, 1, 4, 'อาหารที่น้องกินประจำคือยี่ห้ออะไรหรอครับ?', FALSE, NOW()),
+
+-- ห้องแชท 2 (match_id 2: โมจิ, Applicant = นันทนา(5), Poster = กานต์พิชชา(3))
+(4, 2, 5, 'สวัสดีค่ะ น้องโมจิยังมีคนจองหรือยังคะ?', TRUE, DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
+(5, 2, 3, 'ยังว่างอยู่ค่ะ นัดเข้ามาดูตัวน้องก่อนได้นะคะ', FALSE, DATE_SUB(NOW(), INTERVAL 5 MINUTE));
+
+DESCRIBE conversations;
+DESCRIBE messages;

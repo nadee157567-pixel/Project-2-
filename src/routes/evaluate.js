@@ -12,9 +12,9 @@ router.get('/:userId/:catId', async (req, res) => {
       [userId]
     );
     
-    // ดึงข้อมูลความต้องการของแมว
+    // ดึงข้อมูลความต้องการของแมวและเจ้าของแมว
     const [catData] = await pool.query(
-      'SELECT req_space_level, req_attention, est_monthly_cost FROM cats WHERE cat_id = ?', 
+      'SELECT req_space_level, req_attention, est_monthly_cost, poster_id FROM cats WHERE cat_id = ?', 
       [catId]
     );
 
@@ -24,6 +24,11 @@ router.get('/:userId/:catId', async (req, res) => {
 
     const user = profileData[0];
     const cat = catData[0];
+
+    // ไม่อนุญาตให้เจ้าของแมวทำแบบประเมินแมวของตัวเอง
+    if (Number(userId) === Number(cat.poster_id)) {
+      return res.status(400).json({ success: false, message: "เจ้าของแมวไม่สามารถทำแบบประเมินแมวของตนเองได้" });
+    }
 
     // --- เริ่มการคำนวณคะแนน (เต็ม 5 ดาวต่อด้าน) ---
 

@@ -10,10 +10,237 @@ const getCriteria = async () => {
             id: row.criteria_id,
             weight: row.scoreweight
         };
+นี่คือโค้ดสำหรับ `matchingController.js` ที่แก้ Conflict ทั้งหมดและรวมการทำงานของ `api` กับ `main` ตามที่คุณต้องการแล้วครับ
+
+**การแก้ไขที่เกิดขึ้น:**
+1. **เก็บฟังก์ชันตัวช่วยขั้นสูงทั้งหมด** จากฝั่ง `api` (เช่น `evaluateCat`, `calculateBudgetScore` ฯลฯ) เอาไว้เพื่อให้สามารถใช้ในฟีเจอร์อื่นๆ ได้อย่างครบถ้วน
+2. **สำหรับ `matchSelectedCat`:** ฝั่ง `api` มีระบบเขียนลงตาราง Detail ซ้ำซ้อนและขาดตัวแปรบางตัว ผมจึง **ยึดการทำงานจาก `main` เป็นหลัก** เพราะส่งค่ากลับไปตรงกับที่แอป (Frontend) ใช้งานอยู่ แต่ดึงเอา "กฎห้ามเจ้าของแมวประเมินแมวตัวเอง" จากฝั่ง `api` มาเสริมให้สมบูรณ์
+3. **สำหรับ `matchAllCats`:** ยึดของ `api` ทั้งหมด เพราะฝั่ง `main` ยังไม่ได้พัฒนา (Not implemented)
+
+คุณสามารถ **คัดลอกโค้ดด้านล่างนี้ ไปวางทับตั้งแต่บรรทัด `<<<<<<< api` บนสุด ยาวไปจนถึงบรรทัด `>>>>>>> main` ล่างสุด** ได้เลยครับ:
+
+```javascript
+    }
+
+    const maxScore = Number(criterion.max_score);
+    const scoreRatio = Number(criterion.score_ratio);
+    const isBlocking = Number(criterion.is_blocking) === 1;
+
+    return {
+        score: maxScore * scoreRatio,
+        maxScore,
+        scoreRatio,
+        difference,
+        valid: true,
+        criterion,
+    };
+}; 
+
+// === ฟังก์ชัน Helper สำหรับการประเมินจากฝั่ง api ===
+
+const calculateBudgetScore =(
+    monthlyBudget,
+    estimatedMonthlyCost,
+    criteriaList
+) => {
+    if (
+        monthlyBudget === undefined ||
+        monthlyBudget === null ||
+        monthlyBudget === '' ||
+        estimatedMonthlyCost === undefined ||
+        estimatedMonthlyCost === null ||
+        estimatedMonthlyCost === ''
+    ) {
+        return { score: 0, maxScore: 0, scoreRatio: 0, ratio: 0, valid: false, criterion: null };
+    }
+
+    const budget = Number(monthlyBudget);
+    const cost = Number(estimatedMonthlyCost);
+
+    if (Number.isNaN(budget) || Number.isNaN(cost) || budget < 0 || cost < 0) {
+        return { score: 0, maxScore: 0, scoreRatio: 0, ratio: 0, valid: false, criterion: null };
+    }
+
+    const ratio = cost === 0 ? 1 : budget / cost;
+    let conditionValue;
+
+    if(ratio >= 1){
+        conditionValue = 'ratio_gte_1';
+    }else if(ratio >= 0.8){
+        conditionValue = 'ratio_080_099';
+    }else if(ratio >= 0.6){
+        conditionValue = 'ratio_060_079';
+    }else { conditionValue = 'ratio_080_060'; }
+
+    const criterion = findCriterion(criteriaList, conditionValue);
+
+    if(!criterion) {
+        return{ score: 0, maxScore: 0, scoreRatio: 0, ratio, valid: false, criterion: null };
+    }
+
+    const maxScore = Number(criterion.max_score);
+    const scoreRatio = Number(criterion.score_ratio);
+
+    return{
+        score: maxScore * scoreRatio,
+        maxScore,
+        scoreRatio,
+        ratio,
+        valid: true,
+        criterion,
+    };
+};
+
+const scoreToStars = (score, maxScore ) => {
+    if (!maxScore || maxScore <= 0) return 0;
+    const stars = Math.round((Number(score) / Number(maxScore)) * 5);
+    return Math.max(0, Math.min(5, stars));
+};
+
+const getMatchLevel = (score) => {
+    if (score >= 80) return 'เหมาะสมมาก';
+    if (score >= 60) return 'เหมาะสม';
+    if (score >= 40) return 'เหมาะสมปานกลาง';
+    return 'ยังไม่เหมาะสม';
+};
+
+const evaluateCat = (profile, cat, criteriaByCode) => {
+    const reasons = [];
+    const warnings = [];
+    const disqualifications = [];
+
+    if (profile.pets_allowed === false) disqualifications.push('ที่พักอาศัยไม่อนุญาตให้เลี้ยงแมว');
+    if (profile.has_severe_allergy === true) disqualifications.push('มีสมาชิกในบ้านแพ้ขนแมวรุนแรง');
+    if (profile.has_children === true && !mysqlBoolean(cat.good_with_children)) disqualifications.push('แมวตัวนี้ไม่เหมาะกับบ้านที่มีเด็กเล็ก');
+    if (profile.has_cats === true && !mysqlBoolean(cat.good_with_cats)) disqualifications.push('แมวตัวนี้ไม่เหมาะกับบ้านที่มีแมวตัวอื่น');
+    if (profile.has_dogs === true && !mysqlBoolean(cat.good_with_dogs)) disqualifications.push('แมวตัวนี้ไม่เหมาะกับบ้านที่มีสุนัข');
+    if (mysqlBoolean(cat.has_special_needs) && profile.accepts_special_needs === false) disqualifications.push('ผู้ขอรับเลี้ยงยังไม่พร้อมดูแลแมวที่ต้องการการดูแลพิเศษ');
+
+    const spaceResult = calculateLevelScore(profile.space_level, cat.req_space_level, criteriaByCode.SPACE ?? []);
+    if (!spaceResult.valid) warnings.push('ข้อมูลพื้นที่ของแมวหรือผู้รับเลี้ยงไม่สมบูรณ์');
+    else if (spaceResult.difference >= 0) reasons.push('พื้นที่ของผู้รับเลี้ยงเพียงพอต่อความต้องการของแมว');
+    else if (spaceResult.difference === -1) warnings.push('พื้นที่ต่ำกว่าที่แมวต้องการเล็กน้อย');
+    else { warnings.push('พื้นที่ต่ำกว่าที่แมวต้องการมาก'); disqualifications.push('พื้นที่ไม่เพียงพอต่อความต้องการของแมว'); }
+
+    const budgetResult = calculateBudgetScore(profile.monthly_budget, cat.est_monthly_cost, criteriaByCode.BUDGET ?? []);
+    if (!budgetResult.valid) warnings.push('ข้อมูลค่าใช้จ่ายหรืองบประมาณไม่ถูกต้อง');
+    else if (budgetResult.ratio >= 1) reasons.push('งบประมาณครอบคลุมค่าใช้จ่ายรายเดือนของแมว');
+    else if (budgetResult.ratio >= 0.8) warnings.push('งบประมาณต่ำกว่าค่าใช้จ่ายเล็กน้อย');
+    else if (budgetResult.ratio >= 0.6) warnings.push('งบประมาณอาจไม่เพียงพอต่อค่าใช้จ่าย');
+    else { warnings.push('งบประมาณต่ำกว่าค่าใช้จ่ายที่แมวต้องการมาก'); disqualifications.push('งบประมาณต่ำกว่า 60% ของค่าใช้จ่ายโดยประมาณ'); }
+
+    const attentionResult = calculateLevelScore(profile.attention_level, cat.req_attention, criteriaByCode.ATTENTION ?? []);
+    if (!attentionResult.valid) warnings.push('ข้อมูลเวลาดูแลของแมวหรือผู้รับเลี้ยงไม่สมบูรณ์');
+    else if (attentionResult.difference >= 0) reasons.push('ผู้รับเลี้ยงมีเวลาดูแลเพียงพอ');
+    else if (attentionResult.difference === -1) warnings.push('เวลาดูแลต่ำกว่าที่แมวต้องการเล็กน้อย');
+    else { warnings.push('เวลาดูแลต่ำกว่าที่แมวต้องการมาก'); disqualifications.push('ไม่มีเวลาดูแลเพียงพอ'); }
+
+    const experienceResult = calculateLevelScore(profile.experience_level, cat.req_experience_level, criteriaByCode.EXPERIENCE ?? []);
+    if (!experienceResult.valid) warnings.push('ข้อมูลประสบการณ์ของแมวหรือผู้รับเลี้ยงไม่สมบูรณ์');
+    else if (experienceResult.difference >= 0) reasons.push('ผู้รับเลี้ยงมีประสบการณ์เหมาะสม');
+    else if (experienceResult.difference === -1) warnings.push('ประสบการณ์ต่ำกว่าที่แนะนำเล็กน้อย');
+    else { warnings.push('ประสบการณ์ต่ำกว่าที่แมวต้องการมาก'); if(experienceResult.isBlocking) disqualifications.push('ประสบการณ์ไม่เพียงพอต่อการดูแลแมว'); }
+
+    const totalScore = spaceResult.score + budgetResult.score + attentionResult.score + experienceResult.score;
+    const totalMaxScore = spaceResult.maxScore + budgetResult.maxScore + attentionResult.maxScore + experienceResult.maxScore;
+    const matchPercentage = totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0;
+    const roundedPercentage = Number(matchPercentage.toFixed(2));
+
+    return {
+        cat_id: cat.cat_id,
+        pet_name: cat.pet_name,
+        pet_breed: cat.pet_breed,
+        gender: cat.gender,
+        age_months: cat.age_months,
+        personality: cat.personality,
+        health_note: cat.health_note,
+        status: cat.status,
+        image_url: cat.image_url,
+        compatibility: {
+            good_with_children: mysqlBoolean(cat.good_with_children),
+            good_with_cats: mysqlBoolean(cat.good_with_cats),
+            good_with_dogs: mysqlBoolean(cat.good_with_dogs),
+            has_special_needs: mysqlBoolean(cat.has_special_needs),
+        },
+        requirements: {
+            space_level: cat.req_space_level,
+            attention_level: cat.req_attention,
+            experience_level: cat.req_experience_level,
+            estimated_monthly_cost: cat.est_monthly_cost === null ? null : Number(cat.est_monthly_cost),
+        },
+        score_detail: {
+            space:{ criteria_id: spaceResult.criterion?.criteria_id, score: spaceResult.score, max_score: spaceResult.maxScore, score_ratio: spaceResult.scoreRatio, stars: scoreToStars(spaceResult.score, spaceResult.maxScore) },
+            budget:{ criteria_id: budgetResult.criterion?.criteria_id, score: budgetResult.score, max_score: budgetResult.maxScore, score_ratio: budgetResult.scoreRatio, stars: scoreToStars(budgetResult.score, budgetResult.maxScore) },
+            attention:{ criteria_id: attentionResult.criterion?.criteria_id, score: attentionResult.score, max_score: attentionResult.maxScore, score_ratio: attentionResult.scoreRatio, stars: scoreToStars(attentionResult.score, attentionResult.maxScore) },
+            experience: { criteria_id: experienceResult.criterion?.criteria_id, score: experienceResult.score, max_score: experienceResult.maxScore, score_ratio: experienceResult.scoreRatio, stars: scoreToStars(experienceResult.score, experienceResult.maxScore) },
+        },
+        match_score: Number(totalScore.toFixed(2)),
+        total_max_score: Number(totalMaxScore.toFixed(2)),
+        match_percentage: roundedPercentage,
+        match_level: getMatchLevel(roundedPercentage),
+        eligible: disqualifications.length === 0,
+        reasons,
+        warnings,
+        disqualifications,
+    };
+};
+
+const CAT_SELECT_SQL = `
+    SELECT
+        c.cat_id, c.poster_id, c.pet_name, c.pet_breed, c.gender, c.age_months, c.personality,
+        c.health_note, c.req_space_level, c.req_attention, c.req_experience_level, c.est_monthly_cost,
+        c.good_with_children, c.good_with_cats, c.good_with_dogs, c.has_special_needs, c.status, c.created_at,
+        u.fullname AS poster_name,
+        (SELECT cp.image_url FROM catphotos AS cp WHERE cp.cat_id = c.cat_id ORDER BY cp.photo_id ASC LIMIT 1) AS image_url
+    FROM cats AS c
+    JOIN users AS u ON c.poster_id = u.user_id
+`;
+
+const validateProfile = (body) =>{
+    const{ housing_type, space_level, monthly_budget, attention_level, experience_level } = body;
+    const errors = [];
+    if(!space_level){ errors.push('กรุณาระบุระดับพื้นที่'); } else if(levelToNumber(space_level) === 0){ errors.push('ระดับพื้นที่ไม่ถูกต้อง'); }
+    if(monthly_budget === undefined || monthly_budget === null || monthly_budget === '') { errors.push('กรุณาใส่งบประมาณต่อเดือน'); }
+    else if(Number.isNaN(Number(monthly_budget)) || Number(monthly_budget) < 0) { errors.push('งบประมาณต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป'); }
+    if (!attention_level) { errors.push('กรุณาระบุระดับเวลาดูแล'); } else if (levelToNumber(attention_level) === 0) { errors.push('ระดับเวลาดูแลไม่ถูกต้อง'); }
+    if (!experience_level) { errors.push('กรุณาระบุระดับประสบการณ์'); } else if (levelToNumber(experience_level) === 0) { errors.push('ระดับประสบการณ์ไม่ถูกต้อง'); }
+
+    const booleanFields = {
+        pets_allowed: 'กรุณาระบุว่าที่พักอนุญาตให้เลี้ยงแมวหรือไม่',
+        has_children: 'กรุณาระบุว่าในบ้านมีเด็กเล็กหรือไม่',
+        has_cats: 'กรุณาระบุว่าในบ้านมีแมวตัวอื่นหรือไม่',
+        has_dogs: 'กรุณาระบุว่าในบ้านมีสุนัขหรือไม่',
+        has_severe_allergy: 'กรุณาระบุว่ามีสมาชิกแพ้ขนแมวรุนแรงหรือไม่',
+        accepts_special_needs: 'กรุณาระบุว่าพร้อมดูแลแมวที่ต้องการการดูแลพิเศษหรือไม่',
+    };
+    const normalizedBooleans = {};
+    for (const [fieldName, errorMessage] of Object.entries(booleanFields)) {
+        const normalizedValue = normalizeBoolean(body[fieldName]);
+        if (normalizedValue === null) { errors.push(errorMessage); } else { normalizedBooleans[fieldName] = normalizedValue; }
+    }
+    return{
+        errors,
+        profile:{
+            housing_type: housing_type || null, space_level, monthly_budget: Number(monthly_budget),
+            attention_level, experience_level, ...normalizedBooleans,
+        },
+    };
+};
+
+const convertMatchLevelToDatabase = (score) => {
+    if(score >= 80) return 'highly_suitable';
+    if(score >= 60) return 'suitable';
+    if(score >= 40) return 'consider';
+    return 'not_suitable';
+};
+
+// === ปิดท้ายฟังก์ชัน getCriteria จากฝั่ง main ===
     });
     return criteria;
 };
 
+
+// === รวมระบบ matchSelectedCat จาก main + api ===
 const matchSelectedCat = async (req, res) => {
     try {
         const { userId, catId } = req.params;
@@ -38,13 +265,20 @@ const matchSelectedCat = async (req, res) => {
         }
         const cat = catRows[0];
 
+        // กฎจากฝั่ง api: เจ้าของแมวห้ามประเมินตัวเอง
+        if (Number(userId) === Number(cat.poster_id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'เจ้าของแมวไม่สามารถทำแบบประเมินแมวของตนเองได้',
+            });
+        }
+
         // 3. Get Criteria
         const criteria = await getCriteria();
         let totalScore = 0;
         const details = [];
         let stars = { space: 0, time: 0, budget: 0, experience: 0 };
 
-        // Helper to add detail
         const addDetail = (field, condition, applicantVal, reqVal) => {
             const crit = criteria[field] && criteria[field][condition];
             const score = crit ? crit.weight : 0;
@@ -80,7 +314,7 @@ const matchSelectedCat = async (req, res) => {
         stars.experience = Math.round((expScore / 20) * 5);
 
         // --- Budget ---
-        let budgetCondition = (profile.max_monthly_budget >= cat.est_monthly_cost) ? 'sufficient' : 'sufficient'; // Simplified
+        let budgetCondition = 'sufficient'; 
         const budgetScore = addDetail('max_monthly_budget', budgetCondition, profile.max_monthly_budget, cat.est_monthly_cost);
         stars.budget = Math.round((budgetScore / 20) * 5);
 
@@ -124,8 +358,76 @@ const matchSelectedCat = async (req, res) => {
     }
 };
 
+
+// === matchAllCats คงฟังก์ชันของ api ไว้ใช้งาน ===
 const matchAllCats = async (req, res) => {
-    return res.status(501).json({ success: false, message: 'Not implemented' });
+    try{
+        const{errors,profile} = validateProfile(req.body);
+
+        if(errors.length > 0){
+            return res.status(400).json({
+                success: false,
+                message: 'ข้อมูลแบบประเมินไม่ถูกต้อง',
+                errors,
+            });
+        }
+
+        const applicantId = req.user?.user_id ?? req.body?.applicant_id;
+
+        let query = `   
+            ${CAT_SELECT_SQL}
+            WHERE c.status = 'available'
+        `;
+        const queryParams = [];
+
+        if (applicantId) {
+            query += ` AND c.poster_id != ?`;
+            queryParams.push(applicantId);
+        }
+
+        query += ` ORDER BY c.created_at DESC`;
+
+        const [cats] = await pool.query(query, queryParams);
+
+        const criteriaRows = await getActiveCriteria();
+
+        if(criteriaRows.length === 0){
+            return res.status(500).json({
+                success: false,
+                message: 'ยังไม่มีเกณฑ์ประเมินที่เปิดใช้งาน',
+            });
+        };
+
+        const criteriaByCode = groupCriteriaByCode(criteriaRows);
+
+        const matches = cats
+            .map((cat) => evaluateCat(profile, cat))
+            .sort((firstCat, secondCat) => {
+                if(firstCat.eligible !== secondCat.eligible){
+                    return firstCat.eligible ? -1 : 1;
+                }
+                return(
+                    secondCat.match_percentage -
+                    firstCat.match_percentage
+                );
+            });
+
+        return res.status(200).json({
+            success: true,
+            message: 'ประเมินความเหมาะสมสำเร็จ',
+            assessment: profile,
+            count: matches.length,
+            data: matches,
+        });
+    }catch (error){
+        console.error('Matching all cats error:', error);
+    
+        return res.status(500).json({
+            success: false,
+            message: 'เกิดข้อผิดพลาดในการประเมินความเหมาะสม',
+            error: error.message,
+        });
+    }
 };
 
 module.exports = {

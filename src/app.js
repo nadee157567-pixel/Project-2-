@@ -35,7 +35,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/adopters', adopterRouter);
 
 app.use('/api/chats', chatRouter);
-app.use('/api/applications', adoptionRoutes);
+app.use('/api/adoption', adoptionRoutes);
 app.use('/upload', express.static(path.join(__dirname, '../upload')));
 
 

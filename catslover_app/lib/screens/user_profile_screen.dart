@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'edit_profile_screen.dart';
 import 'adoption_requests_screen.dart';
 import 'poster_dashboard_screen.dart';
-import 'poster_history_screen.dart';
 import 'landing_screen.dart';
 import '../config/api_config.dart';
 
@@ -236,7 +235,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => PosterHistoryScreen(userId: widget.userId),
+                            builder: (context) => PosterDashboardScreen(userId: widget.userId),
                           ),
                         );
                       } else {

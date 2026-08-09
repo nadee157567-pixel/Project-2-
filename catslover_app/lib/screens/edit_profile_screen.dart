@@ -247,22 +247,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: 24),
                     const Text('ข้อมูลผู้รับเลี้ยง', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
-                    _buildDropdown('ที่พักอาศัย', _housingType, ['บ้านเดี่ยว', 'คอนโด', 'หอพัก'], (val) {
+                    _buildDropdown('ที่พักอาศัย', _housingType, [
+                      {'value': 'บ้านเดี่ยว', 'label': 'บ้านเดี่ยว'},
+                      {'value': 'คอนโด', 'label': 'คอนโด'},
+                      {'value': 'หอพัก', 'label': 'หอพัก'}
+                    ], (val) {
                       setState(() => _housingType = val!);
                     }),
-                    _buildDropdown('เวลาว่างต่อวัน', _freeTime, ['น้อย', 'ปานกลาง', 'มาก'], (val) {
+                    _buildDropdown('เวลาว่างต่อวัน', _freeTime, [
+                      {'value': 'น้อย', 'label': 'น้อย (น้อยกว่า 2 ชั่วโมง)'},
+                      {'value': 'ปานกลาง', 'label': 'ปานกลาง (2-4 ชั่วโมง)'},
+                      {'value': 'มาก', 'label': 'มาก (มากกว่า 4 ชั่วโมง)'}
+                    ], (val) {
                       setState(() => _freeTime = val!);
                     }),
-                    _buildDropdown('งบประมาณต่อเดือน', _budget, ['น้อย', 'ปานกลาง', 'มาก'], (val) {
+                    _buildDropdown('งบประมาณต่อเดือน', _budget, [
+                      {'value': 'น้อย', 'label': 'น้อย (ต่ำกว่า 1,000 บาท)'},
+                      {'value': 'ปานกลาง', 'label': 'ปานกลาง (1,000 - 3,000 บาท)'},
+                      {'value': 'มาก', 'label': 'มาก (3,000 บาทขึ้นไป)'}
+                    ], (val) {
                       setState(() => _budget = val!);
                     }),
-                    _buildDropdown('ประสบการณ์', _experience, ['ไม่มี', 'พื้นฐาน', 'ระดับสูง'], (val) {
+                    _buildDropdown('ประสบการณ์', _experience, [
+                      {'value': 'ไม่มี', 'label': 'ไม่มี/มือใหม่'},
+                      {'value': 'พื้นฐาน', 'label': 'พื้นฐาน (เคยเลี้ยง)'},
+                      {'value': 'ระดับสูง', 'label': 'ระดับสูง (ดูแลแมวป่วยได้)'}
+                    ], (val) {
                       setState(() => _experience = val!);
                     }),
-                    _buildDropdown('เด็กเล็กในบ้าน/แพ้ขนแมว', _hasChildren, ['ไม่มี', 'มี'], (val) {
+                    _buildDropdown('เด็กเล็กในบ้าน/แพ้ขนแมว', _hasChildren, [
+                      {'value': 'ไม่มี', 'label': 'ไม่มี'},
+                      {'value': 'มี', 'label': 'มี'}
+                    ], (val) {
                       setState(() => _hasChildren = val!);
                     }),
-                    _buildDropdown('สัตว์เลี้ยงอื่น', _hasPets, ['ไม่มี', 'มี'], (val) {
+                    _buildDropdown('สัตว์เลี้ยงอื่น', _hasPets, [
+                      {'value': 'ไม่มี', 'label': 'ไม่มี'},
+                      {'value': 'มี', 'label': 'มี'}
+                    ], (val) {
                       setState(() => _hasPets = val!);
                     }),
                     
@@ -283,7 +305,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildDropdown(String label, String value, List<String> items, void Function(String?) onChanged) {
+  Widget _buildDropdown(String label, String value, List<Map<String, String>> items, void Function(String?) onChanged) {
+    String currentValue = items.any((e) => e['value'] == value) ? value : items.first['value']!;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: DropdownButtonFormField<String>(
@@ -291,8 +315,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           labelText: label,
           border: const OutlineInputBorder(),
         ),
-        value: value,
-        items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+        value: currentValue,
+        items: items.map((e) => DropdownMenuItem(value: e['value'], child: Text(e['label']!))).toList(),
         onChanged: onChanged,
       ),
     );

@@ -3,17 +3,19 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/api_config.dart';
 import 'consider_approval_screen.dart';
-
+import 'chat_message_screen.dart';
 class CatAdoptersListScreen extends StatefulWidget {
   final int catId;
   final String catName;
   final bool isAdopted;
+  final int posterId;
 
   const CatAdoptersListScreen({
     super.key,
     required this.catId,
     required this.catName,
     this.isAdopted = false,
+    required this.posterId,
   });
 
   @override
@@ -28,6 +30,55 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
   void initState() {
     super.initState();
     _fetchAdopters();
+  }
+
+  Future<void> _navigateToChat(BuildContext context, Map<String, dynamic> adopter) async {
+    try {
+      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}/chats?userId=${widget.posterId}'));
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        if (data['success']) {
+          List chats = data['data'];
+          // หาห้องแชทที่มี applicant_id กับ poster_id ตรงกัน
+          final chat = chats.firstWhere(
+            (c) => c['applicant_id'].toString() == adopter['user_id'].toString() &&
+                   c['poster_id'].toString() == widget.posterId.toString(),
+            orElse: () => null,
+          );
+          
+          if (chat != null) {
+            if (context.mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChatMessageScreen(
+                    roomId: int.parse(chat['room_id'].toString()),
+                    userId: widget.posterId,
+                    partnerName: adopter['fullname'] ?? 'ผู้ขอรับเลี้ยง',
+                  ),
+                ),
+              );
+            }
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('ยังไม่มีห้องแชทสำหรับรายการนี้ (รอระบบสร้างอัตโนมัติ)')),
+              );
+            }
+          }
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('เกิดข้อผิดพลาดในการดึงข้อมูลแชท')),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
   }
 
   Future<void> _fetchAdopters() async {
@@ -133,11 +184,7 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
                               children: [
                                 Expanded(
                                   child: ElevatedButton.icon(
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('กำลังติดต่อไปยังผู้ขอรับเลี้ยง...')),
-                                      );
-                                    },
+                                    onPressed: () => _navigateToChat(context, adopter),
                                     icon: const Icon(Icons.message, size: 18),
                                     label: const Text("ติดต่อ", style: TextStyle(fontSize: 12)),
                                     style: ElevatedButton.styleFrom(

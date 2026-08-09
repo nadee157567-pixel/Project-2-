@@ -1,6 +1,6 @@
 const pool = require('../config/database');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+
 
 async function signup(req, res) {
     try {
@@ -39,7 +39,7 @@ async function signup(req, res) {
 
     } catch (error) {
         console.error('Signup error:', error);
-        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการสมัครสมาชิก' });
+        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการสมัครสมาชิก', });
     }
 }
 
@@ -62,22 +62,22 @@ async function login(req, res) {
 
         const user = users[0];
 
-        // ตรวจสอบรหัสผ่าน
-        const isPasswordValid = await bcrypt.compare(password, user.password);
+        // ตรวจสอบรหัสผ่าน (รองรับทั้ง Bcrypt และ Plaintext แบบเก่า)
+        let isPasswordValid = false;
+        
+        if (user.password && user.password.startsWith('$2b$')) {
+            // เป็นรหัสผ่านที่เข้ารหัสแบบ Bcrypt
+            isPasswordValid = await bcrypt.compare(password, user.password);
+        } else {
+            // เป็นรหัสผ่านข้อความธรรมดา (Plaintext) จากระบบเก่า
+            isPasswordValid = (password === user.password);
+        }
+
         if (!isPasswordValid) {
             return res.status(401).json({ success: false, message: 'Username หรือ Password ไม่ถูกต้อง' });
         }
 
-        // สร้าง JWT Token
-        const token = jwt.sign(
-            {
-                user_id: user.user_id,
-                username: user.username,
-                role: user.role
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
+        // สร้าง JWT Token ถูกลบออกไปแล้วตามคำขอ
 
         // ตรวจสอบความถูกต้องของเบอร์โทรศัพท์
         let requireProfileUpdate = false;
@@ -94,7 +94,6 @@ async function login(req, res) {
             userId: user.user_id,
             username: user.username,
             role: user.role,
-            token: token,
             requireProfileUpdate: requireProfileUpdate,
             warningMessage: warningMessage
         });

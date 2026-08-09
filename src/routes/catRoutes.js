@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const verifyToken = require('../middleware/authMiddleware');
+
 const { validateCatPost } = require('../middleware/validationMiddleware');
 
 // ตั้งค่า Multer สำหรับเก็บไฟล์ไว้ในโฟลเดอร์ 'upload/' ของ Server
@@ -62,13 +62,13 @@ router.put('/:catId/photos/:photoId', updateCatPhoto);
 router.delete('/:catId/photos/:photoId', deleteCatPhoto);
 
 // Protected routes (requires Login)
-router.post('/', verifyToken, validateCatPost, createCat);
-router.put('/:id', verifyToken, validateCatPost, updateCat);
-router.delete('/:id', verifyToken, deleteCat);
+router.post('/', validateCatPost, createCat);
+router.put('/:id', validateCatPost, updateCat);
+router.delete('/:id', deleteCat);
 
 // Photo management routes (Protected)
-router.post('/:catId/photos', verifyToken, upload.array('photos', 5), uploadCatPhoto);
-router.delete('/:catId/photos/:photoId', verifyToken, deleteCatPhoto);
-router.put('/:catId/photos/:photoId', verifyToken, updateCatPhoto);
+router.post('/:catId/photos', upload.array('photos', 5), uploadCatPhoto);
+router.delete('/:catId/photos/:photoId', deleteCatPhoto);
+router.put('/:catId/photos/:photoId', updateCatPhoto);
 
 module.exports = router;

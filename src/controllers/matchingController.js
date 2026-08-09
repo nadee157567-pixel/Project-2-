@@ -294,7 +294,12 @@ const saveAssessmentDetail = async({
 // === รวมระบบ matchSelectedCat จาก main + api ===
 const matchSelectedCat = async (req, res) => {
     try {
-        const { userId, catId } = req.params;
+        const catId = req.params.catId;
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'กรุณาระบุ userId' });
+        }
 
         // 1. Get Adopter Profile
         const [profileRows] = await pool.query(`
@@ -399,6 +404,7 @@ const matchSelectedCat = async (req, res) => {
             success: true,
             message: 'ประเมินสำเร็จ',
             data: {
+                assessmentId: assessmentId,
                 matchPercent: totalScore,
                 scores: stars
             }

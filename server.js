@@ -1,7 +1,7 @@
 require('dotenv').config();
 const http = require('http');
 const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
+
 
 const app = require('./src/app');
 const pool = require('./src/config/database');

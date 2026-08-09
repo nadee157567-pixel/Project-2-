@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 
 class CatProfileFormScreen extends StatefulWidget {
@@ -22,6 +24,9 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
   // ==============================
   final TextEditingController _catNameController = TextEditingController();
   final TextEditingController _healthDetailsController = TextEditingController();
+  
+  List<XFile> _selectedImages = [];
+  final ImagePicker _picker = ImagePicker();
   String? selectedBreed;
   String? selectedGender;
   String? selectedAge;
@@ -106,6 +111,38 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
     setState(() => _currentPage = 0);
   }
 
+  Future<void> _pickImages() async {
+    final List<XFile> images = await _picker.pickMultiImage();
+    if (images.isNotEmpty) {
+      setState(() {
+        _selectedImages.addAll(images);
+        if (_selectedImages.length > 5) {
+          _selectedImages = _selectedImages.sublist(0, 5); // limit to 5
+        }
+      });
+    }
+  }
+
+  Future<void> _uploadPhotos(int catId) async {
+    if (_selectedImages.isEmpty) return;
+    
+    var uri = Uri.parse(ApiConfig.baseUrl + '/cats/$catId/photos');
+    var request = http.MultipartRequest('POST', uri);
+    
+    for (var image in _selectedImages) {
+      request.files.add(await http.MultipartFile.fromPath('photos', image.path));
+    }
+    
+    try {
+      var response = await request.send();
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        print("Failed to upload photos: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Upload error: $e");
+    }
+  }
+
 Future<void> _submitCatPost() async {
     // 1. จัดเตรียมข้อมูลที่ผู้ใช้กรอกให้อยู่ในรูปแบบ JSON (Map)
     final Map<String, dynamic> catData = {
@@ -142,6 +179,13 @@ Future<void> _submitCatPost() async {
 
       // 3. เช็กผลลัพธ์ ถ้าเซิร์ฟเวอร์ตอบกลับว่าสำเร็จ (200 หรือ 201)
       if (response.statusCode == 200 || response.statusCode == 201) {
+        final resData = jsonDecode(response.body);
+        final int? newCatId = resData['catId'] ?? (widget.editCatData != null ? widget.editCatData!['cat_id'] : null);
+        
+        if (newCatId != null && _selectedImages.isNotEmpty) {
+          await _uploadPhotos(newCatId);
+        }
+
         if (!mounted) return;
         
         showDialog(
@@ -295,22 +339,58 @@ Future<void> _submitCatPost() async {
                 const SizedBox(height: 16),
                 
                 // ช่องอัปโหลดรูป (ปรับความสูงลดลงให้พอดีหน้าจอ)
-                Container(
-                  height: 120, 
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.pink[300]!, style: BorderStyle.solid, width: 2), 
-                  ),
-                  child: const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.camera_alt, color: Colors.grey, size: 40),
-                        SizedBox(height: 8),
-                        Text("เพิ่มรูปภาพน้องแมว", style: TextStyle(fontSize: 14, color: Colors.grey)),
-                      ],
+                GestureDetector(
+                  onTap: _pickImages,
+                  child: Container(
+                    height: 120, 
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.pink[300]!, style: BorderStyle.solid, width: 2), 
                     ),
+                    child: _selectedImages.isEmpty 
+                      ? const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.camera_alt, color: Colors.grey, size: 40),
+                              SizedBox(height: 8),
+                              Text("เพิ่มรูปภาพน้องแมว (สูงสุด 5 รูป)", style: TextStyle(fontSize: 14, color: Colors.grey)),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _selectedImages.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.file(File(_selectedImages[index].path), width: 100, height: 100, fit: BoxFit.cover),
+                                  ),
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedImages.removeAt(index);
+                                        });
+                                      },
+                                      child: Container(
+                                        color: Colors.black54,
+                                        child: const Icon(Icons.close, color: Colors.white, size: 20),
+                                      ),
+                                    ),
+                                  )
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                   ),
                 ),
                 const SizedBox(height: 16),

@@ -113,6 +113,8 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
                           resultText: resultText,
                           status: status,
                           evaluationResult: fakeEvaluationResult,
+                          matchId: int.tryParse(req['match_id'].toString()) ?? 0,
+                          userId: widget.userId,
                         ),
                       );
                     }).toList(),
@@ -130,6 +132,8 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
     required String resultText,
     required String status,
     required Map<String, dynamic> evaluationResult,
+    required int matchId,
+    required int userId,
   }) {
     String displayStatus = status == 'pending' ? 'รอการพิจารณา' 
                         : status == 'interview' ? 'นัดสัมภาษณ์'
@@ -141,98 +145,103 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
                         : Colors.red;
 
     return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.pink.withOpacity(0.1),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: BorderRadius.circular(15),
             child: Image.network(
               imageUrl,
-              height: 180,
-              width: double.infinity,
+              width: 80,
+              height: 80,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) =>
                   const Icon(Icons.pets, color: Colors.grey, size: 50),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        catName,
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.pinkAccent),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF0F0),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFFFA0A0)),
-                        ),
-                        child: const Text('คะแนนจับคู่', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
+                Text(catName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.circle, color: score >= 80 ? Colors.green : Colors.yellow, size: 20),
-                          const SizedBox(width: 8),
-                          Text('$score%', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          const SizedBox(width: 8),
-                          Text(resultText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.pink[100],
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Text('คะแนนจับคู่', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(Icons.circle, color: score >= 80 ? Colors.green : Colors.yellow, size: 20),
+                              const SizedBox(width: 8),
+                              Text('$score%', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              const SizedBox(width: 8),
+                              Text(resultText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text('สถานะ: $displayStatus', style: TextStyle(fontWeight: FontWeight.bold, color: statusColor)),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      Text('สถานะ: $displayStatus', style: TextStyle(fontWeight: FontWeight.bold, color: statusColor)),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const SizedBox(height: 30),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AdoptionStatusScreen(
-                                evaluationResult: evaluationResult,
-                                catImageUrl: imageUrl,
-                                status: status,
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const SizedBox(height: 30),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AdoptionStatusScreen(
+                                    evaluationResult: evaluationResult,
+                                    catImageUrl: imageUrl,
+                                    status: status,
+                                    matchId: matchId,
+                                    userId: userId,
+                                  ),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFFA0A0),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
                               ),
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFA0A0),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                            child: const Text('เช็คสถานะ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
-                        ),
-                        child: const Text('เช็คสถานะ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),

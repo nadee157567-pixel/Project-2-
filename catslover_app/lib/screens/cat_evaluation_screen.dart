@@ -39,8 +39,12 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
     setState(() => isLoading = true);
     
     try {
-      final url = Uri.parse(ApiConfig.baseUrl + '/evaluate/${widget.userId}/${widget.catId}');
-      final response = await http.get(url);
+      final url = Uri.parse(ApiConfig.baseUrl + '/matching/${widget.catId}');
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"userId": widget.userId}),
+      );
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
@@ -128,11 +132,15 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
               bool canAdopt = true;
               List<String> reasons = [];
 
-              if (matchPercent > 70) {
+              if (matchPercent >= 80) {
+                statusText = '$matchPercent% เหมาะสมมาก';
+                statusColor = Colors.green;
+                statusIcon = Icons.stars;
+              } else if (matchPercent >= 60) {
                 statusText = '$matchPercent% เหมาะสม';
                 statusColor = Colors.green;
                 statusIcon = Icons.check_circle;
-              } else if (matchPercent > 50) {
+              } else if (matchPercent >= 40) {
                 statusText = '$matchPercent% พอใช้';
                 statusColor = Colors.orange;
                 statusIcon = Icons.info;
@@ -225,19 +233,22 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                       ),
                       onPressed: () async {
-                        try {
-                          final response = await http.post(
-                            Uri.parse(ApiConfig.baseUrl + '/adoption/request'),
-                            headers: {"Content-Type": "application/json"},
-                            body: jsonEncode({
-                              "catId": widget.catId,
-                              "applicantId": widget.userId,
-                              "matchscore": evaluationResult?['matchPercent'] ?? 0,
-                              "uploadRemark": "ยื่นคำขอผ่านระบบจับคู่แมว"
-                            }),
-                          );
+                          try {
+                            final response = await http.post(
+                              Uri.parse(ApiConfig.baseUrl + '/adoption/'),
+                              headers: {"Content-Type": "application/json"},
+                              body: jsonEncode({
+                                "cat_id": widget.catId,
+                                "applicant_id": widget.userId,
+                                "assessment_id": evaluationResult?['assessmentId'],
+                                "message": "สนใจรับเลี้ยงน้องแมวตัวนี้ครับ/ค่ะ (ส่งจากแอป)"
+                              }),
+                            );
 
                           if (response.statusCode == 201) {
+                            final respData = jsonDecode(response.body);
+                            final int matchId = respData['data']?['match_id'] ?? 0;
+                            
                             setState(() {
                               requestedCats.add(widget.catId);
                             });
@@ -274,6 +285,8 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                                             evaluationResult: evaluationResult!,
                                             catImageUrl: widget.catImageUrl,
                                             status: 'pending',
+                                            userId: widget.userId,
+                                            matchId: matchId,
                                           ),
                                         ),
                                       );

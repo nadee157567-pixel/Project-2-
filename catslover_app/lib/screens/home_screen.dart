@@ -5,6 +5,7 @@ import 'cat_detail_screen.dart';
 import 'user_profile_screen.dart';
 import 'poster_dashboard_screen.dart';
 import 'adopter_profile_screen.dart';
+import 'chat_list_screen.dart';
 import '../config/api_config.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -88,6 +89,66 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (error) {
       setState(() { isLoading = false; });
       print('เกิดข้อผิดพลาด: $error');
+    }
+  }
+
+  bool _showRecommended = false;
+  List<dynamic> recommendedCats = [];
+  bool isLoadingRecommended = false;
+
+  Future<void> fetchRecommendedCats() async {
+    setState(() { isLoadingRecommended = true; });
+    try {
+      // 1. ดึงโปรไฟล์
+      final profileRes = await http.get(Uri.parse(ApiConfig.baseUrl + '/adopters/profile/${widget.userId}'));
+      if (profileRes.statusCode != 200) {
+        setState(() { isLoadingRecommended = false; });
+        return;
+      }
+      final profileData = json.decode(profileRes.body)['profile'];
+      if (profileData == null) {
+        setState(() { isLoadingRecommended = false; });
+        return;
+      }
+
+      // 2. จัดรูปแบบข้อมูลให้เข้ากับ matchAllCats
+      final int freeHours = profileData['daily_free_hours'] ?? 4;
+      String attentionLevel = freeHours >= 5 ? 'large' : (freeHours >= 3 ? 'medium' : 'small');
+
+      final reqBody = {
+        "housing_type": profileData['living_space_type'] ?? 'house',
+        "space_level": profileData['space_size'] ?? 'medium',
+        "monthly_budget": profileData['max_monthly_budget'] ?? 3000,
+        "attention_level": attentionLevel,
+        "experience_level": profileData['experience'] ?? 'none',
+        "pets_allowed": true,
+        "has_children": (profileData['has_children'] == 1),
+        "has_cats": (profileData['has_other_pets'] == 1),
+        "has_dogs": false,
+        "has_severe_allergy": false,
+        "accepts_special_needs": false,
+        "applicant_id": widget.userId
+      };
+
+      // 3. เรียก API matching
+      final matchRes = await http.post(
+        Uri.parse(ApiConfig.baseUrl + '/matching/'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(reqBody)
+      );
+
+      if (matchRes.statusCode == 200) {
+        final matchData = json.decode(matchRes.body);
+        setState(() {
+          recommendedCats = matchData['data'] ?? [];
+          isLoadingRecommended = false;
+        });
+      } else {
+        setState(() { isLoadingRecommended = false; });
+      }
+    } catch (e) {
+      print("Error recommended: $e");
+      setState(() { isLoadingRecommended = false; });
     }
   }
   void _applyFilters() {
@@ -429,6 +490,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(width: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 5,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: Icon(Icons.chat_bubble_outline, color: Colors.pink[300]),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatListScreen(userId: widget.userId),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -489,22 +575,53 @@ class _HomeScreenState extends State<HomeScreen> {
             
             const SizedBox(height: 20),
 
-            // Tag "เหมียวหาบ้าน"
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.pink[200],
-                    borderRadius: BorderRadius.circular(20),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      setState(() { _showRecommended = false; });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: !_showRecommended ? Colors.pink[200] : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        "เหมียวหาบ้าน",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          color: !_showRecommended ? Colors.black87 : Colors.grey[600]
+                        ),
+                      ),
+                    ),
                   ),
-                  child: const Text(
-                    "เหมียวหาบ้าน",
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+                  const SizedBox(width: 10),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() { _showRecommended = true; });
+                      if (recommendedCats.isEmpty) {
+                        fetchRecommendedCats();
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _showRecommended ? Colors.pink[200] : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        "แมวที่เหมาะกับคุณ",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          color: _showRecommended ? Colors.black87 : Colors.grey[600]
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
             
@@ -512,9 +629,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Cat Grid List
             Expanded(
-              child: isLoading
+              child: (_showRecommended ? isLoadingRecommended : isLoading)
                   ? Center(child: CircularProgressIndicator(color: Colors.pink[300]))
-                  : filteredCats.isEmpty
+                  : (_showRecommended ? recommendedCats : filteredCats).isEmpty
                       ? const Center(child: Text('ยังไม่มีข้อมูลน้องแมวที่ตรงกับเงื่อนไข'))
                       : GridView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -524,9 +641,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             mainAxisSpacing: 16,
                             childAspectRatio: 0.75, // Adjust based on image vs text height
                           ),
-                          itemCount: filteredCats.length,
+                          itemCount: (_showRecommended ? recommendedCats : filteredCats).length,
                           itemBuilder: (context, index) {
-                            final cat = filteredCats[index];
+                            final cat = (_showRecommended ? recommendedCats : filteredCats)[index];
                             return GestureDetector(
                               onTap: () => _onCatCardTapped(cat),
                               child: Container(

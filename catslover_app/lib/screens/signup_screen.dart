@@ -183,27 +183,26 @@ class _SignupScreenState extends State<SignupScreen> {
                     
                     const SizedBox(height: 10),
                     // SIGN UP Button
-                    SizedBox(
-                      width: 160,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _signup,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: const Color(0xFFFF8A8A), // Salmon pink
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: const BorderSide(color: Colors.grey, width: 0.5),
+                            borderRadius: BorderRadius.circular(15),
                           ),
-                          elevation: 2,
+                          elevation: 0,
                         ),
                         child: _isLoading
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                             : const Text(
-                                "Sign Up",
+                                "SIGN UP",
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black,
+                                  color: Colors.white,
                                 ),
                               ),
                       ),
@@ -211,43 +210,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-
-              // "or" Divider
-              Row(
-                children: [
-                  const Expanded(child: Divider(color: Colors.grey, thickness: 1)),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text("or", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  ),
-                  const Expanded(child: Divider(color: Colors.grey, thickness: 1)),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Google Button
-              Center(
-                child: Container(
-                  width: 50,
-                  height: 50,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-                  ),
-                  child: Center(
-                    child: Image.network(
-                      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png',
-                      width: 24,
-                      height: 24,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // Sign In Link
+              const SizedBox(height: 40),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

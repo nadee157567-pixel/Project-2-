@@ -18,6 +18,7 @@ class PosterDashboardScreen extends StatefulWidget {
 class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
   Map<String, dynamic>? _userProfile;
   List _availableCats = [];
+  List _pendingCats = [];
   List _adoptedCats = [];
   bool _isLoading = true;
 
@@ -46,7 +47,8 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
         if (catData['success'] == true && catData['data'] != null) {
           final cats = catData['data'] as List;
           _availableCats = cats.where((c) => c['status'] == 'available').toList();
-          _adoptedCats = cats.where((c) => c['status'] != 'available').toList();
+          _pendingCats = cats.where((c) => c['status'] == 'pending').toList();
+          _adoptedCats = cats.where((c) => c['status'] == 'adopted').toList();
         }
       }
     } catch (e) {
@@ -173,8 +175,7 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                       ),
                       const SizedBox(height: 10),
 
-                      // If no posts yet
-                      if (_availableCats.isEmpty && _adoptedCats.isEmpty)
+                      if (_availableCats.isEmpty && _pendingCats.isEmpty && _adoptedCats.isEmpty)
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
@@ -216,13 +217,19 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                               if (_availableCats.isNotEmpty) ...[
                                 _buildCategoryPill("แมวที่กำลังหาบ้าน", Colors.pink[200]!),
                                 const SizedBox(height: 10),
-                                _buildCatList(_availableCats, true),
+                                _buildCatList(_availableCats, 'available'),
+                                const SizedBox(height: 20),
+                              ],
+                              if (_pendingCats.isNotEmpty) ...[
+                                _buildCategoryPill("แมวที่มีผู้ขอรับเลี้ยง", Colors.orange[300]!),
+                                const SizedBox(height: 10),
+                                _buildCatList(_pendingCats, 'pending'),
                                 const SizedBox(height: 20),
                               ],
                               if (_adoptedCats.isNotEmpty) ...[
                                 _buildCategoryPill("แมวที่ได้บ้านที่อบอุ่นแล้ว", Colors.pink[300]!),
                                 const SizedBox(height: 10),
-                                _buildCatList(_adoptedCats, false),
+                                _buildCatList(_adoptedCats, 'adopted'),
                               ]
                             ],
                           ),
@@ -246,7 +253,7 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
     );
   }
 
-  Widget _buildCatList(List cats, bool isAvailable) {
+  Widget _buildCatList(List cats, String listStatus) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -313,11 +320,11 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isAvailable ? Colors.green : Colors.deepOrange,
+                  color: listStatus == 'available' ? Colors.green : (listStatus == 'pending' ? Colors.orange : Colors.grey),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  isAvailable ? "ว่าง" : "ได้บ้านแล้ว",
+                  listStatus == 'available' ? "ว่าง" : (listStatus == 'pending' ? "มีผู้ขอรับเลี้ยง" : "ได้บ้านแล้ว"),
                   style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -348,7 +355,8 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                       builder: (context) => CatAdoptersListScreen(
                         catId: int.tryParse(cat['cat_id'].toString()) ?? 0, 
                         catName: cat['pet_name'].toString(),
-                        isAdopted: !isAvailable,
+                        isAdopted: listStatus == 'adopted',
+                        posterId: widget.userId,
                       ),
                     ),
                   );
@@ -363,7 +371,7 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(isAvailable ? "ดูผู้ขอรับเลี้ยง" : "ดูรายละเอียดผู้รับเลี้ยง", style: const TextStyle(color: Colors.white, fontSize: 10)),
+                      Text(listStatus != 'adopted' ? "ดูผู้ขอรับเลี้ยง" : "ดูรายละเอียดผู้รับเลี้ยง", style: const TextStyle(color: Colors.white, fontSize: 10)),
                       const Icon(Icons.group, color: Colors.white, size: 14),
                     ],
                   ),

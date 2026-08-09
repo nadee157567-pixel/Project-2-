@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'cat_evaluation_screen.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'user_profile_screen.dart';
@@ -128,11 +127,20 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
     };
 
     try {
-      final response = await http.post(
-        Uri.parse(ApiConfig.baseUrl + '/adopters'),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(adopterData),
-      );
+      http.Response response;
+      if (widget.isEditing) {
+        response = await http.put(
+          Uri.parse(ApiConfig.baseUrl + '/adopters/profile/${widget.userId}'),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(adopterData),
+        );
+      } else {
+        response = await http.post(
+          Uri.parse(ApiConfig.baseUrl + '/adopters'),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(adopterData),
+        );
+      }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (!mounted) return;
@@ -488,8 +496,9 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isSelected ? Colors.pink[50] : Colors.white,
           borderRadius: BorderRadius.circular(15),
+          border: isSelected ? Border.all(color: Colors.pink[300]!, width: 2) : Border.all(color: Colors.transparent, width: 2),
         ),
         child: Column(
           children: [
@@ -500,22 +509,24 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
               decoration: const BoxDecoration(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
               ),
-              child: Icon(icon, size: 50, color: Colors.pink[300]),
+              child: Icon(icon, size: 50, color: isSelected ? Colors.pink[500] : Colors.pink[200]),
             ),
             // Button area
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.white : const Color(0xFFFFF0F0),
-                border: isSelected ? Border.all(color: Colors.redAccent, width: 2) : Border.all(color: Colors.transparent),
+                color: isSelected ? Colors.pink[400] : const Color(0xFFFFF0F0),
                 borderRadius: BorderRadius.circular(30),
-                boxShadow: isSelected ? [BoxShadow(color: Colors.redAccent.withOpacity(0.3), blurRadius: 8)] : [],
+                boxShadow: isSelected ? [BoxShadow(color: Colors.pink.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 3))] : [],
               ),
               child: Center(
                 child: Text(
                   label,
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold, 
+                    color: isSelected ? Colors.white : Colors.black87
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),

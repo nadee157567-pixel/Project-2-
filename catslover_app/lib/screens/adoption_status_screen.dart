@@ -1,16 +1,71 @@
 import 'package:flutter/material.dart';
-
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../config/api_config.dart';
+import 'chat_message_screen.dart';
 class AdoptionStatusScreen extends StatelessWidget {
   final Map<String, dynamic> evaluationResult;
   final String catImageUrl;
   final String status;
+  final int userId;
+  final int matchId;
 
   const AdoptionStatusScreen({
     super.key,
     required this.evaluationResult,
     required this.catImageUrl,
     required this.status,
+    required this.userId,
+    required this.matchId,
   });
+
+  Future<void> _navigateToChat(BuildContext context) async {
+    try {
+      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}/chats?userId=$userId'));
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        if (data['success']) {
+          List chats = data['data'];
+          // หาห้องแชทที่มี match_id ตรงกัน
+          final chat = chats.firstWhere(
+            (c) => c['match_id'].toString() == matchId.toString(),
+            orElse: () => null,
+          );
+          
+          if (chat != null) {
+            if (context.mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChatMessageScreen(
+                    roomId: int.parse(chat['room_id'].toString()),
+                    userId: userId,
+                    partnerName: chat['poster_name'] ?? 'ผู้โพสต์',
+                  ),
+                ),
+              );
+            }
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('ยังไม่มีห้องแชทสำหรับรายการนี้ (รอระบบสร้างอัตโนมัติ)')),
+              );
+            }
+          }
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('เกิดข้อผิดพลาดในการดึงข้อมูลแชท')),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
 
   Widget _buildStep(String title, bool isCompleted, bool isActive, bool isLast) {
     return Expanded(
@@ -379,11 +434,7 @@ class AdoptionStatusScreen extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('กำลังติดต่อไปยังผู้โพสต์...')),
-                      );
-                    },
+                    onPressed: () => _navigateToChat(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.pink[400],
                       foregroundColor: Colors.white,

@@ -1,11 +1,11 @@
-CREATE DATABASE pet_adoption_db
+CREATE DATABASE IF NOT EXISTS pet_adoption_db
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 
 USE pet_adoption_db;
 
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     user_id  INT AUTO_INCREMENT PRIMARY KEY,
 	email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(50) NOT NULL ,
@@ -20,7 +20,7 @@ CREATE TABLE users (
 
 SELECT * FROM users;
 
-INSERT INTO users
+INSERT IGNORE INTO users
 (user_id,email,password,fullname,username,phonenumber,line_id,role)
 VALUES
 (
@@ -77,7 +77,7 @@ VALUES
 DROP TABLE users;
 
 
-CREATE TABLE user_profiles (
+CREATE TABLE IF NOT EXISTS user_profiles (
     profile_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     living_space_type ENUM(
@@ -107,7 +107,7 @@ CREATE TABLE user_profiles (
 SELECT * FROM user_profiles;
 
 
-INSERT INTO user_profiles
+INSERT IGNORE INTO user_profiles
 (
 	profile_id,
     user_id,
@@ -145,7 +145,7 @@ VALUES
 
 
 
-CREATE TABLE cats (
+CREATE TABLE IF NOT EXISTS cats (
     cat_id INT AUTO_INCREMENT PRIMARY KEY,
     poster_id INT NOT NULL,
     pet_name VARCHAR(100),
@@ -180,7 +180,7 @@ CREATE TABLE cats (
 SELECT * FROM cats;
 
 
-INSERT INTO cats
+INSERT IGNORE INTO cats
 (
     cat_id,
     poster_id,
@@ -266,7 +266,7 @@ VALUES
 
 
 
-CREATE TABLE catphotos (
+CREATE TABLE IF NOT EXISTS catphotos (
     photo_id INT AUTO_INCREMENT PRIMARY KEY,
     cat_id INT NOT NULL,
     image_url TEXT,
@@ -276,7 +276,7 @@ CREATE TABLE catphotos (
 );
 SELECT * FROM catphotos;
 
-INSERT INTO catphotos
+INSERT IGNORE INTO catphotos
 (
     photo_id,
     cat_id,
@@ -311,7 +311,7 @@ VALUES
 
 
 
-CREATE TABLE adoptionapplications (
+CREATE TABLE IF NOT EXISTS adoptionapplications (
     match_id INT AUTO_INCREMENT PRIMARY KEY,
     cat_id INT NOT NULL,
     applicant_id INT NOT NULL,
@@ -334,7 +334,7 @@ CREATE TABLE adoptionapplications (
 
 SELECT * FROM adoptionapplications;
 
-INSERT INTO adoptionapplications
+INSERT IGNORE INTO adoptionapplications
 (
     match_id,
     cat_id,
@@ -364,7 +364,7 @@ VALUES
 
 
 
-CREATE TABLE adoption_approvals (
+CREATE TABLE IF NOT EXISTS adoption_approvals (
     approval_id INT AUTO_INCREMENT PRIMARY KEY,
     match_id INT NOT NULL,
     approver_id INT NOT NULL,
@@ -385,7 +385,7 @@ CREATE TABLE adoption_approvals (
 
 SELECT * FROM adoption_approvals;
 
-INSERT INTO adoption_approvals
+INSERT IGNORE INTO adoption_approvals
 (
     approval_id,
     match_id,
@@ -405,7 +405,7 @@ VALUES
 
 
 
-CREATE TABLE evaluation_criteria (
+CREATE TABLE IF NOT EXISTS evaluation_criteria (
     criteria_id INT AUTO_INCREMENT PRIMARY KEY,
     admin_id INT NOT NULL,
     profile_field VARCHAR(50),
@@ -418,7 +418,7 @@ CREATE TABLE evaluation_criteria (
 );
 SELECT * FROM evaluation_criteria;
 
-INSERT INTO evaluation_criteria
+INSERT IGNORE INTO evaluation_criteria
 (
     criteria_id,
     admin_id,
@@ -509,7 +509,7 @@ VALUES
 
 
 
-CREATE TABLE assessments (
+CREATE TABLE IF NOT EXISTS assessments (
     assessment_id INT AUTO_INCREMENT PRIMARY KEY,
     applicant_id INT NOT NULL,
     cat_id INT NOT NULL,
@@ -540,7 +540,7 @@ CREATE TABLE assessments (
 
 SELECT * FROM assessments;
 
-INSERT INTO assessments
+INSERT IGNORE INTO assessments
 (
     assessment_id,
     applicant_id,
@@ -570,7 +570,7 @@ VALUES
 
 
 
-CREATE TABLE assessment_details (
+CREATE TABLE IF NOT EXISTS assessment_details (
     detail_id INT AUTO_INCREMENT PRIMARY KEY,
     assessment_id INT NOT NULL,
     criteria_id INT NOT NULL,
@@ -675,7 +675,7 @@ DESCRIBE catphotos;
 -- Chat System Tables
 -- ==========================================
 
-CREATE TABLE conversations (
+CREATE TABLE IF NOT EXISTS conversations (
     room_id INT AUTO_INCREMENT PRIMARY KEY,
     match_id INT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -687,13 +687,13 @@ CREATE TABLE conversations (
 
 SELECT * FROM conversations;
 
-INSERT INTO conversations (room_id, match_id) 
+INSERT IGNORE INTO conversations (room_id, match_id) 
 VALUES 
 (1, 1), -- แชทสำหรับการขอรับเลี้ยงแมว 'มะลิ' (match_id = 1)
 (2, 2); -- แชทสำหรับการขอรับเลี้ยงแมว 'โมจิ' (match_id = 2)
 
 
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
     message_id INT AUTO_INCREMENT PRIMARY KEY,
     room_id INT NOT NULL,
     sender_id INT NOT NULL,
@@ -712,7 +712,7 @@ CREATE TABLE messages (
 
 SELECT * FROM messages;
 
-INSERT INTO messages (message_id, room_id, sender_id, message_text, is_read, sent_at)
+INSERT IGNORE INTO messages (message_id, room_id, sender_id, message_text, is_read, sent_at)
 VALUES
 -- ห้องแชท 1 (match_id 1: มะลิ, Applicant = สมชาย(4), Poster = สมหญิง(2))
 (1, 1, 4, 'สวัสดีครับ ผมสนใจรับเลี้ยงน้องมะลิครับ พอดีมีคำถามนิดหน่อยครับ', TRUE, DATE_SUB(NOW(), INTERVAL 2 HOUR)),

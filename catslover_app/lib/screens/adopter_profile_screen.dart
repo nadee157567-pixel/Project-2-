@@ -19,6 +19,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
   int _currentStep = 0;
 
   String? housingType;
+  String? spaceSize;
   String? hasPets;
   String? freeTime;
   String? experience;
@@ -56,16 +57,24 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
               housingType = 'บ้านเดี่ยว';
             }
 
+            if (profile['space_size'] == 'large') {
+              spaceSize = 'กว้างขวาง';
+            } else if (profile['space_size'] == 'small') {
+              spaceSize = 'คับแคบ';
+            } else {
+              spaceSize = 'ปานกลาง';
+            }
+
             int hasOtherPets = profile['has_other_pets'] is int ? profile['has_other_pets'] : int.tryParse(profile['has_other_pets']?.toString() ?? '0') ?? 0;
             hasPets = hasOtherPets == 1 ? 'มี' : 'ไม่มี';
 
             int dailyHours = profile['daily_free_hours'] is int ? profile['daily_free_hours'] : int.tryParse(profile['daily_free_hours']?.toString() ?? '0') ?? 0;
             if (dailyHours <= 2) {
-              freeTime = 'น้อย';
+              freeTime = '2';
             } else if (dailyHours >= 6) {
-              freeTime = 'มาก';
+              freeTime = '6';
             } else {
-              freeTime = 'ปานกลาง';
+              freeTime = '4';
             }
 
             if (profile['experience'] == 'beginner') {
@@ -86,11 +95,11 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
                     : double.tryParse(profile['max_monthly_budget']?.toString() ?? '0') ?? 0.0);
 
             if (maxBudget <= 1000) {
-              budget = 'น้อย';
+              budget = '1000';
             } else if (maxBudget >= 5000) {
-              budget = 'มาก';
+              budget = '5000';
             } else {
-              budget = 'ปานกลาง';
+              budget = '3000';
             }
           });
         }
@@ -119,6 +128,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
     final Map<String, dynamic> adopterData = {
       "userId": widget.userId,
       "housingType": housingType,
+      "spaceSize": spaceSize,
       "hasPets": hasPets,
       "freeTime": freeTime,
       "experience": experience,
@@ -349,6 +359,20 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
           ),
           const SizedBox(height: 20),
           _buildQuestionContainer(
+            question: "ขนาดพื้นที่พักอาศัยของคุณเป็นอย่างไร ?",
+            subtitle: "เพื่อประเมินความเหมาะสมกับแมวที่ต้องการพื้นที่",
+            content: Row(
+              children: [
+                Expanded(child: _buildImageChoice(label: "กว้างขวาง", icon: Icons.landscape, isSelected: spaceSize == "กว้างขวาง", onTap: () => setState(() => spaceSize = "กว้างขวาง"))),
+                const SizedBox(width: 10),
+                Expanded(child: _buildImageChoice(label: "ปานกลาง", icon: Icons.crop_square, isSelected: spaceSize == "ปานกลาง", onTap: () => setState(() => spaceSize = "ปานกลาง"))),
+                const SizedBox(width: 10),
+                Expanded(child: _buildImageChoice(label: "คับแคบ", icon: Icons.view_compact, isSelected: spaceSize == "คับแคบ", onTap: () => setState(() => spaceSize = "คับแคบ"))),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildQuestionContainer(
             question: "ปัจจุบันมีสัตว์เลี้ยงอื่นอยู่แล้วหรือไม่ ?",
             subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
             content: Row(
@@ -379,11 +403,11 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
             subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
             content: Row(
               children: [
-                Expanded(child: _buildImageChoice(label: "น้อย", icon: Icons.computer, isSelected: freeTime == "น้อย", onTap: () => setState(() => freeTime = "น้อย"))),
+                Expanded(child: _buildImageChoice(label: "1-2 ชม.", icon: Icons.computer, isSelected: freeTime == "2", onTap: () => setState(() => freeTime = "2"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "ปานกลาง", icon: Icons.access_time, isSelected: freeTime == "ปานกลาง", onTap: () => setState(() => freeTime = "ปานกลาง"))),
+                Expanded(child: _buildImageChoice(label: "3-5 ชม.", icon: Icons.access_time, isSelected: freeTime == "4", onTap: () => setState(() => freeTime = "4"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "มาก", icon: Icons.home_work, isSelected: freeTime == "มาก", onTap: () => setState(() => freeTime = "มาก"))),
+                Expanded(child: _buildImageChoice(label: "> 5 ชม.", icon: Icons.home_work, isSelected: freeTime == "6", onTap: () => setState(() => freeTime = "6"))),
               ],
             ),
           ),
@@ -439,11 +463,11 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
             subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
             content: Row(
               children: [
-                Expanded(child: _buildImageChoice(label: "น้อย", icon: Icons.money_off, isSelected: budget == "น้อย", onTap: () => setState(() => budget = "น้อย"))),
+                Expanded(child: _buildImageChoice(label: "< 1,000 ฿", icon: Icons.money_off, isSelected: budget == "1000", onTap: () => setState(() => budget = "1000"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "ปานกลาง", icon: Icons.attach_money, isSelected: budget == "ปานกลาง", onTap: () => setState(() => budget = "ปานกลาง"))),
+                Expanded(child: _buildImageChoice(label: "1k - 3k ฿", icon: Icons.attach_money, isSelected: budget == "3000", onTap: () => setState(() => budget = "3000"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "มาก", icon: Icons.monetization_on, isSelected: budget == "มาก", onTap: () => setState(() => budget = "มาก"))),
+                Expanded(child: _buildImageChoice(label: "> 3,000 ฿", icon: Icons.monetization_on, isSelected: budget == "5000", onTap: () => setState(() => budget = "5000"))),
               ],
             ),
           ),

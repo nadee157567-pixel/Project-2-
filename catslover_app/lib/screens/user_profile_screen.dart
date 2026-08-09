@@ -72,6 +72,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   // Helper mapping for display
+  String displaySpaceSize(String? val) {
+    if (val == 'large') return 'กว้างขวาง';
+    if (val == 'small') return 'คับแคบ';
+    if (val == 'medium') return 'ปานกลาง';
+    return val ?? '-';
+  }
+
   String displayHousing(String? val) {
     if (val == 'house') return 'บ้านเดี่ยว';
     if (val == 'condo') return 'คอนโด';
@@ -144,8 +151,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ),
                         const SizedBox(height: 16),
                         _buildInfoRow('ชื่อผู้ใช้', userData?['username'] ?? '-'),
+                        _buildInfoRow('ชื่อ-นามสกุล', userData?['fullname'] ?? '-'),
                         _buildInfoRow('email', userData?['email'] ?? '-'),
                         _buildInfoRow('เบอร์โทร', userData?['phonenumber'] ?? '-'),
+                        _buildInfoRow('Line ID', userData?['line_id'] ?? '-'),
                         _buildInfoRow('วันที่สมัครสมาชิก', formatDate(userData?['created_at'])),
                       ],
                     ),
@@ -169,6 +178,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildAdopterRow('🏡', 'ที่พักอาศัย', displayHousing(adopterData?['living_space_type'])),
+                        _buildAdopterRow('📏', 'ขนาดพื้นที่', displaySpaceSize(adopterData?['space_size'])),
                         _buildAdopterRow('⏳', 'เวลาว่างต่อวัน', displayFreeTime(adopterData?['daily_free_hours'])),
                         _buildAdopterRow('💰', 'งบประมาณต่อเดือน', displayBudget(adopterData?['max_monthly_budget'])),
                         _buildAdopterRow('🎓', 'ประสบการณ์', displayExp(adopterData?['experience'])),

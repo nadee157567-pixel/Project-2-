@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'adopter_profile_screen.dart'; 
 import 'adoption_status_screen.dart';
-import 'adoption_requests_screen.dart';
 import '../config/api_config.dart';
 
 class EvaluationScreen extends StatefulWidget {
@@ -62,24 +61,6 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
     }
   }
 
-  void _navigateToEditProfile() async {
-    // Navigate to AdopterProfileScreen with isEditing = true
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AdopterProfileScreen(
-          userId: widget.userId,
-          catId: widget.catId,
-          isEditing: true, // we will add this property
-        ),
-      ),
-    );
-
-    // if returned true, re-evaluate
-    if (result == true && mounted) {
-      fetchEvaluationScore();
-    }
-  }
 
   Widget _buildStarRow(String title, int score) {
     return Padding(
@@ -110,13 +91,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
         title: const Text('ประเมินความเหมาะสม', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.pink[100],
         iconTheme: const IconThemeData(color: Colors.black),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit, color: Colors.black87),
-            tooltip: 'แก้ไขข้อมูลโปรไฟล์',
-            onPressed: _navigateToEditProfile,
-          )
-        ],
+
       ),
       body: isLoading 
         ? const Center(child: CircularProgressIndicator(color: Colors.pink))

@@ -26,12 +26,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _fullnameController = TextEditingController();
+  final TextEditingController _lineIdController = TextEditingController();
   final TextEditingController _oldPasswordController = TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
 
   // Adopter State
   String _housingType = 'บ้านเดี่ยว';
+  String _spaceSize = 'ปานกลาง';
   String _freeTime = 'ปานกลาง';
   String _budget = 'ปานกลาง';
   String _experience = 'พื้นฐาน';
@@ -49,6 +52,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _usernameController.text = widget.userData!['username'] ?? '';
       _emailController.text = widget.userData!['email'] ?? '';
       _phoneController.text = widget.userData!['phonenumber'] ?? '';
+      _fullnameController.text = widget.userData!['fullname'] ?? '';
+      _lineIdController.text = widget.userData!['line_id'] ?? '';
       // Password usually isn't sent back from get, so leave blank or prompt user to fill if they want to change
     }
 
@@ -59,6 +64,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (data['living_space_type'] == 'condo') _housingType = 'คอนโด';
       else if (data['living_space_type'] == 'apartment') _housingType = 'หอพัก';
       else _housingType = 'บ้านเดี่ยว';
+
+      if (data['space_size'] == 'large') _spaceSize = 'กว้างขวาง';
+      else if (data['space_size'] == 'small') _spaceSize = 'คับแคบ';
+      else _spaceSize = 'ปานกลาง';
 
       if (data['daily_free_hours'] != null) {
         int hours = data['daily_free_hours'] is int ? data['daily_free_hours'] : int.tryParse(data['daily_free_hours'].toString()) ?? 0;
@@ -111,6 +120,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'username': _usernameController.text,
           'email': _emailController.text,
           'phonenumber': _phoneController.text,
+          'fullname': _fullnameController.text,
+          'line_id': _lineIdController.text,
           'oldPassword': _oldPasswordController.text,
           'newPassword': _newPasswordController.text,
           'otp': _otpController.text,
@@ -129,6 +140,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         body: json.encode({
           'userId': widget.userId,
           'housingType': _housingType,
+          'spaceSize': _spaceSize,
           'hasPets': _hasPets,
           'freeTime': _freeTime,
           'experience': _experience,
@@ -202,6 +214,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
+                      controller: _fullnameController,
+                      decoration: const InputDecoration(labelText: 'ชื่อ-นามสกุล', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _lineIdController,
+                      decoration: const InputDecoration(labelText: 'Line ID', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
                       controller: _oldPasswordController,
                       obscureText: true,
                       decoration: const InputDecoration(
@@ -253,6 +275,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       {'value': 'หอพัก', 'label': 'หอพัก'}
                     ], (val) {
                       setState(() => _housingType = val!);
+                    }),
+                    _buildDropdown('ขนาดพื้นที่', _spaceSize, [
+                      {'value': 'กว้างขวาง', 'label': 'กว้างขวาง'},
+                      {'value': 'ปานกลาง', 'label': 'ปานกลาง'},
+                      {'value': 'คับแคบ', 'label': 'คับแคบ'}
+                    ], (val) {
+                      setState(() => _spaceSize = val!);
                     }),
                     _buildDropdown('เวลาว่างต่อวัน', _freeTime, [
                       {'value': 'น้อย', 'label': 'น้อย (น้อยกว่า 2 ชั่วโมง)'},

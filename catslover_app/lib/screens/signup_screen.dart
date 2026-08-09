@@ -15,6 +15,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _fullnameController = TextEditingController();
+  final TextEditingController _lineIdController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmController = TextEditingController();
 
@@ -26,11 +28,13 @@ class _SignupScreenState extends State<SignupScreen> {
     final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
+    final fullname = _fullnameController.text.trim();
+    final lineId = _lineIdController.text.trim();
     final password = _passwordController.text;
     final confirm = _confirmController.text;
 
-    if (username.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอกข้อมูลให้ครบถ้วน")));
+    if (username.isEmpty || email.isEmpty || phone.isEmpty || fullname.isEmpty || password.isEmpty || confirm.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน")));
       return;
     }
 
@@ -49,6 +53,8 @@ class _SignupScreenState extends State<SignupScreen> {
           "username": username,
           "email": email,
           "phone": phone,
+          "fullname": fullname,
+          "line_id": lineId,
           "password": password
         }),
       );
@@ -178,31 +184,35 @@ class _SignupScreenState extends State<SignupScreen> {
                     _buildTextField("Username", "Enter Your Username", _usernameController),
                     _buildTextField("Email Address", "Enter Your Email Address", _emailController),
                     _buildTextField("Phone Number", "Enter Your Phone Number", _phoneController),
+                    _buildTextField("Full Name", "Enter Your Full Name", _fullnameController),
+                    _buildTextField("Line ID (Optional)", "Enter Your Line ID", _lineIdController),
                     _buildTextField("Password", "Enter Your Password", _passwordController, isPassword: true, isObscure: _isObscurePass, onToggleObscure: () => setState(() => _isObscurePass = !_isObscurePass)),
                     _buildTextField("Confirm Password", "Confirm Your Password", _confirmController, isPassword: true, isObscure: _isObscureConfirm, onToggleObscure: () => setState(() => _isObscureConfirm = !_isObscureConfirm)),
                     
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 20),
                     // SIGN UP Button
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _signup,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFF8A8A), // Salmon pink
-                          padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          elevation: 0,
+                          elevation: 3,
+                          shadowColor: const Color(0xFFFF8A8A).withOpacity(0.4),
                         ),
                         child: _isLoading
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
                             : const Text(
                                 "SIGN UP",
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
+                                  letterSpacing: 1.2,
                                 ),
                               ),
                       ),

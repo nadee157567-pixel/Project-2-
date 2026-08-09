@@ -13,7 +13,7 @@ CREATE TABLE users (
     username VARCHAR(50) NOT NULL UNIQUE,
 	phonenumber VARCHAR(15),
     line_id VARCHAR(50),
-    role ENUM('user','admin') NOT NULL ,
+    role ENUM('user','poster','admin') NOT NULL ,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -74,8 +74,16 @@ VALUES
     'user'
 );
 
-DROP TABLE users;
+DROP TABLE users; 
 
+-- 1. อัปเดตเปลี่ยนไอดีที่เคยเป็น poster ให้กลายเป็น user ทั้งหมด
+UPDATE users 
+SET role = 'user' 
+WHERE role = 'poster';
+
+-- 2. แก้ไขโครงสร้างตาราง users ให้ตัด 'poster' ออกจาก ENUM
+ALTER TABLE users 
+MODIFY COLUMN role ENUM('user', 'admin') NOT NULL DEFAULT 'user';
 
 CREATE TABLE user_profiles (
     profile_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -263,6 +271,13 @@ VALUES
     2200.00
 );
 
+ALTER TABLE cats
+ADD COLUMN good_with_children BOOLEAN DEFAULT TRUE,
+ADD COLUMN good_with_cats BOOLEAN DEFAULT TRUE,
+ADD COLUMN good_with_dogs BOOLEAN DEFAULT TRUE,
+ADD COLUMN has_special_needs BOOLEAN DEFAULT FALSE;
+
+
 
 
 
@@ -418,95 +433,232 @@ CREATE TABLE evaluation_criteria (
 );
 SELECT * FROM evaluation_criteria;
 
+ALTER TABLE evaluation_criteria
+ADD COLUMN criteria_code VARCHAR(50) AFTER criteria_id,
+ADD COLUMN criteria_name VARCHAR(100) AFTER criteria_code,
+ADD COLUMN criteria_type ENUM('score', 'rule') DEFAULT 'score',
+ADD COLUMN comparison_type ENUM(
+    'level',
+    'ratio',
+    'boolean',
+    'exact'
+) DEFAULT 'exact',
+ADD COLUMN score_ratio DECIMAL(5,2) DEFAULT 0,
+ADD COLUMN max_score DECIMAL(5,2) DEFAULT 25,
+ADD COLUMN is_blocking BOOLEAN DEFAULT FALSE,
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE evaluation_criteria
+DROP COLUMN scoreweight;
+
+ALTER TABLE evaluation_criteria
+ADD CONSTRAINT uq_criteria_condition
+UNIQUE (criteria_code, condition_value);
+
 INSERT INTO evaluation_criteria
 (
-    criteria_id,
+    criteria_code,
+    criteria_name,
     admin_id,
     profile_field,
     condition_value,
-    scoreweight
+    criteria_type,
+    comparison_type,
+    score_ratio,
+    max_score,
+    is_blocking,
+    is_active
 )
 VALUES
+
+-- 1. SPACE : พื้นที่
 (
+    'SPACE',
+    'พื้นที่ในการเลี้ยง',
     1,
-    1,
-    'living_space_type',
-    'house',
-    20
+    'space_level',
+    'equal_or_higher',
+    'score',
+    'level',
+    1.00,
+    25,
+    0,
+    1
 ),
+
 (
-    2,
+    'SPACE',
+    'พื้นที่ในการเลี้ยง',
     1,
-    'living_space_type',
-    'condo',
-    10
+    'space_level',
+    'lower_one_level',
+    'score',
+    'level',
+    0.50,
+    25,
+    0,
+    1
 ),
+
 (
-    3,
+    'SPACE',
+    'พื้นที่ในการเลี้ยง',
     1,
-    'daily_free_hours',
-    '5_or_more',
-    20
-),
-(
-    4,
+    'space_level',
+    'lower_two_levels',
+    'score',
+    'level',
+    0.00,
+    25,
     1,
-    'daily_free_hours',
-    '3_to_4',
-    15
+    1
 ),
+
+
+-- 2. BUDGET : งบประมาณ
 (
-    5,
+    'BUDGET',
+    'งบประมาณต่อเดือน',
     1,
-    'daily_free_hours',
-    'less_than_3',
-    5
+    'monthly_budget',
+    'ratio_gte_1',
+    'score',
+    'ratio',
+    1.00,
+    25,
+    0,
+    1
 ),
+
 (
-    6,
+    'BUDGET',
+    'งบประมาณต่อเดือน',
+    1,
+    'monthly_budget',
+    'ratio_080_099',
+    'score',
+    'ratio',
+    0.70,
+    25,
+    0,
+    1
+),
+
+(
+    'BUDGET',
+    'งบประมาณต่อเดือน',
+    1,
+    'monthly_budget',
+    'ratio_060_079',
+    'score',
+    'ratio',
+    0.30,
+    25,
+    0,
+    1
+),
+
+(
+    'BUDGET',
+    'งบประมาณต่อเดือน',
+    1,
+    'monthly_budget',
+    'ratio_lt_060',
+    'score',
+    'ratio',
+    0.00,
+    25,
+    1,
+    1
+),
+
+
+-- 3. ATTENTION : เวลาในการดูแล
+(
+    'ATTENTION',
+    'เวลาในการดูแล',
+    1,
+    'attention_level',
+    'equal_or_higher',
+    'score',
+    'level',
+    1.00,
+    25,
+    0,
+    1
+),
+
+(
+    'ATTENTION',
+    'เวลาในการดูแล',
+    1,
+    'attention_level',
+    'lower_one_level',
+    'score',
+    'level',
+    0.50,
+    25,
+    0,
+    1
+),
+
+(
+    'ATTENTION',
+    'เวลาในการดูแล',
+    1,
+    'attention_level',
+    'lower_two_levels',
+    'score',
+    'level',
+    0.00,
+    25,
+    1,
+    1
+),
+
+
+-- 4. EXPERIENCE : ประสบการณ์
+(
+    'EXPERIENCE',
+    'ประสบการณ์ในการเลี้ยง',
     1,
     'experience_level',
-    'expert',
-    20
+    'equal_or_higher',
+    'score',
+    'level',
+    1.00,
+    25,
+    0,
+    1
 ),
+
 (
-    7,
+    'EXPERIENCE',
+    'ประสบการณ์ในการเลี้ยง',
     1,
     'experience_level',
-    'beginner',
-    10
+    'lower_one_level',
+    'score',
+    'level',
+    0.50,
+    25,
+    0,
+    1
 ),
+
 (
-    8,
+    'EXPERIENCE',
+    'ประสบการณ์ในการเลี้ยง',
     1,
     'experience_level',
-    'none',
-    5
-),
-(
-    9,
+    'lower_two_levels',
+    'score',
+    'level',
+    0.00,
+    25,
     1,
-    'max_monthly_budget',
-    'sufficient',
-    20
-),
-(
-    10,
-    1,
-    'has_other_pets',
-    'compatible',
-    10
-),
-(
-    11,
-    1,
-    'has_children',
-    'suitable',
-    10
+    1
 );
-
-
-
 
 
 CREATE TABLE assessments (
@@ -567,8 +719,14 @@ VALUES
     'สามารถรับเลี้ยงได้ แต่ควรเตรียมเวลาและงบประมาณสำหรับการดูแลขนเพิ่มเติม'
 );
 
+ALTER TABLE assessments
+ADD COLUMN match_percentage DECIMAL(5,2) AFTER total_score,
+ADD COLUMN eligible BOOLEAN DEFAULT TRUE AFTER suitability_level,
+ADD COLUMN criteria_version VARCHAR(50) AFTER eligible;
 
+DESCRIBE assessments;
 
+SHOW COLUMNS FROM assessments;
 
 CREATE TABLE assessment_details (
     detail_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -593,6 +751,19 @@ CREATE TABLE assessment_details (
 );
 
 SELECT * FROM assessment_details;
+
+ALTER TABLE assessment_details
+DROP COLUMN actual_value;
+
+ALTER TABLE assessment_details
+ADD COLUMN applicant_value VARCHAR(100) AFTER criteria_id,
+ADD COLUMN required_value VARCHAR(100) AFTER applicant_value,
+ADD COLUMN weight_used DECIMAL(5,2) AFTER required_value,
+ADD COLUMN score_ratio_used DECIMAL(5,2) AFTER weight_used,
+ADD COLUMN max_score DECIMAL(5,2) AFTER score_ratio_used,
+ADD COLUMN stars DECIMAL(2,1) AFTER score_received,
+ADD COLUMN passed BOOLEAN DEFAULT TRUE AFTER stars;
+
 
 
 
@@ -671,9 +842,17 @@ DESCRIBE cats;
 
 DESCRIBE catphotos;
 
--- ==========================================
--- Chat System Tables
--- ==========================================
+SET FOREIGN_KEY_CHECKS = 0;
+
+TRUNCATE TABLE assessments;
+TRUNCATE TABLE evaluation_criteria;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+
+
+-- ระบบแชท
 
 CREATE TABLE conversations (
     room_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -724,4 +903,4 @@ VALUES
 (5, 2, 3, 'ยังว่างอยู่ค่ะ นัดเข้ามาดูตัวน้องก่อนได้นะคะ', FALSE, DATE_SUB(NOW(), INTERVAL 5 MINUTE));
 
 DESCRIBE conversations;
-DESCRIBE messages;
+DESCRIBE messages;

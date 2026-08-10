@@ -79,11 +79,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           child: const Icon(Icons.person, color: Colors.white, size: 30),
                         ),
                         title: Text(
-                          chatPartnerName,
+                          "แชทเรื่อง: น้อง${chat['pet_name'] ?? 'ไม่ทราบชื่อ'}",
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         subtitle: Text(
-                          "คุยเรื่องน้องแมว: ${chat['pet_name'] ?? 'ไม่ทราบชื่อ'} ($partnerRole)",
+                          "คุยกับคุณ $chatPartnerName ($partnerRole)",
                           style: TextStyle(color: Colors.grey[600]),
                         ),
                         trailing: Icon(Icons.chevron_right, color: Colors.pink[300]),

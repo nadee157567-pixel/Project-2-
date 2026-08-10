@@ -99,15 +99,37 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            if (isEvaluated && evaluationResult != null) ...(() {
-              int matchPercent = evaluationResult!['matchPercent'];
+            if (!isEvaluated || evaluationResult == null)
+              const Expanded(
+                child: Center(
+                  child: Text(
+                    "ไม่สามารถดึงข้อมูลประเมินได้\n(คุณอาจเป็นเจ้าของแมวตัวนี้ หรือข้อมูลโปรไฟล์ไม่สมบูรณ์)",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.red, fontSize: 16),
+                  ),
+                ),
+              )
+            else ...(() {
+              int matchPercent = (evaluationResult!['match_percentage'] ?? 0).round();
               String statusText;
               MaterialColor statusColor = Colors.grey;
               IconData statusIcon;
               bool canAdopt = true;
               List<String> reasons = [];
+              bool isEligible = evaluationResult!['eligible'] == true;
 
-              if (matchPercent >= 80) {
+              if (!isEligible) {
+                statusText = 'ไม่เหมาะสม (ตกคุณสมบัติ)';
+                statusColor = Colors.red;
+                statusIcon = Icons.cancel;
+                canAdopt = false;
+                
+                if (evaluationResult!['disqualifications'] != null) {
+                  for (var disq in evaluationResult!['disqualifications']) {
+                    reasons.add(disq.toString());
+                  }
+                }
+              } else if (matchPercent >= 80) {
                 statusText = '$matchPercent% เหมาะสมมาก';
                 statusColor = Colors.green;
                 statusIcon = Icons.stars;
@@ -120,20 +142,20 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                 statusColor = Colors.orange;
                 statusIcon = Icons.info;
                 
-                if (evaluationResult!['scores']['space'] < 3) reasons.add("พื้นที่พักอาศัยอาจคับแคบไปสำหรับแมวตัวนี้");
-                if (evaluationResult!['scores']['time'] < 3) reasons.add("เวลาที่คุณมีให้อาจยังไม่เพียงพอ");
-                if (evaluationResult!['scores']['budget'] < 3) reasons.add("งบประมาณอาจค่อนข้างตึงตัว");
-                if (evaluationResult!['scores']['experience'] < 3) reasons.add("อาจต้องศึกษาข้อมูลการเลี้ยงแมวเพิ่มเติม");
+                if (evaluationResult!['score_detail']['space']['score'] < 3) reasons.add("พื้นที่พักอาศัยอาจคับแคบไปสำหรับแมวตัวนี้");
+                if (evaluationResult!['score_detail']['attention']['score'] < 3) reasons.add("เวลาที่คุณมีให้อาจยังไม่เพียงพอ");
+                if (evaluationResult!['score_detail']['budget']['score'] < 3) reasons.add("งบประมาณอาจค่อนข้างตึงตัว");
+                if (evaluationResult!['score_detail']['experience']['score'] < 3) reasons.add("อาจต้องศึกษาข้อมูลการเลี้ยงแมวเพิ่มเติม");
               } else {
                 statusText = '$matchPercent% ไม่เหมาะสม';
                 statusColor = Colors.red;
                 statusIcon = Icons.cancel;
                 canAdopt = false;
 
-                if (evaluationResult!['scores']['space'] < 3) reasons.add("พื้นที่พักอาศัยไม่สอดคล้องกับความต้องการของแมว");
-                if (evaluationResult!['scores']['time'] < 3) reasons.add("แมวตัวนี้ต้องการเวลาดูแลเอาใจใส่มากกว่านี้");
-                if (evaluationResult!['scores']['budget'] < 3) reasons.add("ค่าใช้จ่ายรายเดือนของคุณยังไม่ครอบคลุมค่าดูแลแมวตัวนี้");
-                if (evaluationResult!['scores']['experience'] < 3) reasons.add("แมวตัวนี้เหมาะกับผู้เลี้ยงที่มีประสบการณ์มากกว่า");
+                if (evaluationResult!['score_detail']['space']['score'] < 3) reasons.add("พื้นที่พักอาศัยไม่สอดคล้องกับความต้องการของแมว");
+                if (evaluationResult!['score_detail']['attention']['score'] < 3) reasons.add("แมวตัวนี้ต้องการเวลาดูแลเอาใจใส่มากกว่านี้");
+                if (evaluationResult!['score_detail']['budget']['score'] < 3) reasons.add("ค่าใช้จ่ายรายเดือนของคุณยังไม่ครอบคลุมค่าดูแลแมวตัวนี้");
+                if (evaluationResult!['score_detail']['experience']['score'] < 3) reasons.add("แมวตัวนี้เหมาะกับผู้เลี้ยงที่มีประสบการณ์มากกว่า");
               }
 
               return [
@@ -186,13 +208,15 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                             ),
                           ),
                         ],
-                        const Divider(height: 32, thickness: 1),
-                        const Text('คะแนนความเหมาะสมรายด้าน', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 16),
-                        _buildStarRow('ที่พักอาศัย', evaluationResult!['scores']['space'] ?? 0),
-                        _buildStarRow('เวลาว่าง', evaluationResult!['scores']['time'] ?? 0),
-                        _buildStarRow('ค่าใช้จ่าย', evaluationResult!['scores']['budget'] ?? 0),
-                        _buildStarRow('ประสบการณ์', evaluationResult!['scores']['experience'] ?? 0),
+                        if (isEligible) ...[
+                          const Divider(height: 32, thickness: 1),
+                          const Text('คะแนนความเหมาะสมรายด้าน', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 16),
+                          _buildStarRow('ที่พักอาศัย', evaluationResult!['score_detail']['space']['stars'] ?? 0),
+                          _buildStarRow('เวลาว่าง', evaluationResult!['score_detail']['attention']['stars'] ?? 0),
+                          _buildStarRow('ค่าใช้จ่าย', evaluationResult!['score_detail']['budget']['stars'] ?? 0),
+                          _buildStarRow('ประสบการณ์', evaluationResult!['score_detail']['experience']['stars'] ?? 0),
+                        ],
                       ],
                     ),
                   ),

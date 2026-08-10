@@ -111,6 +111,7 @@ async function createCat(req, res) {
             healthDetails,
             reqHousing,
             reqTime,
+            reqExperience,
             reqOtherPets
         } = req.body;
 
@@ -136,12 +137,16 @@ async function createCat(req, res) {
         if (reqTime && reqTime.startsWith('น้อย')) req_attention = 'low';
         else if (reqTime && reqTime.startsWith('มาก')) req_attention = 'high';
 
+        let req_experience_level = 'low';
+        if (reqExperience === 'พอมีประสบการณ์') req_experience_level = 'medium';
+        else if (reqExperience === 'มีประสบการณ์สูง') req_experience_level = 'high';
+
         const personality_mapped = reqOtherPets ? `เข้ากับสัตว์อื่น: ${reqOtherPets}` : null;
 
         const [result] = await pool.query(`
             INSERT INTO cats 
-            (poster_id, pet_name, pet_breed, gender, age_months, is_sterilized, is_vaccinated, health_note, req_space_level, req_attention, personality, est_monthly_cost)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (poster_id, pet_name, pet_breed, gender, age_months, is_sterilized, is_vaccinated, health_note, req_space_level, req_attention, req_experience_level, personality, est_monthly_cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             userId,
             name || null,
@@ -153,6 +158,7 @@ async function createCat(req, res) {
             healthDetails || null,
             req_space_level,
             req_attention,
+            req_experience_level,
             personality_mapped,
             3000 // default est_monthly_cost
         ]);
@@ -330,6 +336,7 @@ async function updateCat(req, res) {
             healthDetails,
             reqHousing,
             reqTime,
+            reqExperience,
             reqOtherPets,
             status
         } = req.body;
@@ -359,11 +366,18 @@ async function updateCat(req, res) {
             else req_attention = 'medium';
         }
 
+        let req_experience_level = null;
+        if (reqExperience) {
+            if (reqExperience === 'ไม่จำเป็น') req_experience_level = 'low';
+            else if (reqExperience === 'พอมีประสบการณ์') req_experience_level = 'medium';
+            else if (reqExperience === 'มีประสบการณ์สูง') req_experience_level = 'high';
+        }
+
         const personality_mapped = reqOtherPets ? `เข้ากับสัตว์อื่น: ${reqOtherPets}` : null;
 
         const [result] = await pool.query(`
             UPDATE cats 
-            SET pet_name = ?, pet_breed = ?, gender = ?, age_months = ?, is_sterilized = ?, is_vaccinated = ?, health_note = ?, req_space_level = ?, req_attention = ?, personality = ?, status = COALESCE(?, status)
+            SET pet_name = ?, pet_breed = ?, gender = ?, age_months = ?, is_sterilized = ?, is_vaccinated = ?, health_note = ?, req_space_level = ?, req_attention = ?, req_experience_level = COALESCE(?, req_experience_level), personality = ?, status = COALESCE(?, status)
             WHERE cat_id = ?
         `, [
             name || null,
@@ -375,6 +389,7 @@ async function updateCat(req, res) {
             healthDetails || null,
             req_space_level,
             req_attention,
+            req_experience_level,
             personality_mapped,
             status || null,
             catId

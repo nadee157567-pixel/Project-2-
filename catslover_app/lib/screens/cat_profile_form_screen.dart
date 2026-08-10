@@ -58,7 +58,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
   String? requiredExperience;
   bool okWithCat = false; 
   bool okWithDog = false; 
-  bool goodWithChildren = true;
+  bool goodWithChildren = false;
   bool hasSpecialNeeds = false;
 
   @override
@@ -721,23 +721,54 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSquareCheckbox("เข้ากันได้ดี เคยเลี้ยงรวมกับ", requiredOtherPets == "เข้ากันได้ดี", (val) => setState(() => requiredOtherPets = "เข้ากันได้ดี")),
+                  _buildSquareCheckbox("เข้ากันได้ดี เคยเลี้ยงรวมกับ", requiredOtherPets == "เข้ากันได้ดี", (val) {
+                    setState(() {
+                      if (requiredOtherPets == "เข้ากันได้ดี") {
+                        requiredOtherPets = null;
+                        okWithCat = false;
+                        okWithDog = false;
+                      } else {
+                        requiredOtherPets = "เข้ากันได้ดี";
+                        okWithCat = true; 
+                      }
+                    });
+                  }),
                   // ตัวเลือกย่อย
                   _buildSquareCheckbox("แมว", okWithCat, (val) {
                     setState(() {
                       okWithCat = val ?? false;
-                      if(okWithCat) requiredOtherPets = "เข้ากันได้ดี"; 
+                      if(okWithCat) {
+                        requiredOtherPets = "เข้ากันได้ดี"; 
+                      } else if (!okWithDog) {
+                        requiredOtherPets = null;
+                      }
                     });
                   }, isSubOption: true),
                   _buildSquareCheckbox("สุนัข", okWithDog, (val) {
                     setState(() {
                       okWithDog = val ?? false;
-                      if(okWithDog) requiredOtherPets = "เข้ากันได้ดี";
+                      if(okWithDog) {
+                        requiredOtherPets = "เข้ากันได้ดี";
+                      } else if (!okWithCat) {
+                        requiredOtherPets = null;
+                      }
                     });
                   }, isSubOption: true),
                   
-                  _buildSquareCheckbox("ต้องการเลี้ยงเดี่ยว ขี้กลัว", requiredOtherPets == "ต้องการเลี้ยงเดี่ยว", (val) => setState(() => requiredOtherPets = "ต้องการเลี้ยงเดี่ยว")),
-                  _buildSquareCheckbox("ไม่เคยเลี้ยงรวมกับสัตว์อื่น", requiredOtherPets == "ไม่เคยเลี้ยงรวม", (val) => setState(() => requiredOtherPets = "ไม่เคยเลี้ยงรวม")),
+                  _buildSquareCheckbox("ต้องการเลี้ยงเดี่ยว ขี้กลัว", requiredOtherPets == "ต้องการเลี้ยงเดี่ยว", (val) {
+                    setState(() {
+                      requiredOtherPets = "ต้องการเลี้ยงเดี่ยว";
+                      okWithCat = false;
+                      okWithDog = false;
+                    });
+                  }),
+                  _buildSquareCheckbox("ไม่เคยเลี้ยงรวมกับสัตว์อื่น", requiredOtherPets == "ไม่เคยเลี้ยงรวม", (val) {
+                    setState(() {
+                      requiredOtherPets = "ไม่เคยเลี้ยงรวม";
+                      okWithCat = false;
+                      okWithDog = false;
+                    });
+                  }),
                 ],
               ),
             ),

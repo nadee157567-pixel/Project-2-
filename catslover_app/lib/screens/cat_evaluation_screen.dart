@@ -286,6 +286,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                                             status: 'pending',
                                             userId: widget.userId,
                                             matchId: matchId,
+                                            catId: widget.catId,
                                           ),
                                         ),
                                       );

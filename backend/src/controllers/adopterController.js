@@ -5,6 +5,7 @@ async function createAdopterProfile(req, res) {
         const {
             userId,
             housingType,
+            spaceSize,
             hasPets,
             freeTime,
             experience,
@@ -19,24 +20,33 @@ async function createAdopterProfile(req, res) {
         // Data Mapping
         let living_space_type = 'house';
         let space_size = 'medium';
-        if (housingType === 'คอนโด') { living_space_type = 'condo'; space_size = 'medium'; }
-        else if (housingType === 'หอพัก') { living_space_type = 'apartment'; space_size = 'small'; }
-        else if (housingType === 'บ้านเดี่ยว') { living_space_type = 'house'; space_size = 'large'; }
+        if (housingType === 'คอนโด') { living_space_type = 'condo'; }
+        else if (housingType === 'หอพัก') { living_space_type = 'apartment'; }
+        else if (housingType === 'บ้านเดี่ยว') { living_space_type = 'house'; }
+
+        if (spaceSize === 'กว้างขวาง' || spaceSize === 'large') space_size = 'large';
+        else if (spaceSize === 'คับแคบ' || spaceSize === 'small') space_size = 'small';
+        else if (spaceSize === 'ปานกลาง' || spaceSize === 'medium') space_size = 'medium';
 
         const has_other_pets = hasPets === 'มี' ? 1 : 0;
         const has_children_mapped = hasChildren === 'มี' ? 1 : 0;
 
-        let daily_free_hours = 4;
-        if (freeTime === 'น้อย') daily_free_hours = 2;
-        else if (freeTime === 'มาก') daily_free_hours = 6;
+        let daily_free_hours = 'medium'; // default
+        if (freeTime === 'low' || freeTime === 'น้อย') daily_free_hours = 'low';
+        else if (freeTime === 'high' || freeTime === 'มาก') daily_free_hours = 'high';
 
-        let exp_mapped = 'none';
-        if (experience === 'พื้นฐาน') exp_mapped = 'beginner';
-        else if (experience === 'ระดับสูง') exp_mapped = 'experienced';
+        // experience: UI ส่งมาเป็นภาษาไทย แล้ว backend แปลงเป็น low/medium/high
+        let exp_mapped = 'low'; // default: มือใหม่ / ไม่มี
+        if (experience === 'พื้นฐาน') exp_mapped = 'medium';
+        else if (experience === 'ระดับสูง') exp_mapped = 'high';
 
-        let max_monthly_budget = 3000;
-        if (budget === 'น้อย') max_monthly_budget = 1000;
-        else if (budget === 'มาก') max_monthly_budget = 5000;
+        let max_monthly_budget = 3000; // default
+        if (budget === 'low' || budget === 'น้อย') max_monthly_budget = 1000;
+        else if (budget === 'high' || budget === 'มาก') max_monthly_budget = 5000;
+        else if (budget === 'medium' || budget === 'ปานกลาง') max_monthly_budget = 3000;
+        else if (!Number.isNaN(Number(budget)) && Number(budget) > 0) {
+            max_monthly_budget = Number(budget);
+        }
 
         // Insert into user_profiles
         // First check if profile already exists for this user

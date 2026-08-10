@@ -16,6 +16,7 @@ class AdopterProfileScreen extends StatefulWidget {
 
 class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
   final PageController _pageController = PageController();
+  final TextEditingController _budgetController = TextEditingController();
   int _currentStep = 0;
 
   String? housingType;
@@ -24,8 +25,14 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
   String? freeTime;
   String? experience;
   String? hasChildren;
-  String? budget;
-  
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _budgetController.dispose();
+    super.dispose();
+  }
+
   bool _isLoading = false;
   bool _isFetching = false;
 
@@ -68,34 +75,28 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
             int hasOtherPets = profile['has_other_pets'] is int ? profile['has_other_pets'] : int.tryParse(profile['has_other_pets']?.toString() ?? '0') ?? 0;
             hasPets = hasOtherPets == 1 ? 'มี' : 'ไม่มี';
 
-            String dailyHoursStr = profile['daily_free_hours']?.toString() ?? 'medium';
-            if (dailyHoursStr == 'low' || dailyHoursStr == '2' || dailyHoursStr == 'less_than_3') {
-              freeTime = 'low';
-            } else if (dailyHoursStr == 'high' || dailyHoursStr == '6' || dailyHoursStr == '5_or_more') {
-              freeTime = 'high';
+            String freeTimeStr = profile['daily_free_hours']?.toString() ?? 'medium';
+            if (freeTimeStr == 'low' || freeTimeStr == 'medium' || freeTimeStr == 'high') {
+              freeTime = freeTimeStr;
             } else {
-              freeTime = 'medium';
+              // fallback for older format
+              double dailyHours = double.tryParse(freeTimeStr) ?? 4.0;
+              freeTime = dailyHours <= 2 ? 'low' : (dailyHours >= 6 ? 'high' : 'medium');
             }
 
-            if (profile['experience'] == 'beginner') {
+            if (profile['experience'] == 'medium') {
               experience = 'พื้นฐาน';
-            } else if (profile['experience'] == 'experienced') {
+            } else if (profile['experience'] == 'high') {
               experience = 'ระดับสูง';
             } else {
-              experience = 'มือใหม่';
+              experience = 'มือใหม่'; // low or any other value
             }
 
             int hasChild = profile['has_children'] is int ? profile['has_children'] : int.tryParse(profile['has_children']?.toString() ?? '0') ?? 0;
             hasChildren = hasChild == 1 ? 'มี' : 'ไม่มี';
 
-            String budgetStr = profile['max_monthly_budget']?.toString() ?? 'medium';
-            if (budgetStr == 'low' || budgetStr == '1000' || budgetStr == '1500') {
-              budget = 'low';
-            } else if (budgetStr == 'high' || budgetStr == '5000') {
-              budget = 'high';
-            } else {
-              budget = 'medium';
-            }
+            double budgetNum = double.tryParse(profile['max_monthly_budget']?.toString() ?? '') ?? 0.0;
+            _budgetController.text = budgetNum > 0 ? budgetNum.round().toString() : '';
           });
         }
       }
@@ -128,7 +129,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
       "freeTime": freeTime,
       "experience": experience,
       "hasChildren": hasChildren,
-      "budget": budget,
+      "budget": _budgetController.text,
     };
 
     try {
@@ -454,16 +455,24 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
           ),
           const SizedBox(height: 20),
           _buildQuestionContainer(
-            question: "คุณมีงบประมาณการเลี้ยงแมวเท่าไหร่ ?",
-            subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
-            content: Row(
-              children: [
-                Expanded(child: _buildImageChoice(label: "น้อย\n(< 1,000 ฿)", icon: Icons.money_off, isSelected: budget == "low", onTap: () => setState(() => budget = "low"))),
-                const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "ปานกลาง\n(1k - 3k ฿)", icon: Icons.attach_money, isSelected: budget == "medium", onTap: () => setState(() => budget = "medium"))),
-                const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "มาก\n(> 3,000 ฿)", icon: Icons.monetization_on, isSelected: budget == "high", onTap: () => setState(() => budget = "high"))),
-              ],
+            question: "คุณมีงบประมาณการเลี้ยงแมวเท่าไหร่ (บาท/เดือน) ?",
+            subtitle: "กรอกจำนวนเงินเพื่อคำนวณความสอดคล้องกับค่าใช้จ่ายของแมว",
+            content: TextField(
+              controller: _budgetController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                hintText: "เช่น 3000",
+                suffixText: "บาท/เดือน",
+                suffixStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.pink),
+                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              ),
             ),
           ),
           const SizedBox(height: 30),

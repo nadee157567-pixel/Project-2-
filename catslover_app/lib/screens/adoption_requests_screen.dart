@@ -115,6 +115,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
                           evaluationResult: fakeEvaluationResult,
                           matchId: int.tryParse(req['match_id'].toString()) ?? 0,
                           userId: widget.userId,
+                          catId: int.tryParse(req['cat_id']?.toString() ?? '') ?? 0,
                         ),
                       );
                     }).toList(),
@@ -134,6 +135,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
     required Map<String, dynamic> evaluationResult,
     required int matchId,
     required int userId,
+    required int catId,
   }) {
     String displayStatus = status == 'pending' ? 'รอการพิจารณา' 
                         : status == 'interview' ? 'นัดสัมภาษณ์'
@@ -226,6 +228,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
                                     status: status,
                                     matchId: matchId,
                                     userId: userId,
+                                    catId: catId,
                                   ),
                                 ),
                               );

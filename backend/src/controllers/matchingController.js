@@ -19,6 +19,7 @@ const levelToNumber = (level) => {
         .toLowerCase();
 
     const levelMap = {
+        none: 0,
         low: 1,
         small: 1,
         beginner: 1,
@@ -234,7 +235,7 @@ const calculateBudgetScore = (
         conditionValue = 'ratio_080_099';
     } else if (ratio >= 0.6) {
         conditionValue = 'ratio_060_079';
-    } else { conditionValue = 'ratio_080_060'; }
+    } else { conditionValue = 'ratio_lt_060'; }
 
     const criterion = findCriterion(
         criteriaList,
@@ -720,22 +721,18 @@ const matchSelectedCat = async (req, res) => {
             const [rows] = await pool.query('SELECT * FROM user_profiles WHERE user_id = ?', [req.body.userId]);
             if (rows.length > 0) {
                 const p = rows[0];
-                let attention_level = 'medium';
-                if (p.daily_free_hours >= 6) attention_level = 'high';
-                else if (p.daily_free_hours <= 2) attention_level = 'low';
-
                 profileData = {
                     housing_type: p.living_space_type,
                     space_level: p.space_size,
                     monthly_budget: p.max_monthly_budget,
-                    attention_level: attention_level,
-                    experience_level: p.experience,
+                    attention_level: p.daily_free_hours, // now stored as enum 'low'/'medium'/'high'
+                    experience_level: p.experience, // stored as low/medium/high
                     pets_allowed: true, // ค่า default
                     has_children: p.has_children === 1,
                     has_cats: p.has_other_pets === 1,
                     has_dogs: false,
                     has_severe_allergy: false,
-                    accepts_special_needs: false //true
+                    accepts_special_needs: true  // อนุญาตให้แมวพิเศษผ่านการประเมินได้
                 };
             }
         }
@@ -964,15 +961,11 @@ const matchAllCats = async (req, res) => {
             const [rows] = await pool.query('SELECT * FROM user_profiles WHERE user_id = ?', [applicantId]);
             if (rows.length > 0) {
                 const p = rows[0];
-                let attention_level = 'medium';
-                if (p.daily_free_hours >= 6) attention_level = 'high';
-                else if (p.daily_free_hours <= 2) attention_level = 'low';
-
                 profileData = {
                     housing_type: p.living_space_type,
                     space_level: p.space_size,
                     monthly_budget: p.max_monthly_budget,
-                    attention_level: attention_level,
+                    attention_level: p.daily_free_hours, // now stored as enum 'low'/'medium'/'high'
                     experience_level: p.experience,
                     pets_allowed: true, // ค่า default
                     has_children: p.has_children === 1,

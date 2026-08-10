@@ -310,14 +310,14 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
   }
 
   String _mapSpace(String? val) {
-    if (val == 'large') return "ต้องการพื้นที่กว้างหรือระบบเปิด";
-    if (val == 'small') return "เลี้ยงในพื้นที่จำกัดได้ (คอนโด/หอพัก)";
+    if (val == 'large' || val == 'high') return "ต้องการพื้นที่กว้างหรือระบบเปิด";
+    if (val == 'small' || val == 'low') return "เลี้ยงในพื้นที่จำกัดได้ (คอนโด/หอพัก)";
     return "ต้องการพื้นที่พอประมาณ";
   }
 
   String _mapAttention(String? val) {
-    if (val == 'large') return "ต้องการคนที่มีเวลาเล่นด้วย";
-    if (val == 'small') return "ดูแลตัวเองได้ ไม่ติดคนมาก";
+    if (val == 'large' || val == 'high') return "ต้องการคนที่มีเวลาเล่นด้วย";
+    if (val == 'small' || val == 'low') return "ดูแลตัวเองได้ ไม่ติดคนมาก";
     return "ต้องการเวลาดูแลปานกลาง";
   }
 }

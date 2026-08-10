@@ -39,10 +39,18 @@ router.get('/:userId/:catId', async (req, res) => {
       budgetScore = Math.max(1, Math.round((user.max_monthly_budget / catCost) * 5));
     }
 
-    // 2. ด้านเวลา (เทียบ daily_free_hours กับ req_attention: small, medium, large)
+    // 2. ด้านเวลา (เทียบ daily_free_hours กับ req_attention: low, medium, high)
     let timeScore = 5;
-    if (cat.req_attention === 'large' && user.daily_free_hours < 4) timeScore = 2;
-    else if (cat.req_attention === 'medium' && user.daily_free_hours < 2) timeScore = 3;
+    const userHoursVal = user.daily_free_hours === 'high' ? 3 : (user.daily_free_hours === 'medium' ? 2 : 1);
+    const catAttentionVal = cat.req_attention === 'high' ? 3 : (cat.req_attention === 'medium' ? 2 : 1);
+    
+    if (userHoursVal < catAttentionVal) {
+      if (catAttentionVal - userHoursVal === 1) {
+        timeScore = 3; // ต่ำกว่า 1 ระดับ
+      } else {
+        timeScore = 1; // ต่ำกว่า 2 ระดับ
+      }
+    }
 
     // 3. ด้านพื้นที่ (เทียบ living_space_type กับ req_space_level: small, medium, large)
     let spaceScore = 5;

@@ -95,8 +95,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         }
       }
 
-      if (data['experience'] == 'beginner') _experience = 'พื้นฐาน';
-      else if (data['experience'] == 'experienced') _experience = 'ระดับสูง';
+      if (data['experience'] == 'medium' || data['experience'] == 'beginner') _experience = 'พื้นฐาน';
+      else if (data['experience'] == 'high' || data['experience'] == 'experienced') _experience = 'ระดับสูง';
       else _experience = 'ไม่มี';
 
       int hasChildren = data['has_children'] is int ? data['has_children'] : int.tryParse(data['has_children']?.toString() ?? '0') ?? 0;

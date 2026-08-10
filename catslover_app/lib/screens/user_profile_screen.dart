@@ -6,6 +6,7 @@ import 'adoption_requests_screen.dart';
 import 'poster_dashboard_screen.dart';
 import 'landing_screen.dart';
 import '../config/api_config.dart';
+import 'poster_cats_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final int userId;
@@ -119,9 +120,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   String displayExp(String? val) {
-    if (val == 'none') return 'ไม่มี';
-    if (val == 'beginner') return 'พื้นฐาน';
-    if (val == 'experienced') return 'ระดับสูง';
+    if (val == 'low' || val == 'none') return 'ไม่มี';
+    if (val == 'medium' || val == 'beginner') return 'พื้นฐาน';
+    if (val == 'high' || val == 'experienced') return 'ระดับสูง';
     return val ?? '-';
   }
 
@@ -259,7 +260,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => PosterDashboardScreen(userId: widget.userId),
+                            builder: (context) => PosterCatsScreen(userId: widget.userId),
                           ),
                         );
                       } else {

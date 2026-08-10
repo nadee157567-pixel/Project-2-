@@ -43,7 +43,7 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
       }
 
       // Fetch evaluation scores
-      final evalRes = await http.get(Uri.parse(ApiConfig.baseUrl + '/evaluate/${widget.adopter['user_id']}/${widget.catId}'));
+      final evalRes = await http.get(Uri.parse(ApiConfig.baseUrl + '/evaluate/${widget.adopter['applicant_id'] ?? widget.adopter['user_id']}/${widget.catId}'));
       if (evalRes.statusCode == 200) {
         final evalData = jsonDecode(evalRes.body);
         if (evalData['success'] == true && evalData['data'] != null) {
@@ -158,18 +158,24 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
                         children: [
                           ClipRRect(
                             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                            child: _catDetails!['image_url'] != null
-                                ? Image.network(
-                                    _catDetails!['image_url'],
-                                    height: 150,
-                                    width: double.infinity,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Container(
-                                    height: 150,
-                                    color: Colors.grey[200],
-                                    child: const Center(child: Icon(Icons.pets, size: 50, color: Colors.grey)),
-                                  ),
+                            child: () {
+                              String? imageUrl = _catDetails!['image_url'];
+                              if (imageUrl == null && _catDetails!['photos'] != null && (_catDetails!['photos'] as List).isNotEmpty) {
+                                imageUrl = _catDetails!['photos'][0]['image_url'];
+                              }
+                              return imageUrl != null && imageUrl.isNotEmpty
+                                  ? Image.network(
+                                      imageUrl,
+                                      height: 150,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Container(
+                                      height: 150,
+                                      color: Colors.grey[200],
+                                      child: const Center(child: Icon(Icons.pets, size: 50, color: Colors.grey)),
+                                    );
+                            }(),
                           ),
                           Padding(
                             padding: const EdgeInsets.all(16.0),
@@ -271,10 +277,10 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
                         const SizedBox(height: 16),
                         
                         // Stars
-                        _buildStarRow("ที่พักอาศัย", _evaluationScores?['scores']?['space'] ?? 0),
-                        _buildStarRow("เวลาว่าง", _evaluationScores?['scores']?['time'] ?? 0),
-                        _buildStarRow("ค่าใช้จ่าย", _evaluationScores?['scores']?['budget'] ?? 0),
-                        _buildStarRow("ประสบการณ์", _evaluationScores?['scores']?['experience'] ?? 0),
+                        _buildStarRow("ที่พักอาศัย", (double.tryParse(_evaluationScores?['scores']?['space']?.toString() ?? '0') ?? 0).toInt()),
+                        _buildStarRow("เวลาว่าง", (double.tryParse(_evaluationScores?['scores']?['time']?.toString() ?? '0') ?? 0).toInt()),
+                        _buildStarRow("ค่าใช้จ่าย", (double.tryParse(_evaluationScores?['scores']?['budget']?.toString() ?? '0') ?? 0).toInt()),
+                        _buildStarRow("ประสบการณ์", (double.tryParse(_evaluationScores?['scores']?['experience']?.toString() ?? '0') ?? 0).toInt()),
                         const SizedBox(height: 24),
 
                         // Action Buttons

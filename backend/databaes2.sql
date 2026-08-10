@@ -1,3 +1,4 @@
+DROP DATABASE IF EXISTS pet_adoption_db;
 CREATE DATABASE pet_adoption_db
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
@@ -8,7 +9,7 @@ USE pet_adoption_db;
 CREATE TABLE users (
     user_id  INT AUTO_INCREMENT PRIMARY KEY,
 	email VARCHAR(100) NOT NULL UNIQUE,
-    password VARCHAR(50) NOT NULL ,
+    password VARCHAR(255) NOT NULL ,
     fullname VARCHAR(100) NOT NULL ,
     username VARCHAR(50) NOT NULL UNIQUE,
 	phonenumber VARCHAR(15),
@@ -73,8 +74,6 @@ VALUES
     'nantana_pet',
     'user'
 );
-
-DROP TABLE users; 
 
 -- 1. อัปเดตเปลี่ยนไอดีที่เคยเป็น poster ให้กลายเป็น user ทั้งหมด
 UPDATE users 
@@ -170,16 +169,16 @@ CREATE TABLE cats (
         'large'
     ),
     req_attention ENUM(
-        'small',
+        'low',
         'medium',
-        'large'
+        'high'
     ),
     status ENUM(
         'available',
         'pending',
         'adopted'
     ) DEFAULT 'available',
-    est_monthlt_cost DECIMAL(10,2),
+    est_monthly_cost DECIMAL(10,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (poster_id)
 	REFERENCES users(user_id)

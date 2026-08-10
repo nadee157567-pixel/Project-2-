@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const pool = require('../config/database');
 
 // get / api / cats - ดึงรายการของแมว
@@ -267,16 +269,45 @@ async function uploadCatPhoto(req, res) {
 async function deleteCatPhoto(req, res) {
     try {
         const { catId, photoId } = req.params;
-        const [result] = await pool.query(`
-            DELETE FROM catphotos WHERE cat_id = ? AND photo_id = ?`,
+
+        const [rows] = await pool.query(
+            `SELECT image_url FROM catphotos WHERE cat_id = ? AND photo_id = ?`,
             [catId, photoId]);
 
-        if (result.affectedRows === 0) {
+        if (rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'ไม่พบรูปภาพที่ต้องการลบ'
             });
         }
+
+
+        await pool.query(`
+            DELETE FROM catphotos WHERE cat_id = ? AND photo_id = ?`,
+            [catId, photoId]);
+
+        const image_url = rows[0].image_url;
+
+        try {
+            const relatinvePath = image_url.replace("public/", "");
+            const filePath = path.join(__dirname, "../uploads", relativePath);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        } catch (error) {
+            console.error('deleteCatPhoto error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'ไม่สามารถลบรูปภาพได้'
+            })
+        }
+
+        // if (result.affectedRows === 0) {
+        //     return res.status(404).json({
+        //         success: false,
+        //         message: 'ไม่พบรูปภาพที่ต้องการลบ'
+        //     });
+        // }
 
         return res.status(200).json({
             success: true,
@@ -315,11 +346,36 @@ async function updateCatPhoto(req, res) {
             });
         }
 
+        const oldImageUrl = rows[0].image_url;
+
+        const normalizedPath = file.path.replace("public/", "");
+        const fullUrl = `/public/${normalizedPath}`;
+
         const [result] = await pool.query(`
             UPDATE catphotos 
             SET image_url = ? 
             WHERE cat_id = ? AND photo_id = ?
         `, [file.path, catId, photoId]);
+
+        try {
+            const relativePath = oldImageUrl.replace("public/", "");
+            const filePath = path.join(__dirname, "../uploads", relativePath);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        } catch (error) {
+            console.error('updateCatPhoto error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'ไม่สามารถอัปเดตรูปภาพได้'
+            })
+        }
+
+        // const [result] = await pool.query(`
+        //     UPDATE catphotos 
+        //     SET image_url = ? 
+        //     WHERE cat_id = ? AND photo_id = ?
+        // `, [file.path, catId, photoId]);
 
         return res.status(200).json({
             success: true,
@@ -354,14 +410,14 @@ async function updateCat(req, res) {
         // --- ผสมข้อมูลและแปลงค่า (Mapping) เพื่อให้ใช้งานได้กับทั้งสองฝั่ง ---
         const final_pet_name = pet_name || name || null;
         const final_pet_breed = pet_breed || breed || null;
-        
+
         // แปลงเพศถ้าส่งมาเป็นภาษาไทย
         let final_gender = gender || null;
         if (final_gender === 'ผู้') final_gender = 'male';
         else if (final_gender === 'เมีย') final_gender = 'female';
 
         // แปลงอายุ (Default 12)
-        let final_age_months = age_months || 12; 
+        let final_age_months = age_months || 12;
         if (ageRange) {
             if (ageRange === 'ต่ำกว่า 2 เดือน (ยังไม่หย่านม)') final_age_months = 1;
             else if (ageRange === '2 - 6 เดือน (ลูกแมว)') final_age_months = 4;
@@ -397,17 +453,17 @@ async function updateCat(req, res) {
             SET pet_name = ?, pet_breed = ?, gender = ?, age_months = ?, is_sterilized = ?, is_vaccinated = ?, health_note = ?, req_space_level = ?, req_attention = ?, personality = ?, status = COALESCE(?, status)
             WHERE cat_id = ?
         `, [
-            final_pet_name, 
-            final_pet_breed, 
-            final_gender, 
-            final_age_months, 
-            final_is_sterilized, 
-            final_is_vaccinated, 
-            final_health_note, 
-            final_req_space_level, 
-            final_req_attention, 
-            final_personality, 
-            final_status, 
+            final_pet_name,
+            final_pet_breed,
+            final_gender,
+            final_age_months,
+            final_is_sterilized,
+            final_is_vaccinated,
+            final_health_note,
+            final_req_space_level,
+            final_req_attention,
+            final_personality,
+            final_status,
             catId
         ]);
 

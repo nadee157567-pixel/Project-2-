@@ -735,7 +735,7 @@ const matchSelectedCat = async (req, res) => {
                     has_cats: p.has_other_pets === 1,
                     has_dogs: false,
                     has_severe_allergy: false,
-                    accepts_special_needs: false //true
+                    accepts_special_needs: true
                 };
             }
         }

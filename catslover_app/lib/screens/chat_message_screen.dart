@@ -43,6 +43,52 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
     }
   }
 
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return '';
+    try {
+      final date = DateTime.parse(dateStr).toLocal();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final yesterday = today.subtract(const Duration(days: 1));
+      final msgDay = DateTime(date.year, date.month, date.day);
+      if (msgDay == today) return 'วันนี้';
+      if (msgDay == yesterday) return 'เมื่อวาน';
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  bool _isSameDay(String? a, String? b) {
+    if (a == null || b == null) return false;
+    try {
+      final da = DateTime.parse(a).toLocal();
+      final db = DateTime.parse(b).toLocal();
+      return da.year == db.year && da.month == db.month && da.day == db.day;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Widget _buildDateDivider(String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          const Expanded(child: Divider(thickness: 1, color: Color(0xFFE0E0E0))),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500),
+            ),
+          ),
+          const Expanded(child: Divider(thickness: 1, color: Color(0xFFE0E0E0))),
+        ],
+      ),
+    );
+  }
+
   Future<void> _markAsRead() async {
     try {
       await http.put(
@@ -131,64 +177,71 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
                         itemBuilder: (context, index) {
                           final msg = _messages[index];
                           final bool isMe = msg['sender_id'] == widget.userId;
-                          
-                          return Align(
-                            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: Column(
-                                crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: isMe ? Colors.pink[200] : Colors.white,
-                                      borderRadius: BorderRadius.circular(20).copyWith(
-                                        bottomRight: isMe ? const Radius.circular(0) : const Radius.circular(20),
-                                        bottomLeft: !isMe ? const Radius.circular(0) : const Radius.circular(20),
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          blurRadius: 5,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Text(
-                                      msg['message_text'] ?? '',
-                                      style: TextStyle(
-                                        color: isMe ? Colors.white : Colors.black87,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
+                          final String? prevDate = index > 0 ? _messages[index - 1]['sent_at'] : null;
+                          final bool showDate = !_isSameDay(prevDate, msg['sent_at']);
+
+                          return Column(
+                            children: [
+                              if (showDate) _buildDateDivider(_formatDate(msg['sent_at'])),
+                              Align(
+                                alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Column(
+                                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                                     children: [
-                                      if (isMe && msg['is_read'] == 1) ...[
-                                        Text(
-                                          "อ่านแล้ว",
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: isMe ? Colors.pink[200] : Colors.white,
+                                          borderRadius: BorderRadius.circular(20).copyWith(
+                                            bottomRight: isMe ? const Radius.circular(0) : const Radius.circular(20),
+                                            bottomLeft: !isMe ? const Radius.circular(0) : const Radius.circular(20),
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.05),
+                                              blurRadius: 5,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Text(
+                                          msg['message_text'] ?? '',
                                           style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 11,
+                                            color: isMe ? Colors.white : Colors.black87,
+                                            fontSize: 16,
                                           ),
                                         ),
-                                        const SizedBox(width: 4),
-                                      ],
-                                      Text(
-                                        _formatTime(msg['sent_at']),
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 12,
-                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (isMe && msg['is_read'] == 1) ...[
+                                            Text(
+                                              "อ่านแล้ว",
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                          ],
+                                          Text(
+                                            _formatTime(msg['sent_at']),
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ],
+                                ),
                               ),
-                            ),
+                            ],
                           );
                         },
                       ),

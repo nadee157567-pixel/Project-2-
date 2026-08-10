@@ -103,6 +103,12 @@ const createApplication = async (req, res) => {
         const matchId = result.insertId;
 
 
+        // 6. อัปเดตสถานะแมวเป็น "มีผู้ขอรับเลี้ยง"
+        await connection.query(
+            `UPDATE cats SET status = 'pending' WHERE cat_id = ? AND status = 'available'`,
+            [cat_id]
+        );
+
         // 7. สร้างห้องแชทอัตโนมัติ (ให้ผู้ยื่นคำร้องและเจ้าของแมวเริ่มคุยกันได้)
         const [chatResult] = await connection.query(`
             INSERT INTO conversations (match_id)
@@ -163,6 +169,12 @@ const createAdoptionRequest = async (req, res) => {
 
 
         await pool.query("INSERT INTO conversations (match_id) VALUES (?)", [result.insertId]);
+
+        // อัปเดตสถานะแมวเป็น "มีผู้ขอรับเลี้ยง"
+        await pool.query(
+            `UPDATE cats SET status = 'pending' WHERE cat_id = ? AND status = 'available'`,
+            [catId]
+        );
 
         return res.status(201).json({ success: true, message: 'ส่งคำขอสำเร็จ' });
     } catch (error) {

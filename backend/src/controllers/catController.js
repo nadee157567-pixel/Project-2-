@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const pool = require('../config/database');
 
 // get / api / cats - ดึงรายการของแมว
@@ -240,18 +242,41 @@ async function uploadCatPhoto(req, res) {
     }
 }
 
-async function deleteCatPhoto(params) {
+async function deleteCatPhoto(req, res) {
     try {
         const { catId, photoId } = req.params;
-        const [result] = await pool.query(`
-            DELETE FROM catphotos WHERE cat_id = ? AND photo_id = ?`,
-            [catId, photoId]);
 
-        if (result.affectedRows === 0) {
+        // 1. ดึง image_url ก่อนลบ
+        const [rows] = await pool.query(
+            'SELECT image_url FROM catphotos WHERE cat_id = ? AND photo_id = ?',
+            [catId, photoId]
+        );
+
+        if (rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'ไม่พบรูปภาพที่ต้องการลบ'
             });
+        }
+
+        // 2. ลบออกจาก Database
+        await pool.query(
+            'DELETE FROM catphotos WHERE cat_id = ? AND photo_id = ?',
+            [catId, photoId]
+        );
+
+        // 3. ลบไฟล์ภาพจริงออกจากเซิร์ฟเวอร์
+        const imageUrl = rows[0].image_url;
+        if (imageUrl) {
+            try {
+                const relativePath = imageUrl.replace(/^https?:\/\/[^\/]+\//, '');
+                const filePath = path.join(process.cwd(), relativePath);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+            } catch (fileError) {
+                console.error('delete file error:', fileError);
+            }
         }
 
         return res.status(200).json({
@@ -300,6 +325,19 @@ async function updateCatPhoto(req, res) {
             SET image_url = ? 
             WHERE cat_id = ? AND photo_id = ?
         `, [fullUrl, catId, photoId]);
+
+        try {
+            const oldPhoto = rows[0];
+            if (oldPhoto.image_url) {
+                const relativePath = oldPhoto.image_url.replace(/^https?:\/\/[^\/]+\//, '');
+                const filePath = path.join(process.cwd(), relativePath);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+            }
+        } catch (fileError) {
+            console.error('delete old photo error:', fileError);
+        }
 
         return res.status(200).json({
             success: true,

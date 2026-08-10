@@ -28,6 +28,31 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
   void initState() {
     super.initState();
     _fetchMessages();
+    _markAsRead();
+  }
+
+  String _formatTime(String? dateStr) {
+    if (dateStr == null) return '';
+    try {
+      final date = DateTime.parse(dateStr).toLocal();
+      final h = date.hour.toString().padLeft(2, '0');
+      final m = date.minute.toString().padLeft(2, '0');
+      return "$h:$m";
+    } catch (e) {
+      return '';
+    }
+  }
+
+  Future<void> _markAsRead() async {
+    try {
+      await http.put(
+        Uri.parse('${ApiConfig.baseUrl}/chats/${widget.roomId}/read'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'userId': widget.userId}),
+      );
+    } catch (e) {
+      print("Error marking as read: $e");
+    }
   }
 
   Future<void> _fetchMessages() async {
@@ -50,33 +75,37 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
     }
   }
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
     
-    // แจ้งเตือนว่ายังไม่มี API สำหรับส่งข้อความ
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.info_outline, color: Colors.orange),
-            SizedBox(width: 8),
-            Text("ยังไม่รองรับ"),
-          ],
-        ),
-        content: const Text("ระบบ API ปัจจุบันยังไม่รองรับการส่งข้อความใหม่ครับ (สามารถดูข้อความเก่าได้เท่านั้น)"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("ตกลง", style: TextStyle(color: Colors.pink)),
-          )
-        ],
-      ),
-    );
-    
-    // เคลียร์กล่องข้อความ
+    // เคลียร์กล่องข้อความก่อนเพื่อความรวดเร็ว
     _messageController.clear();
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/chats/send-message'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'roomId': widget.roomId,
+          'senderId': widget.userId,
+          'messageText': text,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          setState(() {
+            _messages.add(data['data']); // นำข้อความที่เพิ่งส่งสำเร็จไปต่อท้าย list
+          });
+        }
+      } else {
+        print("Failed to send message: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error sending message: $e");
+    }
   }
 
   @override
@@ -105,29 +134,59 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
                           
                           return Align(
                             alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: isMe ? Colors.pink[200] : Colors.white,
-                                borderRadius: BorderRadius.circular(20).copyWith(
-                                  bottomRight: isMe ? const Radius.circular(0) : const Radius.circular(20),
-                                  bottomLeft: !isMe ? const Radius.circular(0) : const Radius.circular(20),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 5,
-                                    offset: const Offset(0, 2),
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Column(
+                                crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: isMe ? Colors.pink[200] : Colors.white,
+                                      borderRadius: BorderRadius.circular(20).copyWith(
+                                        bottomRight: isMe ? const Radius.circular(0) : const Radius.circular(20),
+                                        bottomLeft: !isMe ? const Radius.circular(0) : const Radius.circular(20),
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 5,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      msg['message_text'] ?? '',
+                                      style: TextStyle(
+                                        color: isMe ? Colors.white : Colors.black87,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (isMe && msg['is_read'] == 1) ...[
+                                        Text(
+                                          "อ่านแล้ว",
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                      ],
+                                      Text(
+                                        _formatTime(msg['sent_at']),
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
-                              ),
-                              child: Text(
-                                msg['message_text'] ?? '',
-                                style: TextStyle(
-                                  color: isMe ? Colors.white : Colors.black87,
-                                  fontSize: 16,
-                                ),
                               ),
                             ),
                           );

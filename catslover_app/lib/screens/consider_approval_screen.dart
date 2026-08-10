@@ -122,6 +122,14 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
     final String currentStatus = widget.adopter['status'] ?? 'pending';
     final bool isAlreadyProcessed = currentStatus == 'approved' || currentStatus == 'rejected';
 
+    int matchPercent = 0;
+    try {
+      var rawScore = _evaluationScores?['matchPercent'] ?? widget.adopter['matchscore'] ?? 0;
+      matchPercent = double.parse(rawScore.toString()).toInt();
+    } catch (e) {
+      matchPercent = 0;
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF0F0),
       appBar: AppBar(
@@ -240,13 +248,13 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
                               height: 24,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: _getMatchResultColor((_evaluationScores?['matchPercent'] ?? widget.adopter['matchscore'] ?? 0).toInt()),
+                                color: _getMatchResultColor(matchPercent),
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text("${_evaluationScores?['matchPercent'] ?? widget.adopter['matchscore'] ?? 0}%", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                            Text("$matchPercent%", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                             const SizedBox(width: 16),
-                            Text(_getMatchResultText((_evaluationScores?['matchPercent'] ?? widget.adopter['matchscore'] ?? 0).toInt()), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text(_getMatchResultText(matchPercent), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                           ],
                         ),
                         const SizedBox(height: 24),

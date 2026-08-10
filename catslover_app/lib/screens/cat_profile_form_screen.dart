@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../config/api_config.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -18,6 +19,7 @@ class CatProfileFormScreen extends StatefulWidget {
 
 class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
   int _currentPage = 0; 
+  bool _isSaving = false;
 
   // ==============================
   // ตัวแปรเก็บข้อมูลหน้า 1: ข้อมูลน้องแมว
@@ -69,7 +71,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
 
       selectedGender = data['gender'] == 'male' ? 'ผู้' : 'เมีย';
       
-      int age = data['age_months'] ?? 12;
+      int age = data['age_months'] != null ? (int.tryParse(data['age_months'].toString()) ?? 12) : 12;
       if (age < 2) selectedAge = catAgeRanges[0];
       else if (age <= 6) selectedAge = catAgeRanges[1];
       else if (age <= 12) selectedAge = catAgeRanges[2];
@@ -83,8 +85,8 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       else if (data['req_space_level'] == 'small') requiredHousing = 'ไม่ต้องการพื้นที่มาก';
       else requiredHousing = 'พอประมาณ';
 
-      if (data['req_attention'] == 'small') requiredTime = 'น้อย';
-      else if (data['req_attention'] == 'large') requiredTime = 'มาก';
+      if (data['req_attention'] == 'low' || data['req_attention'] == 'small') requiredTime = 'น้อย';
+      else if (data['req_attention'] == 'high' || data['req_attention'] == 'large') requiredTime = 'มาก';
       else requiredTime = 'ปานกลาง';
 
       if (data['personality'] != null) {
@@ -130,7 +132,13 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
     var request = http.MultipartRequest('POST', uri);
     
     for (var image in _selectedImages) {
-      request.files.add(await http.MultipartFile.fromPath('photos', image.path));
+      String ext = image.path.split('.').last.toLowerCase();
+      String subType = (ext == 'png') ? 'png' : ((ext == 'webp') ? 'webp' : 'jpeg');
+      request.files.add(await http.MultipartFile.fromPath(
+        'photos', 
+        image.path,
+        contentType: MediaType('image', subType)
+      ));
     }
     
     try {
@@ -143,7 +151,10 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
     }
   }
 
-Future<void> _submitCatPost() async {
+  Future<void> _submitCatPost() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
     // 1. จัดเตรียมข้อมูลที่ผู้ใช้กรอกให้อยู่ในรูปแบบ JSON (Map)
     final Map<String, dynamic> catData = {
       "userId": widget.userId,
@@ -254,6 +265,8 @@ Future<void> _submitCatPost() async {
            const SnackBar(content: Text('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')),
          );
       }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -711,8 +724,10 @@ Future<void> _submitCatPost() async {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 2,
                     ),
-                    onPressed: _submitCatPost,
-                    child: const Text("บันทึก", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    onPressed: _isSaving ? null : _submitCatPost,
+                    child: _isSaving 
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text("บันทึก", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],

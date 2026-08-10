@@ -41,7 +41,7 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
           List chats = data['data'];
           // หาห้องแชทที่มี applicant_id กับ poster_id ตรงกัน
           final chat = chats.firstWhere(
-            (c) => c['applicant_id'].toString() == adopter['user_id'].toString() &&
+            (c) => c['applicant_id'].toString() == adopter['applicant_id'].toString() &&
                    c['poster_id'].toString() == widget.posterId.toString(),
             orElse: () => null,
           );
@@ -60,10 +60,33 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
               );
             }
           } else {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('ยังไม่มีห้องแชทสำหรับรายการนี้ (รอระบบสร้างอัตโนมัติ)')),
-              );
+            // สร้างห้องแชทใหม่ผ่าน API
+            final createRes = await http.post(
+              Uri.parse('${ApiConfig.baseUrl}/chats/room'),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode({'matchId': adopter['match_id']}),
+            );
+            
+            if (createRes.statusCode == 201) {
+              final createData = json.decode(createRes.body);
+              if (createData['success'] && context.mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatMessageScreen(
+                      roomId: int.parse(createData['roomId'].toString()),
+                      userId: widget.posterId,
+                      partnerName: adopter['fullname'] ?? 'ผู้ขอรับเลี้ยง',
+                    ),
+                  ),
+                );
+              }
+            } else {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('ไม่สามารถสร้างห้องแชทได้')),
+                );
+              }
             }
           }
         }

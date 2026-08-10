@@ -68,13 +68,13 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
             int hasOtherPets = profile['has_other_pets'] is int ? profile['has_other_pets'] : int.tryParse(profile['has_other_pets']?.toString() ?? '0') ?? 0;
             hasPets = hasOtherPets == 1 ? 'มี' : 'ไม่มี';
 
-            int dailyHours = profile['daily_free_hours'] is int ? profile['daily_free_hours'] : int.tryParse(profile['daily_free_hours']?.toString() ?? '0') ?? 0;
-            if (dailyHours <= 2) {
-              freeTime = '2';
-            } else if (dailyHours >= 6) {
-              freeTime = '6';
+            String dailyHoursStr = profile['daily_free_hours']?.toString() ?? 'medium';
+            if (dailyHoursStr == 'low' || dailyHoursStr == '2' || dailyHoursStr == 'less_than_3') {
+              freeTime = 'low';
+            } else if (dailyHoursStr == 'high' || dailyHoursStr == '6' || dailyHoursStr == '5_or_more') {
+              freeTime = 'high';
             } else {
-              freeTime = '4';
+              freeTime = 'medium';
             }
 
             if (profile['experience'] == 'beginner') {
@@ -88,18 +88,13 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
             int hasChild = profile['has_children'] is int ? profile['has_children'] : int.tryParse(profile['has_children']?.toString() ?? '0') ?? 0;
             hasChildren = hasChild == 1 ? 'มี' : 'ไม่มี';
 
-            double maxBudget = profile['max_monthly_budget'] is double 
-                ? profile['max_monthly_budget'] 
-                : (profile['max_monthly_budget'] is int 
-                    ? profile['max_monthly_budget'].toDouble() 
-                    : double.tryParse(profile['max_monthly_budget']?.toString() ?? '0') ?? 0.0);
-
-            if (maxBudget <= 1000) {
-              budget = '1000';
-            } else if (maxBudget >= 5000) {
-              budget = '5000';
+            String budgetStr = profile['max_monthly_budget']?.toString() ?? 'medium';
+            if (budgetStr == 'low' || budgetStr == '1000' || budgetStr == '1500') {
+              budget = 'low';
+            } else if (budgetStr == 'high' || budgetStr == '5000') {
+              budget = 'high';
             } else {
-              budget = '3000';
+              budget = 'medium';
             }
           });
         }
@@ -403,11 +398,11 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
             subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
             content: Row(
               children: [
-                Expanded(child: _buildImageChoice(label: "1-2 ชม.", icon: Icons.computer, isSelected: freeTime == "2", onTap: () => setState(() => freeTime = "2"))),
+                Expanded(child: _buildImageChoice(label: "น้อย\n(1-2 ชม.)", icon: Icons.computer, isSelected: freeTime == "low", onTap: () => setState(() => freeTime = "low"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "3-5 ชม.", icon: Icons.access_time, isSelected: freeTime == "4", onTap: () => setState(() => freeTime = "4"))),
+                Expanded(child: _buildImageChoice(label: "ปานกลาง\n(3-5 ชม.)", icon: Icons.access_time, isSelected: freeTime == "medium", onTap: () => setState(() => freeTime = "medium"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "> 5 ชม.", icon: Icons.home_work, isSelected: freeTime == "6", onTap: () => setState(() => freeTime = "6"))),
+                Expanded(child: _buildImageChoice(label: "มาก\n(> 5 ชม.)", icon: Icons.home_work, isSelected: freeTime == "high", onTap: () => setState(() => freeTime = "high"))),
               ],
             ),
           ),
@@ -463,11 +458,11 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
             subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
             content: Row(
               children: [
-                Expanded(child: _buildImageChoice(label: "< 1,000 ฿", icon: Icons.money_off, isSelected: budget == "1000", onTap: () => setState(() => budget = "1000"))),
+                Expanded(child: _buildImageChoice(label: "น้อย\n(< 1,000 ฿)", icon: Icons.money_off, isSelected: budget == "low", onTap: () => setState(() => budget = "low"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "1k - 3k ฿", icon: Icons.attach_money, isSelected: budget == "3000", onTap: () => setState(() => budget = "3000"))),
+                Expanded(child: _buildImageChoice(label: "ปานกลาง\n(1k - 3k ฿)", icon: Icons.attach_money, isSelected: budget == "medium", onTap: () => setState(() => budget = "medium"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "> 3,000 ฿", icon: Icons.monetization_on, isSelected: budget == "5000", onTap: () => setState(() => budget = "5000"))),
+                Expanded(child: _buildImageChoice(label: "มาก\n(> 3,000 ฿)", icon: Icons.monetization_on, isSelected: budget == "high", onTap: () => setState(() => budget = "high"))),
               ],
             ),
           ),

@@ -112,13 +112,15 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       // 2. จัดรูปแบบข้อมูลให้เข้ากับ matchAllCats
-      final int freeHours = profileData['daily_free_hours'] ?? 4;
-      String attentionLevel = freeHours >= 5 ? 'large' : (freeHours >= 3 ? 'medium' : 'small');
+      String freeHoursStr = profileData['daily_free_hours']?.toString() ?? 'medium';
+      String attentionLevel = freeHoursStr; // 'low', 'medium', 'high' matches attention_level format
+
+      String budgetStr = profileData['max_monthly_budget']?.toString() ?? 'medium';
 
       final reqBody = {
         "housing_type": profileData['living_space_type'] ?? 'house',
         "space_level": profileData['space_size'] ?? 'medium',
-        "monthly_budget": profileData['max_monthly_budget'] ?? 3000,
+        "budget_level": budgetStr, // Used budget_level instead of monthly_budget
         "attention_level": attentionLevel,
         "experience_level": profileData['experience'] ?? 'none',
         "pets_allowed": true,

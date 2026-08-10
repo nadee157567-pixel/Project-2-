@@ -70,17 +70,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       else _spaceSize = 'ปานกลาง';
 
       if (data['daily_free_hours'] != null) {
-        int hours = data['daily_free_hours'] is int ? data['daily_free_hours'] : int.tryParse(data['daily_free_hours'].toString()) ?? 0;
-        if (hours <= 2) _freeTime = 'น้อย';
-        else if (hours >= 6) _freeTime = 'มาก';
-        else _freeTime = 'ปานกลาง';
+        String hours = data['daily_free_hours'].toString();
+        if (hours == 'low') _freeTime = 'น้อย';
+        else if (hours == 'high') _freeTime = 'มาก';
+        else if (hours == 'medium') _freeTime = 'ปานกลาง';
+        else {
+          int h = int.tryParse(hours) ?? 0;
+          if (h <= 2) _freeTime = 'น้อย';
+          else if (h >= 6) _freeTime = 'มาก';
+          else _freeTime = 'ปานกลาง';
+        }
       }
 
       if (data['max_monthly_budget'] != null) {
-        double budget = data['max_monthly_budget'] is double ? data['max_monthly_budget'] : (data['max_monthly_budget'] is int ? data['max_monthly_budget'].toDouble() : double.tryParse(data['max_monthly_budget'].toString()) ?? 0.0);
-        if (budget <= 1000) _budget = 'น้อย';
-        else if (budget >= 5000) _budget = 'มาก';
-        else _budget = 'ปานกลาง';
+        String budget = data['max_monthly_budget'].toString();
+        if (budget == 'low') _budget = 'น้อย';
+        else if (budget == 'high') _budget = 'มาก';
+        else if (budget == 'medium') _budget = 'ปานกลาง';
+        else {
+          double b = double.tryParse(budget) ?? 0.0;
+          if (b <= 1000) _budget = 'น้อย';
+          else if (b >= 5000) _budget = 'มาก';
+          else _budget = 'ปานกลาง';
+        }
       }
 
       if (data['experience'] == 'beginner') _experience = 'พื้นฐาน';

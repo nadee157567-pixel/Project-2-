@@ -51,9 +51,13 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
   // ==============================
   String? requiredHousing;
   String? requiredTime;
+  String? requiredBudget;
   String? requiredOtherPets;
+  String? requiredExperience;
   bool okWithCat = false; 
   bool okWithDog = false; 
+  bool goodWithChildren = true;
+  bool hasSpecialNeeds = false;
 
   @override
   void initState() {
@@ -76,8 +80,8 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       else if (age <= 84) selectedAge = catAgeRanges[3];
       else selectedAge = catAgeRanges[4];
 
-      sterilizationStatus = data['is_sterilized'];
-      vaccinationStatus = data['is_vaccinated'];
+      sterilizationStatus = data['is_sterilized']?.toString();
+      vaccinationStatus = data['is_vaccinated']?.toString();
       
       if (data['req_space_level'] == 'large') requiredHousing = 'พื้นที่โล่งกว้างๆ';
       else if (data['req_space_level'] == 'small') requiredHousing = 'ไม่ต้องการพื้นที่มาก';
@@ -86,6 +90,10 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       if (data['req_attention'] == 'small') requiredTime = 'น้อย';
       else if (data['req_attention'] == 'large') requiredTime = 'มาก';
       else requiredTime = 'ปานกลาง';
+
+      if (data['req_budget_level'] == 'low') requiredBudget = 'น้อย';
+      else if (data['req_budget_level'] == 'high') requiredBudget = 'มาก';
+      else requiredBudget = 'ปานกลาง';
 
       if (data['personality'] != null) {
         String p = data['personality'].toString();
@@ -96,9 +104,26 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
         }
       }
 
+      if (data['req_experience_level'] == 'beginner') requiredExperience = 'พอมีประสบการณ์';
+      else if (data['req_experience_level'] == 'experienced') requiredExperience = 'มีประสบการณ์สูง';
+      else requiredExperience = 'ไม่จำเป็น';
+
       if (requiredOtherPets == 'เข้ากันได้ดี') {
         okWithCat = true;
         okWithDog = true;
+      }
+
+      if (data['good_with_children'] != null) {
+        goodWithChildren = data['good_with_children'] == 1 || data['good_with_children'] == true;
+      }
+      if (data['has_special_needs'] != null) {
+        hasSpecialNeeds = data['has_special_needs'] == 1 || data['has_special_needs'] == true;
+      }
+      if (data['good_with_cats'] != null) {
+        okWithCat = data['good_with_cats'] == 1 || data['good_with_cats'] == true;
+      }
+      if (data['good_with_dogs'] != null) {
+        okWithDog = data['good_with_dogs'] == 1 || data['good_with_dogs'] == true;
       }
     }
   } 
@@ -156,7 +181,13 @@ Future<void> _submitCatPost() async {
       "healthDetails": _healthDetailsController.text,
       "reqHousing": requiredHousing,
       "reqTime": requiredTime,
+      "reqBudget": requiredBudget,
       "reqOtherPets": requiredOtherPets,
+      "reqExperience": requiredExperience,
+      "goodWithChildren": goodWithChildren,
+      "goodWithCats": okWithCat,
+      "goodWithDogs": okWithDog,
+      "hasSpecialNeeds": hasSpecialNeeds,
     };
 
     try {
@@ -656,7 +687,21 @@ Future<void> _submitCatPost() async {
             ),
             const SizedBox(height: 16),
 
-            // 3. หมวดความเข้ากับสัตว์เลี้ยงตัวอื่น
+            // 3. หมวดงบประมาณ
+            _buildRequirementCard(
+              title: "งบประมาณในการดูแล",
+              icon: Icons.account_balance_wallet, 
+              content: Column(
+                children: [
+                  _buildSquareCheckbox("น้อย : แมวโต แข็งแรง กินง่าย", requiredBudget == "น้อย", (val) => setState(() => requiredBudget = "น้อย")),
+                  _buildSquareCheckbox("ปานกลาง : แมวทั่วไป ต้องการอาหารมาตรฐาน", requiredBudget == "ปานกลาง", (val) => setState(() => requiredBudget = "ปานกลาง")),
+                  _buildSquareCheckbox("มาก : แมวป่วย หรือต้องการอาหารดูแลพิเศษ", requiredBudget == "มาก", (val) => setState(() => requiredBudget = "มาก")),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 4. หมวดความเข้ากับสัตว์เลี้ยงตัวอื่น
             _buildRequirementCard(
               title: "ความเข้ากับสัตว์เลี้ยงตัวอื่น",
               icon: Icons.pets, 
@@ -680,6 +725,33 @@ Future<void> _submitCatPost() async {
                   
                   _buildSquareCheckbox("ต้องการเลี้ยงเดี่ยว ขี้กลัว", requiredOtherPets == "ต้องการเลี้ยงเดี่ยว", (val) => setState(() => requiredOtherPets = "ต้องการเลี้ยงเดี่ยว")),
                   _buildSquareCheckbox("ไม่เคยเลี้ยงรวมกับสัตว์อื่น", requiredOtherPets == "ไม่เคยเลี้ยงรวม", (val) => setState(() => requiredOtherPets = "ไม่เคยเลี้ยงรวม")),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 5. หมวดประสบการณ์ของผู้เลี้ยงที่ต้องการ
+            _buildRequirementCard(
+              title: "ประสบการณ์ของผู้เลี้ยงที่ต้องการ",
+              icon: Icons.star_border_purple500, 
+              content: Column(
+                children: [
+                  _buildSquareCheckbox("ไม่จำเป็นต้องมีประสบการณ์", requiredExperience == "ไม่จำเป็น", (val) => setState(() => requiredExperience = "ไม่จำเป็น")),
+                  _buildSquareCheckbox("พอมีประสบการณ์ (เคยเลี้ยงแมวมาก่อน)", requiredExperience == "พอมีประสบการณ์", (val) => setState(() => requiredExperience = "พอมีประสบการณ์")),
+                  _buildSquareCheckbox("มีประสบการณ์สูง (เช่น เคยดูแลแมวเด็ก แมวป่วย)", requiredExperience == "มีประสบการณ์สูง", (val) => setState(() => requiredExperience = "มีประสบการณ์สูง")),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 6. หมวดข้อควรระวัง / การดูแลพิเศษ(เลือกถ้ามี)
+            _buildRequirementCard(
+              title: "ข้อควรระวัง / การดูแลพิเศษ",
+              icon: Icons.warning_amber_rounded, 
+              content: Column(
+                children: [
+                  _buildSquareCheckbox("เป็นมิตรกับเด็กเล็ก / สามารถอยู่ร่วมกับเด็กได้", goodWithChildren, (val) => setState(() => goodWithChildren = val ?? false)),
+                  _buildSquareCheckbox("เป็นแมวที่ต้องการการดูแลพิเศษ (เช่น ป่วยเรื้อรัง, พิการ)", hasSpecialNeeds, (val) => setState(() => hasSpecialNeeds = val ?? false)),
                 ],
               ),
             ),

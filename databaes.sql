@@ -98,8 +98,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
         'medium',
         'large'
     ),
-	max_monthly_budget DECIMAL(10,2),
-	daily_free_hours numeric,
+	max_monthly_budget ENUM('low', 'medium', 'high') DEFAULT 'medium',
+	daily_free_hours ENUM('low', 'medium', 'high') DEFAULT 'medium',
     has_other_pets BOOLEAN,
 	has_children BOOLEAN,
     experience ENUM(
@@ -133,8 +133,8 @@ VALUES
     4,
     'house',
     'medium',
-    5000.00,
-    5,
+    'high',
+    'high',
     0,
     0,
     'experienced'
@@ -144,8 +144,8 @@ VALUES
     5,
     'condo',
     'small',
-    3000.00,
-    3,
+    'medium',
+    'medium',
     1,
     0,
     'beginner'
@@ -178,12 +178,21 @@ CREATE TABLE IF NOT EXISTS cats (
         'low',
         'high'
     ),
+    req_budget_level ENUM(
+        'low',
+        'medium',
+        'high'
+    ) DEFAULT 'medium',
+    req_experience_level ENUM(
+        'none',
+        'beginner',
+        'experienced'
+    ) DEFAULT 'none',
     status ENUM(
         'available',
         'pending',
         'adopted'
     ) DEFAULT 'available',
-    est_monthly_cost DECIMAL(10,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (poster_id)
 	REFERENCES users(user_id)
@@ -206,8 +215,8 @@ INSERT IGNORE INTO cats
     health_note,
     req_space_level,
     req_attention,
-    status,
-    est_monthly_cost
+    req_budget_level,
+    status
 )
 VALUES
 (
@@ -223,8 +232,8 @@ VALUES
     'สุขภาพแข็งแรง ไม่มีโรคประจำตัว',
     'small',
     'medium',
-    'available',
-    1800.00
+    'low',
+    'available'
 ),
 (
     2,
@@ -239,8 +248,8 @@ VALUES
     'ยังไม่ได้ทำหมัน',
     'small',
     'high',
-    'available',
-    2000.00
+    'low',
+    'available'
 ),
 (
     3,
@@ -255,8 +264,8 @@ VALUES
     'ต้องแปรงขนเป็นประจำ',
     'medium',
     'medium',
-    'available',
-    2800.00
+    'medium',
+    'available'
 ),
 (
     4,
@@ -271,8 +280,8 @@ VALUES
     'ต้องรับประทานอาหารควบคุมน้ำหนัก',
     'medium',
     'low',
-    'pending',
-    2200.00
+    'medium',
+    'pending'
 );
 
 ALTER TABLE cats
@@ -524,10 +533,10 @@ VALUES
     'BUDGET',
     'งบประมาณต่อเดือน',
     1,
-    'monthly_budget',
-    'ratio_gte_1',
+    'budget_level',
+    'equal_or_higher',
     'score',
-    'ratio',
+    'level',
     1.00,
     25,
     0,
@@ -538,11 +547,11 @@ VALUES
     'BUDGET',
     'งบประมาณต่อเดือน',
     1,
-    'monthly_budget',
-    'ratio_080_099',
+    'budget_level',
+    'lower_one_level',
     'score',
-    'ratio',
-    0.70,
+    'level',
+    0.50,
     25,
     0,
     1
@@ -552,24 +561,10 @@ VALUES
     'BUDGET',
     'งบประมาณต่อเดือน',
     1,
-    'monthly_budget',
-    'ratio_060_079',
+    'budget_level',
+    'lower_two_levels',
     'score',
-    'ratio',
-    0.30,
-    25,
-    0,
-    1
-),
-
-(
-    'BUDGET',
-    'งบประมาณต่อเดือน',
-    1,
-    'monthly_budget',
-    'ratio_lt_060',
-    'score',
-    'ratio',
+    'level',
     0.00,
     25,
     1,

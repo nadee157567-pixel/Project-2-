@@ -15,7 +15,11 @@ async function getAllCats(req, res) {
                 c.req_space_level,
                 c.req_attention,
                 c.status,
-                c.est_monthly_cost,
+                c.req_budget_level,
+                c.good_with_children,
+                c.good_with_cats,
+                c.good_with_dogs,
+                c.has_special_needs,
                 c.created_at,
                 
                 u.user_id AS poster_id,
@@ -123,7 +127,13 @@ async function createCat(req, res) {
             healthDetails,
             reqHousing,
             reqTime,
-            reqOtherPets
+            reqOtherPets,
+            reqBudget,
+            reqExperience,
+            goodWithChildren,
+            goodWithCats,
+            goodWithDogs,
+            hasSpecialNeeds
         } = req.body;
 
         if (!userId) {
@@ -145,15 +155,28 @@ async function createCat(req, res) {
         else if (reqHousing === 'ไม่ต้องการพื้นที่มาก') req_space_level = 'small';
 
         let req_attention = 'medium';
-        if (reqTime === 'น้อย') req_attention = 'small';
-        else if (reqTime === 'มาก') req_attention = 'large';
+        if (reqTime === 'น้อย' || reqTime === 'low') req_attention = 'low';
+        else if (reqTime === 'มาก' || reqTime === 'high') req_attention = 'high';
+
+        let req_budget_level = 'medium';
+        if (reqBudget === 'น้อย' || reqBudget === 'low') req_budget_level = 'low';
+        else if (reqBudget === 'มาก' || reqBudget === 'high') req_budget_level = 'high';
 
         const personality_mapped = reqOtherPets ? `เข้ากับสัตว์อื่น: ${reqOtherPets}` : null;
+        
+        const good_with_children_mapped = (goodWithChildren === true || goodWithChildren === 'true' || goodWithChildren === 1) ? 1 : 0;
+        const good_with_cats_mapped = (goodWithCats === true || goodWithCats === 'true' || goodWithCats === 1) ? 1 : 0;
+        const good_with_dogs_mapped = (goodWithDogs === true || goodWithDogs === 'true' || goodWithDogs === 1) ? 1 : 0;
+        const has_special_needs_mapped = (hasSpecialNeeds === true || hasSpecialNeeds === 'true' || hasSpecialNeeds === 1) ? 1 : 0;
+
+        let req_experience_level = 'none';
+        if (reqExperience === 'beginner' || reqExperience === 'พอมีประสบการณ์') req_experience_level = 'beginner';
+        else if (reqExperience === 'experienced' || reqExperience === 'มีประสบการณ์สูง') req_experience_level = 'experienced';
 
         const [result] = await pool.query(`
             INSERT INTO cats 
-            (poster_id, pet_name, pet_breed, gender, age_months, is_sterilized, is_vaccinated, health_note, req_space_level, req_attention, personality, est_monthly_cost)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (poster_id, pet_name, pet_breed, gender, age_months, is_sterilized, is_vaccinated, health_note, req_space_level, req_attention, personality, req_budget_level, req_experience_level, good_with_children, good_with_cats, good_with_dogs, has_special_needs)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             userId,
             name || null,
@@ -166,15 +189,15 @@ async function createCat(req, res) {
             req_space_level,
             req_attention,
             personality_mapped,
-            3000 // default est_monthly_cost
+            req_budget_level,
+            req_experience_level,
+            good_with_children_mapped,
+            good_with_cats_mapped,
+            good_with_dogs_mapped,
+            has_special_needs_mapped
         ]);
 
-        // อัปเดต role ของผู้ใช้ให้เป็น 'poster' หากผู้ใช้ยังเป็น 'user' ธรรมดาอยู่
-        await pool.query(`
-            UPDATE users 
-            SET role = 'poster' 
-            WHERE user_id = ? AND role = 'user'
-        `, [userId]);
+        // ไม่มีการอัปเดต role เป็น poster แล้ว เนื่องจากฐานข้อมูลใช้เพียง 'user' และ 'admin'
 
         return res.status(201).json({
             success: true,
@@ -206,7 +229,14 @@ async function getCatsByPosterId(req, res) {
                 c.req_space_level,
                 c.req_attention,
                 c.status,
-                c.est_monthly_cost,
+                c.req_budget_level,
+                c.good_with_children,
+                c.good_with_cats,
+                c.good_with_dogs,
+                c.has_special_needs,
+                c.req_experience_level,
+                c.is_sterilized,
+                c.is_vaccinated,
                 c.created_at,
                 c.poster_id,
                 (
@@ -246,14 +276,18 @@ async function uploadCatPhoto(req, res) {
                 message: 'กรุณาอัปโหลดรูปภาพ'
             });
         }
-        const image_url = files.map(file => file.path);
-        const [result] = await pool.query(`
-            INSERT INTO catphotos (cat_id, image_url) VALUES (?,?)`,
-            [catId, image_url]);
+        // Iterate over files and insert each photo
+        for (const file of files) {
+            await pool.query(`
+                INSERT INTO catphotos (cat_id, image_url) VALUES (?,?)`,
+                [catId, file.path]
+            );
+        }
+
         return res.status(201).json({
             success: true,
             message: 'อัปโหลดรูปภาพสำเร็จ',
-            catId: result.insertId
+            catId: catId
         });
     } catch (error) {
         console.error('uploadCatPhoto error:', error);
@@ -344,11 +378,12 @@ async function updateCat(req, res) {
             // ฟิลด์หลักจากฝั่ง api
             pet_name, pet_breed, gender, age_months,
             is_sterilized, is_vaccinated, health_note,
-            req_space_level, req_attention, personality, status,
+            req_space_level, req_attention, req_budget_level, personality, status,
 
             // ฟิลด์จากฝั่ง main เผื่อกรณี Frontend ส่งมาแบบเก่า
             name, breed, ageRange, sterilization, vaccination,
-            healthDetails, reqHousing, reqTime, reqOtherPets
+            healthDetails, reqHousing, reqTime, reqOtherPets, reqBudget, reqExperience,
+            goodWithChildren, goodWithCats, goodWithDogs, hasSpecialNeeds
         } = req.body;
 
         // --- ผสมข้อมูลและแปลงค่า (Mapping) เพื่อให้ใช้งานได้กับทั้งสองฝั่ง ---
@@ -381,8 +416,13 @@ async function updateCat(req, res) {
 
         // แปลงความต้องการเวลา
         let final_req_attention = req_attention || 'medium';
-        if (reqTime === 'น้อย') final_req_attention = 'small';
-        else if (reqTime === 'มาก') final_req_attention = 'large';
+        if (reqTime === 'น้อย' || reqTime === 'low') final_req_attention = 'low';
+        else if (reqTime === 'มาก' || reqTime === 'high') final_req_attention = 'high';
+
+        // แปลงความต้องการงบประมาณ
+        let final_req_budget = req_budget_level || 'medium';
+        if (reqBudget === 'น้อย' || reqBudget === 'low') final_req_budget = 'low';
+        else if (reqBudget === 'มาก' || reqBudget === 'high') final_req_budget = 'high';
 
         // จัดการนิสัย
         let final_personality = personality || null;
@@ -390,11 +430,32 @@ async function updateCat(req, res) {
             final_personality = `เข้ากับสัตว์อื่น: ${reqOtherPets}`;
         }
 
+        // จัดการ Boolean fields ใหม่
+        let final_good_with_children = req.body.good_with_children !== undefined ? req.body.good_with_children : (goodWithChildren !== undefined ? goodWithChildren : null);
+        if (final_good_with_children !== null) final_good_with_children = (final_good_with_children === true || final_good_with_children === 'true' || final_good_with_children === 1) ? 1 : 0;
+        
+        let final_good_with_cats = req.body.good_with_cats !== undefined ? req.body.good_with_cats : (goodWithCats !== undefined ? goodWithCats : null);
+        if (final_good_with_cats !== null) final_good_with_cats = (final_good_with_cats === true || final_good_with_cats === 'true' || final_good_with_cats === 1) ? 1 : 0;
+
+        let final_good_with_dogs = req.body.good_with_dogs !== undefined ? req.body.good_with_dogs : (goodWithDogs !== undefined ? goodWithDogs : null);
+        if (final_good_with_dogs !== null) final_good_with_dogs = (final_good_with_dogs === true || final_good_with_dogs === 'true' || final_good_with_dogs === 1) ? 1 : 0;
+
+        let final_has_special_needs = req.body.has_special_needs !== undefined ? req.body.has_special_needs : (hasSpecialNeeds !== undefined ? hasSpecialNeeds : null);
+        if (final_has_special_needs !== null) final_has_special_needs = (final_has_special_needs === true || final_has_special_needs === 'true' || final_has_special_needs === 1) ? 1 : 0;
+
+        let final_req_experience_level = req.body.req_experience_level !== undefined ? req.body.req_experience_level : 'none';
+        if (reqExperience) {
+            if (reqExperience === 'beginner' || reqExperience === 'พอมีประสบการณ์') final_req_experience_level = 'beginner';
+            else if (reqExperience === 'experienced' || reqExperience === 'มีประสบการณ์สูง') final_req_experience_level = 'experienced';
+            else final_req_experience_level = 'none';
+        }
+
         const final_status = status || null;
 
         const [result] = await pool.query(`
             UPDATE cats 
-            SET pet_name = ?, pet_breed = ?, gender = ?, age_months = ?, is_sterilized = ?, is_vaccinated = ?, health_note = ?, req_space_level = ?, req_attention = ?, personality = ?, status = COALESCE(?, status)
+            SET pet_name = ?, pet_breed = ?, gender = ?, age_months = ?, is_sterilized = ?, is_vaccinated = ?, health_note = ?, req_space_level = ?, req_attention = ?, req_budget_level = ?, req_experience_level = ?, personality = ?, status = COALESCE(?, status),
+                good_with_children = COALESCE(?, good_with_children), good_with_cats = COALESCE(?, good_with_cats), good_with_dogs = COALESCE(?, good_with_dogs), has_special_needs = COALESCE(?, has_special_needs)
             WHERE cat_id = ?
         `, [
             final_pet_name, 
@@ -405,9 +466,15 @@ async function updateCat(req, res) {
             final_is_vaccinated, 
             final_health_note, 
             final_req_space_level, 
-            final_req_attention, 
+            final_req_attention,
+            final_req_budget, 
+            final_req_experience_level,
             final_personality, 
             final_status, 
+            final_good_with_children,
+            final_good_with_cats,
+            final_good_with_dogs,
+            final_has_special_needs,
             catId
         ]);
 

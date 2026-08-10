@@ -26,17 +26,21 @@ async function createAdopterProfile(req, res) {
         const has_other_pets = hasPets === 'มี' ? 1 : 0;
         const has_children_mapped = hasChildren === 'มี' ? 1 : 0;
 
-        let daily_free_hours = 4;
-        if (freeTime === 'น้อย') daily_free_hours = 2;
-        else if (freeTime === 'มาก') daily_free_hours = 6;
+        let freeTimeMapped = 'medium';
+        if (freeTime === 'น้อย' || freeTime === 'low') freeTimeMapped = 'low';
+        else if (freeTime === 'มาก' || freeTime === 'high') freeTimeMapped = 'high';
+        else if (freeTime === 'ปานกลาง' || freeTime === 'medium') freeTimeMapped = 'medium';
+        let daily_free_hours = freeTimeMapped;
 
         let exp_mapped = 'none';
-        if (experience === 'พื้นฐาน') exp_mapped = 'beginner';
-        else if (experience === 'ระดับสูง') exp_mapped = 'experienced';
+        if (experience === 'พื้นฐาน' || experience === 'beginner') exp_mapped = 'beginner';
+        else if (experience === 'ระดับสูง' || experience === 'experienced') exp_mapped = 'experienced';
 
-        let max_monthly_budget = 3000;
-        if (budget === 'น้อย') max_monthly_budget = 1000;
-        else if (budget === 'มาก') max_monthly_budget = 5000;
+        let budgetMapped = 'medium';
+        if (budget === 'น้อย' || budget === 'low') budgetMapped = 'low';
+        else if (budget === 'มาก' || budget === 'high') budgetMapped = 'high';
+        else if (budget === 'ปานกลาง' || budget === 'medium') budgetMapped = 'medium';
+        let max_monthly_budget = budgetMapped;
 
         // Insert into user_profiles
         // First check if profile already exists for this user
@@ -149,17 +153,13 @@ async function updateAdopterProfile(req, res) {
         const has_other_pets = hasPets === 'มี' ? 1 : 0;
         const has_children_mapped = hasChildren === 'มี' ? 1 : 0;
 
-        let daily_free_hours = 4;
-        if (freeTime === 'น้อย') daily_free_hours = 2;
-        else if (freeTime === 'มาก') daily_free_hours = 6;
+        let daily_free_hours = ['low', 'medium', 'high'].includes(freeTime) ? freeTime : 'medium';
 
         let exp_mapped = 'none';
         if (experience === 'พื้นฐาน') exp_mapped = 'beginner';
         else if (experience === 'ระดับสูง') exp_mapped = 'experienced';
 
-        let max_monthly_budget = 3000;
-        if (budget === 'น้อย') max_monthly_budget = 1000;
-        else if (budget === 'มาก') max_monthly_budget = 5000;
+        let max_monthly_budget = ['low', 'medium', 'high'].includes(budget) ? budget : 'medium';
 
         const [result] = await pool.query(`
             UPDATE user_profiles 

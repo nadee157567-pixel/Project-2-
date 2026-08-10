@@ -36,19 +36,7 @@ const getActiveCriteria = async () => {
     return rows;
 };
 
-// ดึงเกณฑ์จากฐานข้อมูล (แบบ main ที่ใช้งานกับระบบเก่า)
-const getCriteria = async () => {
-    const [rows] = await pool.query(`SELECT criteria_id, profile_field, condition_value, scoreweight FROM evaluation_criteria`);
-    const criteria = {};
-    rows.forEach(row => {
-        if (!criteria[row.profile_field]) criteria[row.profile_field] = {};
-        criteria[row.profile_field][row.condition_value] = {
-            id: row.criteria_id,
-            weight: row.scoreweight
-        };
-    });
-    return criteria;
-};
+// getCriteria was removed because it is legacy
 
 const groupCriteriaByCode = (criteriaRows) => {
     return criteriaRows.reduce((grouped, item) => {
@@ -101,38 +89,7 @@ const calculateLevelScore = (userLevel, requireLevel, criteriaList) => {
     };
 };
 
-const calculateBudgetScore =(monthlyBudget, estimatedMonthlyCost, criteriaList) => {
-    if (monthlyBudget === undefined || monthlyBudget === null || monthlyBudget === '' ||
-        estimatedMonthlyCost === undefined || estimatedMonthlyCost === null || estimatedMonthlyCost === '') {
-        return { score: 0, maxScore: 0, scoreRatio: 0, ratio: 0, valid: false, criterion: null };
-    }
-
-    const budget = Number(monthlyBudget);
-    const cost = Number(estimatedMonthlyCost);
-
-    if (Number.isNaN(budget) || Number.isNaN(cost) || budget < 0 || cost < 0) {
-        return { score: 0, maxScore: 0, scoreRatio: 0, ratio: 0, valid: false, criterion: null };
-    }
-
-    const ratio = cost === 0 ? 1 : budget / cost;
-    let conditionValue;
-
-    if(ratio >= 1) conditionValue = 'ratio_gte_1';
-    else if(ratio >= 0.8) conditionValue = 'ratio_080_099';
-    else if(ratio >= 0.6) conditionValue = 'ratio_060_079';
-    else conditionValue = 'ratio_080_060';
-
-    const criterion = findCriterion(criteriaList, conditionValue);
-
-    if(!criterion) {
-        return{ score: 0, maxScore: 0, scoreRatio: 0, ratio, valid: false, criterion: null };
-    }
-
-    const maxScore = Number(criterion.max_score);
-    const scoreRatio = Number(criterion.score_ratio);
-
-    return { score: maxScore * scoreRatio, maxScore, scoreRatio, ratio, valid: true, criterion };
-};
+// calculateBudgetScore removed as budget now uses calculateLevelScore
 
 const scoreToStars = (score, maxScore ) => {
     if (!maxScore || maxScore <= 0) return 0;
@@ -165,12 +122,11 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
     else if (spaceResult.difference === -1) warnings.push('พื้นที่ต่ำกว่าที่แมวต้องการเล็กน้อย');
     else { warnings.push('พื้นที่ต่ำกว่าที่แมวต้องการมาก'); disqualifications.push('พื้นที่ไม่เพียงพอต่อความต้องการของแมว'); }
 
-    const budgetResult = calculateBudgetScore(profile.monthly_budget, cat.est_monthly_cost, criteriaByCode.BUDGET ?? []);
-    if (!budgetResult.valid) warnings.push('ข้อมูลค่าใช้จ่ายหรืองบประมาณไม่ถูกต้อง');
-    else if (budgetResult.ratio >= 1) reasons.push('งบประมาณครอบคลุมค่าใช้จ่ายรายเดือนของแมว');
-    else if (budgetResult.ratio >= 0.8) warnings.push('งบประมาณต่ำกว่าค่าใช้จ่ายเล็กน้อย');
-    else if (budgetResult.ratio >= 0.6) warnings.push('งบประมาณอาจไม่เพียงพอต่อค่าใช้จ่าย');
-    else { warnings.push('งบประมาณต่ำกว่าค่าใช้จ่ายที่แมวต้องการมาก'); disqualifications.push('งบประมาณต่ำกว่า 60% ของค่าใช้จ่ายโดยประมาณ'); }
+    const budgetResult = calculateLevelScore(profile.budget_level, cat.req_budget_level, criteriaByCode.BUDGET ?? []);
+    if (!budgetResult.valid) warnings.push('ข้อมูลงบประมาณไม่สมบูรณ์');
+    else if (budgetResult.difference >= 0) reasons.push('งบประมาณเพียงพอต่อค่าใช้จ่ายของแมว');
+    else if (budgetResult.difference === -1) warnings.push('งบประมาณต่ำกว่าค่าใช้จ่ายของแมวเล็กน้อย');
+    else { warnings.push('งบประมาณต่ำกว่าค่าใช้จ่ายที่แมวต้องการมาก'); if(budgetResult.criterion?.is_blocking) disqualifications.push('งบประมาณไม่เพียงพอต่อการดูแลแมว'); }
 
     const attentionResult = calculateLevelScore(profile.attention_level, cat.req_attention, criteriaByCode.ATTENTION ?? []);
     if (!attentionResult.valid) warnings.push('ข้อมูลเวลาดูแลของแมวหรือผู้รับเลี้ยงไม่สมบูรณ์');
@@ -209,7 +165,7 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
             space_level: cat.req_space_level,
             attention_level: cat.req_attention,
             experience_level: cat.req_experience_level,
-            estimated_monthly_cost: cat.est_monthly_cost === null ? null : Number(cat.est_monthly_cost),
+            budget_level: cat.req_budget_level,
         },
         score_detail: {
             space:{ criteria_id: spaceResult.criterion?.criteria_id, score: spaceResult.score, max_score: spaceResult.maxScore, score_ratio: spaceResult.scoreRatio, stars: scoreToStars(spaceResult.score, spaceResult.maxScore) },
@@ -231,7 +187,7 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
 const CAT_SELECT_SQL = `
     SELECT
         c.cat_id, c.poster_id, c.pet_name, c.pet_breed, c.gender, c.age_months, c.personality,
-        c.health_note, c.req_space_level, c.req_attention, c.req_experience_level, c.est_monthly_cost,
+        c.health_note, c.req_space_level, c.req_attention, c.req_budget_level,
         c.good_with_children, c.good_with_cats, c.good_with_dogs, c.has_special_needs, c.status, c.created_at,
         u.fullname AS poster_name,
         (SELECT cp.image_url FROM catphotos AS cp WHERE cp.cat_id = c.cat_id ORDER BY cp.photo_id ASC LIMIT 1) AS image_url
@@ -240,11 +196,10 @@ const CAT_SELECT_SQL = `
 `;
 
 const validateProfile = (body) => {
-    const{ housing_type, space_level, monthly_budget, attention_level, experience_level } = body;
+    const{ housing_type, space_level, budget_level, attention_level, experience_level } = body;
     const errors = [];
     if(!space_level){ errors.push('กรุณาระบุระดับพื้นที่'); } else if(levelToNumber(space_level) === 0){ errors.push('ระดับพื้นที่ไม่ถูกต้อง'); }
-    if(monthly_budget === undefined || monthly_budget === null || monthly_budget === '') { errors.push('กรุณาใส่งบประมาณต่อเดือน'); }
-    else if(Number.isNaN(Number(monthly_budget)) || Number(monthly_budget) < 0) { errors.push('งบประมาณต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป'); }
+    if (!budget_level) { errors.push('กรุณาระบุระดับงบประมาณ'); } else if (levelToNumber(budget_level) === 0) { errors.push('ระดับงบประมาณไม่ถูกต้อง'); }
     if (!attention_level) { errors.push('กรุณาระบุระดับเวลาดูแล'); } else if (levelToNumber(attention_level) === 0) { errors.push('ระดับเวลาดูแลไม่ถูกต้อง'); }
     if (!experience_level) { errors.push('กรุณาระบุระดับประสบการณ์'); } else if (levelToNumber(experience_level) === 0) { errors.push('ระดับประสบการณ์ไม่ถูกต้อง'); }
 
@@ -264,7 +219,7 @@ const validateProfile = (body) => {
     return{
         errors,
         profile:{
-            housing_type: housing_type || null, space_level, monthly_budget: Number(monthly_budget),
+            housing_type: housing_type || null, space_level, budget_level,
             attention_level, experience_level, ...normalizedBooleans,
         },
     };
@@ -329,54 +284,34 @@ const matchSelectedCat = async (req, res) => {
             });
         }
 
-        // 3. Get Criteria (แบบเก่า จากฝั่ง main เพื่อใช้คำนวณ)
-        const criteria = await getCriteria();
-        let totalScore = 0;
-        const details = [];
-        let stars = { space: 0, time: 0, budget: 0, experience: 0 };
-
-        const addDetail = (field, condition, applicantVal, reqVal) => {
-            const crit = criteria[field] && criteria[field][condition];
-            const score = crit ? crit.weight : 0;
-            totalScore += score;
-            if (crit) {
-                details.push({
-                    criteria_id: crit.id,
-                    actual_value: String(applicantVal),
-                    score_received: score,
-                    explanation: `Matched: ${condition}`
-                });
-            }
-            return score;
+        // 3. Map profile to evaluateCat format
+        const evaluateProfile = {
+            housing_type: profile.living_space_type,
+            space_level: profile.space_size,
+            budget_level: profile.max_monthly_budget,
+            attention_level: profile.daily_free_hours,
+            experience_level: profile.experience,
+            has_other_pets: profile.has_other_pets,
+            has_children: profile.has_children,
+            pets_allowed: true,
+            has_cats: (profile.has_other_pets === 1),
+            has_dogs: false,
+            has_severe_allergy: false,
+            accepts_special_needs: false,
         };
 
-        // --- Space ---
-        let spaceCondition = profile.living_space_type === 'house' ? 'house' : 'condo';
-        const spaceScore = addDetail('living_space_type', spaceCondition, profile.living_space_type, cat.req_space_level);
-        stars.space = Math.round((spaceScore / 20) * 5);
+        const [criteriaRows] = await pool.query(`SELECT * FROM evaluation_criteria WHERE is_active = 1`);
+        const criteriaByCode = groupCriteriaByCode(criteriaRows);
 
-        // --- Time ---
-        let timeCondition = 'less_than_3';
-        if (profile.daily_free_hours >= 5) timeCondition = '5_or_more';
-        else if (profile.daily_free_hours >= 3) timeCondition = '3_to_4';
-        const timeScore = addDetail('daily_free_hours', timeCondition, profile.daily_free_hours, cat.req_attention);
-        stars.time = Math.round((timeScore / 20) * 5);
-
-        // --- Experience ---
-        let expCondition = 'none';
-        if (profile.experience === 'experienced') expCondition = 'expert';
-        else if (profile.experience === 'beginner') expCondition = 'beginner';
-        const expScore = addDetail('experience_level', expCondition, profile.experience, 'any');
-        stars.experience = Math.round((expScore / 20) * 5);
-
-        // --- Budget ---
-        let budgetCondition = 'sufficient'; 
-        const budgetScore = addDetail('max_monthly_budget', budgetCondition, profile.max_monthly_budget, cat.est_monthly_cost);
-        stars.budget = Math.round((budgetScore / 20) * 5);
-
-        // --- Pets & Children (Bonus) ---
-        addDetail('has_other_pets', 'compatible', profile.has_other_pets, 'any');
-        addDetail('has_children', 'suitable', profile.has_children, 'any');
+        // 4. Evaluate using the exact same logic as matchAllCats
+        const evaluation = evaluateCat(evaluateProfile, cat, criteriaByCode);
+        const totalScore = evaluation.match_percentage; // use percentage
+        const stars = {
+            space: evaluation.score_detail.space.stars,
+            time: evaluation.score_detail.attention.stars, // attention maps to time for frontend
+            budget: evaluation.score_detail.budget.stars,
+            experience: evaluation.score_detail.experience.stars
+        };
 
         // Determine Suitability
         let suitability = 'consider';
@@ -392,12 +327,19 @@ const matchSelectedCat = async (req, res) => {
         
         const assessmentId = assessResult.insertId;
 
-        // Save Details
-        for (let d of details) {
+        // Save Details (Only for successful scores, using the criteria_id from evaluation)
+        const detailsToSave = [];
+        if(evaluation.score_detail.space.criteria_id) detailsToSave.push({ id: evaluation.score_detail.space.criteria_id, score: evaluation.score_detail.space.score, exp: 'Space Match', max_score: evaluation.score_detail.space.max_score, score_ratio: evaluation.score_detail.space.score_ratio, stars: evaluation.score_detail.space.stars });
+        if(evaluation.score_detail.budget.criteria_id) detailsToSave.push({ id: evaluation.score_detail.budget.criteria_id, score: evaluation.score_detail.budget.score, exp: 'Budget Match', max_score: evaluation.score_detail.budget.max_score, score_ratio: evaluation.score_detail.budget.score_ratio, stars: evaluation.score_detail.budget.stars });
+        if(evaluation.score_detail.attention.criteria_id) detailsToSave.push({ id: evaluation.score_detail.attention.criteria_id, score: evaluation.score_detail.attention.score, exp: 'Time Match', max_score: evaluation.score_detail.attention.max_score, score_ratio: evaluation.score_detail.attention.score_ratio, stars: evaluation.score_detail.attention.stars });
+        if(evaluation.score_detail.experience.criteria_id) detailsToSave.push({ id: evaluation.score_detail.experience.criteria_id, score: evaluation.score_detail.experience.score, exp: 'Experience Match', max_score: evaluation.score_detail.experience.max_score, score_ratio: evaluation.score_detail.experience.score_ratio, stars: evaluation.score_detail.experience.stars });
+
+        for (let d of detailsToSave) {
             await pool.query(`
-                INSERT INTO assessment_details (assessment_id, criteria_id, actual_value, score_received, explanation)
-                VALUES (?, ?, ?, ?, ?)
-            `, [assessmentId, d.criteria_id, d.actual_value, d.score_received, d.explanation]);
+                INSERT INTO assessment_details (
+                    assessment_id, criteria_id, applicant_value, required_value, weight_used, score_ratio_used, max_score, score_received, stars, passed, explanation
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [assessmentId, d.id, 'evaluated', 'evaluated', d.max_score, d.score_ratio, d.max_score, d.score, d.stars, d.score > 0 ? 1 : 0, d.exp]);
         }
 
         return res.status(200).json({

@@ -133,9 +133,9 @@ const {
             fullname, phonenumber, line_id, profile_pic_url, // ฟิลด์จากฝั่ง api
             username, email, oldPassword, newPassword, otp   // ฟิลด์จากฝั่ง main
         } = req.body;
-        // ตรวจสอบว่าส่งข้อมูลสำคัญมาครบถ้วนหรือไม่ (รวมทั้งสองฝั่ง)
-        if (!fullname || !phonenumber || !line_id || !profile_pic_url || !username || !email) {
-            return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+        // ตรวจสอบเฉพาะข้อมูลบังคับ
+        if (!username || !email) {
+            return res.status(400).json({ success: false, message: 'กรุณากรอก Username และ Email ให้ครบถ้วน' });
         }
         // ตรวจสอบว่า email หรือ username ซ้ำกับคนอื่นหรือไม่ (ยกเว้นตัวเอง) [ฟังก์ชันจาก main]
         const [existing] = await pool.query(
@@ -163,10 +163,10 @@ const {
                 return res.status(400).json({ success: false, message: 'รหัสผ่านเดิมไม่ถูกต้อง หรือไม่ได้ระบุ OTP' });
             }
         }
-        // ทำการอัปเดตข้อมูลทั้งหมดลงฐานข้อมูล (รวมฟิลด์ทั้งจาก api และ main เข้าด้วยกัน)
+        // ทำการอัปเดตข้อมูลทั้งหมดลงฐานข้อมูล โดยรักษาค่าเดิมหากไม่ได้ส่งมา
         const [result] = await pool.query(
-            'UPDATE users SET fullname = ?, phonenumber = ?, line_id = ?, profile_pic_url = ?, username = ?, email = ?, password = ? WHERE user_id = ?',
-            [fullname, phonenumber, line_id, profile_pic_url, username, email, updatePassword, userId]
+            'UPDATE users SET fullname = COALESCE(?, fullname), phonenumber = COALESCE(?, phonenumber), line_id = COALESCE(?, line_id), profile_pic_url = COALESCE(?, profile_pic_url), username = ?, email = ?, password = ? WHERE user_id = ?',
+            [fullname || null, phonenumber || null, line_id || null, profile_pic_url || null, username, email, updatePassword, userId]
         );
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้งาน' });

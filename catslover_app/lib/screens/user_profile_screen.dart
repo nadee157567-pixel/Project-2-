@@ -88,20 +88,34 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   String displayFreeTime(dynamic val) {
     if (val == null) return '-';
-    int? intVal = val is int ? val : int.tryParse(val.toString());
-    if (intVal == null) return '-';
-    if (intVal <= 2) return 'น้อยกว่า 2 ชั่วโมง';
-    if (intVal <= 4) return '2 - 4 ชั่วโมง';
-    return 'มากกว่า 4 ชั่วโมง';
+    String strVal = val.toString();
+    if (strVal == 'low') return 'น้อย';
+    if (strVal == 'medium') return 'ปานกลาง';
+    if (strVal == 'high') return 'มาก';
+    // Fallback for old numeric data if any
+    int? intVal = int.tryParse(strVal);
+    if (intVal != null) {
+      if (intVal <= 2) return 'น้อย';
+      if (intVal <= 4) return 'ปานกลาง';
+      return 'มาก';
+    }
+    return strVal;
   }
 
   String displayBudget(dynamic val) {
     if (val == null) return '-';
-    double? doubleVal = val is double ? val : (val is int ? val.toDouble() : double.tryParse(val.toString()));
-    if (doubleVal == null) return '-';
-    if (doubleVal <= 1000) return 'น้อย';
-    if (doubleVal <= 3000) return 'ปานกลาง';
-    return 'มาก';
+    String strVal = val.toString();
+    if (strVal == 'low') return 'น้อย';
+    if (strVal == 'medium') return 'ปานกลาง';
+    if (strVal == 'high') return 'มาก';
+    // Fallback for old numeric data if any
+    double? doubleVal = double.tryParse(strVal);
+    if (doubleVal != null) {
+      if (doubleVal <= 1000) return 'น้อย';
+      if (doubleVal <= 3000) return 'ปานกลาง';
+      return 'มาก';
+    }
+    return strVal;
   }
 
   String displayExp(String? val) {

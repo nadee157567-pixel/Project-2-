@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) NOT NULL UNIQUE,
 	phonenumber VARCHAR(15),
     line_id VARCHAR(50),
-    role ENUM('user','poster','admin','poster') NOT NULL ,
+    role ENUM('user','poster','admin') NOT NULL ,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -75,7 +75,6 @@ VALUES
     'user'
 );
 
-DROP TABLE users; 
 
 -- 1. อัปเดตเปลี่ยนไอดีที่เคยเป็น poster ให้กลายเป็น user ทั้งหมด
 UPDATE users 

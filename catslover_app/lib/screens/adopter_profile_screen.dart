@@ -16,15 +16,23 @@ class AdopterProfileScreen extends StatefulWidget {
 
 class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
   final PageController _pageController = PageController();
+  final TextEditingController _budgetController = TextEditingController();
   int _currentStep = 0;
 
   String? housingType;
+  String? spaceSize;
   String? hasPets;
   String? freeTime;
   String? experience;
   String? hasChildren;
-  String? budget;
-  
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _budgetController.dispose();
+    super.dispose();
+  }
+
   bool _isLoading = false;
   bool _isFetching = false;
 
@@ -47,6 +55,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
         if (data['success'] == true && data['profile'] != null) {
           final profile = data['profile'];
           
+          if (!mounted) return;
           setState(() {
             if (profile['living_space_type'] == 'condo') {
               housingType = 'คอนโด';
@@ -56,42 +65,40 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
               housingType = 'บ้านเดี่ยว';
             }
 
+            if (profile['space_size'] == 'large') {
+              spaceSize = 'กว้างขวาง';
+            } else if (profile['space_size'] == 'small') {
+              spaceSize = 'คับแคบ';
+            } else {
+              spaceSize = 'ปานกลาง';
+            }
+
             int hasOtherPets = profile['has_other_pets'] is int ? profile['has_other_pets'] : int.tryParse(profile['has_other_pets']?.toString() ?? '0') ?? 0;
             hasPets = hasOtherPets == 1 ? 'มี' : 'ไม่มี';
 
-            int dailyHours = profile['daily_free_hours'] is int ? profile['daily_free_hours'] : int.tryParse(profile['daily_free_hours']?.toString() ?? '0') ?? 0;
-            if (dailyHours <= 2) {
-              freeTime = 'น้อย';
-            } else if (dailyHours >= 6) {
-              freeTime = 'มาก';
+            String freeTimeStr = profile['daily_free_hours']?.toString() ?? 'medium';
+            if (freeTimeStr == 'low' || freeTimeStr == 'medium' || freeTimeStr == 'high') {
+              freeTime = freeTimeStr;
             } else {
-              freeTime = 'ปานกลาง';
+              // fallback for older format
+              double dailyHours = double.tryParse(freeTimeStr) ?? 4.0;
+              freeTime = dailyHours <= 2 ? 'low' : (dailyHours >= 6 ? 'high' : 'medium');
             }
 
-            if (profile['experience'] == 'beginner') {
+            String expStr = profile['experience']?.toString() ?? 'none';
+            if (expStr == 'beginner' || expStr == 'medium') {
               experience = 'พื้นฐาน';
-            } else if (profile['experience'] == 'experienced') {
+            } else if (expStr == 'experienced' || expStr == 'high') {
               experience = 'ระดับสูง';
             } else {
-              experience = 'มือใหม่';
+              experience = 'มือใหม่'; // none, low or any other value
             }
 
             int hasChild = profile['has_children'] is int ? profile['has_children'] : int.tryParse(profile['has_children']?.toString() ?? '0') ?? 0;
             hasChildren = hasChild == 1 ? 'มี' : 'ไม่มี';
 
-            double maxBudget = profile['max_monthly_budget'] is double 
-                ? profile['max_monthly_budget'] 
-                : (profile['max_monthly_budget'] is int 
-                    ? profile['max_monthly_budget'].toDouble() 
-                    : double.tryParse(profile['max_monthly_budget']?.toString() ?? '0') ?? 0.0);
-
-            if (maxBudget <= 1000) {
-              budget = 'น้อย';
-            } else if (maxBudget >= 5000) {
-              budget = 'มาก';
-            } else {
-              budget = 'ปานกลาง';
-            }
+            double budgetNum = double.tryParse(profile['max_monthly_budget']?.toString() ?? '') ?? 0.0;
+            _budgetController.text = budgetNum > 0 ? budgetNum.round().toString() : '';
           });
         }
       }
@@ -103,6 +110,30 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
   }
 
   void _nextPage() {
+    if (_currentStep == 0) {
+      if (housingType == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกประเภทที่พักอาศัย")));
+        return;
+      }
+      if (spaceSize == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกขนาดพื้นที่พักอาศัย")));
+        return;
+      }
+      if (hasPets == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกว่ามีสัตว์เลี้ยงอื่นหรือไม่")));
+        return;
+      }
+    } else if (_currentStep == 1) {
+      if (freeTime == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเวลาว่างให้สัตว์เลี้ยง")));
+        return;
+      }
+      if (experience == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกประสบการณ์การเลี้ยงแมว")));
+        return;
+      }
+    }
+
     if (_currentStep < 2) {
       _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     }
@@ -115,32 +146,57 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
+    // Validate Step 3 fields
+    if (hasChildren == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกว่ามีเด็กเล็กในบ้านหรือไม่")));
+      return;
+    }
+    if (_budgetController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอกงบประมาณการเลี้ยงแมว")));
+      return;
+    }
+    if (double.tryParse(_budgetController.text.trim()) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอกงบประมาณเป็นตัวเลขที่ถูกต้อง")));
+      return;
+    }
+
     setState(() => _isLoading = true);
+    // Map UI values to database schema formats
+    String livingSpaceType = 'house';
+    if (housingType == 'คอนโด') livingSpaceType = 'condo';
+    else if (housingType == 'หอพัก') livingSpaceType = 'apartment';
+
+    String spaceSizeMapped = 'medium';
+    if (spaceSize == 'กว้างขวาง') spaceSizeMapped = 'large';
+    else if (spaceSize == 'คับแคบ') spaceSizeMapped = 'small';
+
+    int hasOtherPets = (hasPets == 'มี') ? 1 : 0;
+    int hasChildrenMapped = (hasChildren == 'มี') ? 1 : 0;
+
+    String expMapped = 'none';
+    if (experience == 'พื้นฐาน') expMapped = 'beginner';
+    else if (experience == 'ระดับสูง') expMapped = 'experienced';
+
+    double maxMonthlyBudget = double.tryParse(_budgetController.text.trim()) ?? 3000.0;
+
     final Map<String, dynamic> adopterData = {
       "userId": widget.userId,
-      "housingType": housingType,
-      "hasPets": hasPets,
-      "freeTime": freeTime,
-      "experience": experience,
-      "hasChildren": hasChildren,
-      "budget": budget,
+      "living_space_type": livingSpaceType,
+      "space_size": spaceSizeMapped,
+      "has_other_pets": hasOtherPets,
+      "daily_free_hours": freeTime ?? 'medium',
+      "experience": expMapped,
+      "has_children": hasChildrenMapped,
+      "max_monthly_budget": maxMonthlyBudget,
     };
 
     try {
-      http.Response response;
-      if (widget.isEditing) {
-        response = await http.put(
-          Uri.parse(ApiConfig.baseUrl + '/adopters/profile/${widget.userId}'),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode(adopterData),
-        );
-      } else {
-        response = await http.post(
-          Uri.parse(ApiConfig.baseUrl + '/adopters'),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode(adopterData),
-        );
-      }
+      // Backend POST /adopters already does UPSERT
+      http.Response response = await http.post(
+        Uri.parse(ApiConfig.baseUrl + '/adopters'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(adopterData),
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (!mounted) return;
@@ -349,6 +405,20 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
           ),
           const SizedBox(height: 20),
           _buildQuestionContainer(
+            question: "ขนาดพื้นที่พักอาศัยของคุณเป็นอย่างไร ?",
+            subtitle: "เพื่อประเมินความเหมาะสมกับแมวที่ต้องการพื้นที่",
+            content: Row(
+              children: [
+                Expanded(child: _buildImageChoice(label: "กว้างขวาง", icon: Icons.landscape, isSelected: spaceSize == "กว้างขวาง", onTap: () => setState(() => spaceSize = "กว้างขวาง"))),
+                const SizedBox(width: 10),
+                Expanded(child: _buildImageChoice(label: "ปานกลาง", icon: Icons.crop_square, isSelected: spaceSize == "ปานกลาง", onTap: () => setState(() => spaceSize = "ปานกลาง"))),
+                const SizedBox(width: 10),
+                Expanded(child: _buildImageChoice(label: "คับแคบ", icon: Icons.view_compact, isSelected: spaceSize == "คับแคบ", onTap: () => setState(() => spaceSize = "คับแคบ"))),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildQuestionContainer(
             question: "ปัจจุบันมีสัตว์เลี้ยงอื่นอยู่แล้วหรือไม่ ?",
             subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
             content: Row(
@@ -379,11 +449,11 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
             subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
             content: Row(
               children: [
-                Expanded(child: _buildImageChoice(label: "น้อย", icon: Icons.computer, isSelected: freeTime == "น้อย", onTap: () => setState(() => freeTime = "น้อย"))),
+                Expanded(child: _buildImageChoice(label: "น้อย\n(1-2 ชม.)", icon: Icons.computer, isSelected: freeTime == "low", onTap: () => setState(() => freeTime = "low"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "ปานกลาง", icon: Icons.access_time, isSelected: freeTime == "ปานกลาง", onTap: () => setState(() => freeTime = "ปานกลาง"))),
+                Expanded(child: _buildImageChoice(label: "ปานกลาง\n(3-5 ชม.)", icon: Icons.access_time, isSelected: freeTime == "medium", onTap: () => setState(() => freeTime = "medium"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "มาก", icon: Icons.home_work, isSelected: freeTime == "มาก", onTap: () => setState(() => freeTime = "มาก"))),
+                Expanded(child: _buildImageChoice(label: "มาก\n(> 5 ชม.)", icon: Icons.home_work, isSelected: freeTime == "high", onTap: () => setState(() => freeTime = "high"))),
               ],
             ),
           ),
@@ -423,7 +493,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
       child: Column(
         children: [
           _buildQuestionContainer(
-            question: "ในบ้านมีเด็กหรือคนแพ้ขนแมวหรือไม่ ?",
+            question: "ในบ้านมีเด็กเล็กหรือไม่ ?",
             subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
             content: Row(
               children: [
@@ -435,16 +505,24 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
           ),
           const SizedBox(height: 20),
           _buildQuestionContainer(
-            question: "คุณมีงบประมาณการเลี้ยงแมวเท่าไหร่ ?",
-            subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
-            content: Row(
-              children: [
-                Expanded(child: _buildImageChoice(label: "น้อย", icon: Icons.money_off, isSelected: budget == "น้อย", onTap: () => setState(() => budget = "น้อย"))),
-                const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "ปานกลาง", icon: Icons.attach_money, isSelected: budget == "ปานกลาง", onTap: () => setState(() => budget = "ปานกลาง"))),
-                const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "มาก", icon: Icons.monetization_on, isSelected: budget == "มาก", onTap: () => setState(() => budget = "มาก"))),
-              ],
+            question: "คุณมีงบประมาณการเลี้ยงแมวเท่าไหร่ (บาท/เดือน) ?",
+            subtitle: "กรอกจำนวนเงินเพื่อคำนวณความสอดคล้องกับค่าใช้จ่ายของแมว",
+            content: TextField(
+              controller: _budgetController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                hintText: "เช่น 3000",
+                suffixText: "บาท/เดือน",
+                suffixStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.pink),
+                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              ),
             ),
           ),
           const SizedBox(height: 30),

@@ -15,6 +15,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _fullnameController = TextEditingController();
+  final TextEditingController _lineIdController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmController = TextEditingController();
 
@@ -26,16 +28,56 @@ class _SignupScreenState extends State<SignupScreen> {
     final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
+    final fullname = _fullnameController.text.trim();
+    final lineId = _lineIdController.text.trim();
     final password = _passwordController.text;
     final confirm = _confirmController.text;
 
-    if (username.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอกข้อมูลให้ครบถ้วน")));
+    if (username.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอก Username")));
+      return;
+    }
+
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอก Email Address")));
+      return;
+    }
+    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("รูปแบบ Email Address ไม่ถูกต้อง")));
+      return;
+    }
+
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอก Phone Number")));
+      return;
+    }
+    if (phone.length != 10 || !RegExp(r'^\d+$').hasMatch(phone)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("เบอร์โทรศัพท์ต้องเป็นตัวเลขและมีความยาว 10 หลัก")));
+      return;
+    }
+
+    if (fullname.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอก Full Name")));
+      return;
+    }
+
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอก Password")));
+      return;
+    }
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Password ต้องมีความยาวอย่างน้อย 6 ตัวอักษร")));
+      return;
+    }
+
+    if (confirm.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอก Confirm Password")));
       return;
     }
 
     if (password != confirm) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("รหัสผ่านไม่ตรงกัน")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ยืนยันรหัสผ่านไม่ตรงกับ Password")));
       return;
     }
 
@@ -49,6 +91,8 @@ class _SignupScreenState extends State<SignupScreen> {
           "username": username,
           "email": email,
           "phone": phone,
+          "fullname": fullname,
+          "line_id": lineId,
           "password": password
         }),
       );
@@ -77,13 +121,22 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  Widget _buildTextField(String label, String hint, TextEditingController controller, {bool isPassword = false, bool isObscure = false, VoidCallback? onToggleObscure}) {
+  Widget _buildTextField(String label, String hint, TextEditingController controller, {bool isRequired = false, bool isPassword = false, bool isObscure = false, VoidCallback? onToggleObscure}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF3C3C3C)),
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF3C3C3C)),
+            ),
+            if (isRequired)
+              const Text(
+                " *",
+                style: TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+          ],
         ),
         const SizedBox(height: 6),
         TextField(
@@ -175,34 +228,38 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 child: Column(
                   children: [
-                    _buildTextField("Username", "Enter Your Username", _usernameController),
-                    _buildTextField("Email Address", "Enter Your Email Address", _emailController),
-                    _buildTextField("Phone Number", "Enter Your Phone Number", _phoneController),
-                    _buildTextField("Password", "Enter Your Password", _passwordController, isPassword: true, isObscure: _isObscurePass, onToggleObscure: () => setState(() => _isObscurePass = !_isObscurePass)),
-                    _buildTextField("Confirm Password", "Confirm Your Password", _confirmController, isPassword: true, isObscure: _isObscureConfirm, onToggleObscure: () => setState(() => _isObscureConfirm = !_isObscureConfirm)),
+                    _buildTextField("Username", "Enter Your Username", _usernameController, isRequired: true),
+                    _buildTextField("Email Address", "Enter Your Email Address", _emailController, isRequired: true),
+                    _buildTextField("Phone Number", "Enter Your Phone Number", _phoneController, isRequired: true),
+                    _buildTextField("Full Name", "Enter Your Full Name", _fullnameController, isRequired: true),
+                    _buildTextField("Line ID (Optional)", "Enter Your Line ID", _lineIdController),
+                    _buildTextField("Password", "Enter Your Password", _passwordController, isRequired: true, isPassword: true, isObscure: _isObscurePass, onToggleObscure: () => setState(() => _isObscurePass = !_isObscurePass)),
+                    _buildTextField("Confirm Password", "Confirm Your Password", _confirmController, isRequired: true, isPassword: true, isObscure: _isObscureConfirm, onToggleObscure: () => setState(() => _isObscureConfirm = !_isObscureConfirm)),
                     
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 20),
                     // SIGN UP Button
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _signup,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFF8A8A), // Salmon pink
-                          padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          elevation: 0,
+                          elevation: 3,
+                          shadowColor: const Color(0xFFFF8A8A).withOpacity(0.4),
                         ),
                         child: _isLoading
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
                             : const Text(
                                 "SIGN UP",
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
+                                  letterSpacing: 1.2,
                                 ),
                               ),
                       ),

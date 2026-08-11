@@ -3,12 +3,13 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/api_config.dart';
 import 'chat_message_screen.dart';
-class AdoptionStatusScreen extends StatelessWidget {
+class AdoptionStatusScreen extends StatefulWidget {
   final Map<String, dynamic> evaluationResult;
   final String catImageUrl;
   final String status;
   final int userId;
   final int matchId;
+  final int catId;
 
   const AdoptionStatusScreen({
     super.key,
@@ -17,18 +18,80 @@ class AdoptionStatusScreen extends StatelessWidget {
     required this.status,
     required this.userId,
     required this.matchId,
+    required this.catId,
   });
+
+  @override
+  State<AdoptionStatusScreen> createState() => _AdoptionStatusScreenState();
+}
+
+class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
+  Map<String, dynamic>? _realEvaluationResult;
+  bool _isFetching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _realEvaluationResult = widget.evaluationResult;
+    // Check if the passed result is fake (meaning scores are all 0 or empty)
+    bool isFake = true;
+    if (_realEvaluationResult != null) {
+      if (_realEvaluationResult!.containsKey('scores') && _realEvaluationResult!['scores'] != null) {
+        final s = _realEvaluationResult!['scores'];
+        if (s['space'] != 0 || s['time'] != 0 || s['budget'] != 0 || s['experience'] != 0) {
+          isFake = false;
+        }
+      } else if (_realEvaluationResult!.containsKey('score_detail') && _realEvaluationResult!['score_detail'] != null) {
+        isFake = false;
+      }
+    }
+    
+    if (isFake) {
+      _fetchRealEvaluation();
+    }
+  }
+
+  Future<void> _fetchRealEvaluation() async {
+    if (mounted) setState(() => _isFetching = true);
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/adoption/assessment/${widget.userId}/${widget.catId}');
+      final response = await http.get(
+        url,
+        headers: {"Content-Type": "application/json"},
+      );
+
+      print("DEBUG: _fetchRealEvaluation status: ${response.statusCode}");
+      print("DEBUG: _fetchRealEvaluation body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
+          if (mounted) {
+            setState(() {
+              _realEvaluationResult = jsonResponse['data'];
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print("Error fetching real evaluation: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isFetching = false);
+      }
+    }
+  }
 
   Future<void> _navigateToChat(BuildContext context) async {
     try {
-      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}/chats?userId=$userId'));
+      final res = await http.get(Uri.parse('${ApiConfig.baseUrl}/chats?userId=${widget.userId}'));
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
         if (data['success']) {
           List chats = data['data'];
           // หาห้องแชทที่มี match_id ตรงกัน
           final chat = chats.firstWhere(
-            (c) => c['match_id'].toString() == matchId.toString(),
+            (c) => c['match_id'].toString() == widget.matchId.toString(),
             orElse: () => null,
           );
           
@@ -39,7 +102,7 @@ class AdoptionStatusScreen extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (context) => ChatMessageScreen(
                     roomId: int.parse(chat['room_id'].toString()),
-                    userId: userId,
+                    userId: widget.userId,
                     partnerName: chat['poster_name'] ?? 'ผู้โพสต์',
                   ),
                 ),
@@ -154,7 +217,36 @@ class AdoptionStatusScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    int matchPercent = evaluationResult['matchPercent'] ?? 0;
+    int matchPercent = 0;
+    if (_realEvaluationResult != null) {
+      if (_realEvaluationResult!.containsKey('matchPercent') && _realEvaluationResult!['matchPercent'] != null) {
+        matchPercent = (double.tryParse(_realEvaluationResult!['matchPercent'].toString()) ?? 0).toInt();
+      } else if (_realEvaluationResult!.containsKey('match_percentage') && _realEvaluationResult!['match_percentage'] != null) {
+        matchPercent = (double.tryParse(_realEvaluationResult!['match_percentage'].toString()) ?? 0).toInt();
+      }
+    }
+
+    int spaceScore = 0;
+    int timeScore = 0;
+    int budgetScore = 0;
+    int expScore = 0;
+
+    if (_realEvaluationResult != null) {
+      if (_realEvaluationResult!.containsKey('scores') && _realEvaluationResult!['scores'] != null) {
+        final s = _realEvaluationResult!['scores'];
+        spaceScore = (double.tryParse(s['space']?.toString() ?? '0') ?? 0).toInt();
+        timeScore = (double.tryParse(s['time']?.toString() ?? '0') ?? 0).toInt();
+        budgetScore = (double.tryParse(s['budget']?.toString() ?? '0') ?? 0).toInt();
+        expScore = (double.tryParse(s['experience']?.toString() ?? '0') ?? 0).toInt();
+      } else if (_realEvaluationResult!.containsKey('score_detail') && _realEvaluationResult!['score_detail'] != null) {
+        final sd = _realEvaluationResult!['score_detail'];
+        spaceScore = (double.tryParse(sd['space']?['stars']?.toString() ?? '0') ?? 0).toInt();
+        timeScore = (double.tryParse(sd['attention']?['stars']?.toString() ?? '0') ?? 0).toInt();
+        budgetScore = (double.tryParse(sd['budget']?['stars']?.toString() ?? '0') ?? 0).toInt();
+        expScore = (double.tryParse(sd['experience']?['stars']?.toString() ?? '0') ?? 0).toInt();
+      }
+    }
+
     String statusText = "";
     Color statusColor = Colors.grey;
 
@@ -226,13 +318,13 @@ class AdoptionStatusScreen extends StatelessWidget {
                           bool s3Comp = false, s3Act = false;
                           bool s4Comp = false, s4Act = false;
 
-                          if (status == 'pending') {
+                          if (widget.status == 'pending') {
                             s1Comp = true;
                             s2Act = true;
-                          } else if (status == 'interview') {
+                          } else if (widget.status == 'interview') {
                             s1Comp = true; s2Comp = true;
                             s3Act = true;
-                          } else if (status == 'approved' || status == 'rejected') {
+                          } else if (widget.status == 'approved' || widget.status == 'rejected') {
                             s1Comp = true; s2Comp = true; s3Comp = true; s4Comp = true;
                           }
 
@@ -258,15 +350,15 @@ class AdoptionStatusScreen extends StatelessWidget {
                         String titleText = "ใบสมัครของคุณอยู่ระหว่างการพิจารณา";
                         String subtitleText = "ผู้โพสต์ได้รับข้อมูลการประเมินของคุณแล้ว\nกรุณารอการติดต่อกลับ หรือการอนุมัติเลี้ยงดู";
                         
-                        if (status == 'approved') {
+                        if (widget.status == 'approved') {
                           iconUrl = 'https://cdn-icons-png.flaticon.com/512/1904/1904425.png'; // success
                           titleText = "ยินดีด้วย! คุณได้รับการอนุมัติ";
                           subtitleText = "ผู้โพสต์เลือกคุณเป็นผู้รับเลี้ยงน้องแมว\nกรุณาติดต่อนัดรับน้องแมวตามช่องทางที่ให้ไว้";
-                        } else if (status == 'rejected') {
+                        } else if (widget.status == 'rejected') {
                           iconUrl = 'https://cdn-icons-png.flaticon.com/512/1904/1904428.png'; // fail
                           titleText = "เสียใจด้วย ใบสมัครไม่ผ่านการอนุมัติ";
                           subtitleText = "ผู้โพสต์พิจารณาแล้วเห็นว่าอาจยังไม่เหมาะสมในขณะนี้\nแต่ยังมีน้องแมวอีกหลายตัวที่รอคุณอยู่!";
-                        } else if (status == 'interview') {
+                        } else if (widget.status == 'interview') {
                           iconUrl = 'https://cdn-icons-png.flaticon.com/512/9374/9374944.png'; // interview
                           titleText = "ใบสมัครอยู่ระหว่างพิจารณาสัมภาษณ์";
                           subtitleText = "ผู้โพสต์กำลังพิจารณาและอาจติดต่อคุณเร็วๆนี้";
@@ -317,9 +409,9 @@ class AdoptionStatusScreen extends StatelessWidget {
                             // Cat image
                             ClipRRect(
                               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                              child: catImageUrl.isNotEmpty
+                              child: widget.catImageUrl.isNotEmpty
                                   ? Image.network(
-                                      catImageUrl,
+                                      widget.catImageUrl,
                                       height: 120,
                                       width: double.infinity,
                                       fit: BoxFit.cover,
@@ -388,12 +480,10 @@ class AdoptionStatusScreen extends StatelessWidget {
                                   const SizedBox(height: 12),
                                   
                                   // Scores
-                                  if (evaluationResult['scores'] != null) ...[
-                                    _buildStarRow("ที่พักอาศัย", evaluationResult['scores']['space'] ?? 0),
-                                    _buildStarRow("เวลาว่าง", evaluationResult['scores']['time'] ?? 0),
-                                    _buildStarRow("ค่าใช้จ่าย", evaluationResult['scores']['budget'] ?? 0),
-                                    _buildStarRow("ประสบการณ์", evaluationResult['scores']['experience'] ?? 0),
-                                  ],
+                                  _buildStarRow("ที่พักอาศัย", spaceScore),
+                                  _buildStarRow("เวลาว่าง", timeScore),
+                                  _buildStarRow("ค่าใช้จ่าย", budgetScore),
+                                  _buildStarRow("ประสบการณ์", expScore),
                                 ],
                               ),
                             ),
@@ -413,39 +503,55 @@ class AdoptionStatusScreen extends StatelessWidget {
             bottom: 30,
             left: 20,
             right: 20,
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      // กลับไปหน้าก่อนหน้า (AdoptionRequestsScreen)
-                      Navigator.pop(context);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black87,
-                      side: const BorderSide(color: Colors.pinkAccent, width: 1.5),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            child: widget.status == 'rejected'
+                ? SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black87,
+                        side: const BorderSide(color: Colors.pinkAccent, width: 1.5),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      ),
+                      child: const Text("ย้อนกลับ", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
-                    child: const Text("ย้อนกลับ", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black87,
+                            side: const BorderSide(color: Colors.pinkAccent, width: 1.5),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          ),
+                          child: const Text("ย้อนกลับ", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _navigateToChat(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.pink[400],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          ),
+                          child: const Text("ติดต่อผู้โพสต์", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _navigateToChat(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.pink[400],
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                    ),
-                    child: const Text("ติดต่อผู้โพสต์", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

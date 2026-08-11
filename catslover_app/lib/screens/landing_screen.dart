@@ -27,6 +27,7 @@ class _LandingScreenState extends State<LandingScreen> {
       final response = await http.get(Uri.parse(ApiConfig.baseUrl + '/cats'));
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
+        if (!mounted) return;
         setState(() {
           // สมมติว่าเอาเฉพาะ 4 ตัวแรกมาแสดงเป็น Featured
           List allCats = responseData['data'] ?? [];
@@ -479,7 +480,7 @@ class _LandingScreenState extends State<LandingScreen> {
                         ? ClipRRect(
                             borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
                             child: Image.network(
-                              cat['image_url'],
+                              ApiConfig.getImageUrl(cat['image_url']),
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) => const Icon(Icons.pets, color: Colors.grey),
                             ),
@@ -516,7 +517,7 @@ class _LandingScreenState extends State<LandingScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    "${cat['pet_breed'] ?? 'Mixed'} • ${cat['age_months']} mo",
+                    "${cat['pet_breed'] ?? 'Mixed'} • ${ApiConfig.getShortAgeDesc(cat['age_months'])}",
                     style: const TextStyle(fontSize: 9, color: Colors.grey),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

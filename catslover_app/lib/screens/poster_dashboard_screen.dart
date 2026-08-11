@@ -54,6 +54,7 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
     } catch (e) {
       print("Error fetching dashboard data: $e");
     } finally {
+      if (!mounted) return;
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -302,7 +303,7 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(10),
                           child: Image.network(
-                            cat['image_url'],
+                            ApiConfig.getImageUrl(cat['image_url']),
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
                                 const Icon(Icons.pets, color: Colors.grey, size: 50),
@@ -314,7 +315,7 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
               const SizedBox(height: 8),
               // Details
               Text(cat['pet_name'] ?? 'ไม่ทราบชื่อ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              Text("${cat['pet_breed'] ?? ''} อายุ ${cat['age_months']} เดือน", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              Text("${cat['pet_breed'] ?? ''} • ${ApiConfig.getShortAgeDesc(cat['age_months'])}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
               const SizedBox(height: 4),
               // Tag
               Container(

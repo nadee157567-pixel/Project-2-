@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 
 async function signup(req, res) {
     try {
-        const { username, email, phone, password } = req.body;
+        const { username, email, phone, password, fullname, line_id } = req.body;
 
         if (!username || !email || !password) {
             return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
@@ -24,10 +24,10 @@ async function signup(req, res) {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // เพิ่มผู้ใช้ใหม่ โดยกำหนด role เริ่มต้นเป็น 'user' และ fullname ใช้ username ไปก่อน
+        // เพิ่มผู้ใช้ใหม่ โดยกำหนด role เริ่มต้นเป็น 'user'
         const [result] = await pool.query(
-            'INSERT INTO users (username, email, phonenumber, password, fullname, role) VALUES (?, ?, ?, ?, ?, ?)',
-            [username, email, phone || null, hashedPassword, username, 'user']
+            'INSERT INTO users (username, email, phonenumber, password, fullname, line_id, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [username, email, phone || null, hashedPassword, fullname || username, line_id || null, 'user']
         );
 
         return res.status(201).json({

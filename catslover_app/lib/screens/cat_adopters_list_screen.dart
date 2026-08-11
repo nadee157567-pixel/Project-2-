@@ -110,10 +110,12 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
+          if (!mounted) return;
           setState(() {
             _adopters = data['data'];
           });
         } else {
+          if (!mounted) return;
           setState(() { _adopters = []; });
         }
       }
@@ -205,21 +207,23 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
                             const SizedBox(height: 16),
                             Row(
                               children: [
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => _navigateToChat(context, adopter),
-                                    icon: const Icon(Icons.message, size: 18),
-                                    label: const Text("ติดต่อ", style: TextStyle(fontSize: 12)),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white,
-                                      foregroundColor: Colors.pink,
-                                      side: const BorderSide(color: Colors.pink),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                if (status != 'rejected') ...[
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => _navigateToChat(context, adopter),
+                                      icon: const Icon(Icons.message, size: 18),
+                                      label: const Text("ติดต่อ", style: TextStyle(fontSize: 12)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white,
+                                        foregroundColor: Colors.pink,
+                                        side: const BorderSide(color: Colors.pink),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                        padding: const EdgeInsets.symmetric(vertical: 8),
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
+                                  const SizedBox(width: 8),
+                                ],
                                 Expanded(
                                   child: ElevatedButton(
                                     onPressed: widget.isAdopted ? null : () async {

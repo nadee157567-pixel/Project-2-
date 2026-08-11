@@ -6,6 +6,7 @@ import 'adoption_requests_screen.dart';
 import 'poster_dashboard_screen.dart';
 import 'landing_screen.dart';
 import '../config/api_config.dart';
+import 'poster_cats_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final int userId;
@@ -55,6 +56,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     } catch (e) {
       print('Error fetching profile: $e');
     } finally {
+      if (!mounted) return;
       setState(() {
         isLoading = false;
       });
@@ -72,6 +74,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   // Helper mapping for display
+  String displaySpaceSize(String? val) {
+    if (val == 'large') return 'กว้างขวาง';
+    if (val == 'small') return 'คับแคบ';
+    if (val == 'medium') return 'ปานกลาง';
+    return val ?? '-';
+  }
+
   String displayHousing(String? val) {
     if (val == 'house') return 'บ้านเดี่ยว';
     if (val == 'condo') return 'คอนโด';
@@ -81,26 +90,40 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   String displayFreeTime(dynamic val) {
     if (val == null) return '-';
-    int? intVal = val is int ? val : int.tryParse(val.toString());
-    if (intVal == null) return '-';
-    if (intVal <= 2) return 'น้อยกว่า 2 ชั่วโมง';
-    if (intVal <= 4) return '2 - 4 ชั่วโมง';
-    return 'มากกว่า 4 ชั่วโมง';
+    String strVal = val.toString();
+    if (strVal == 'low') return 'น้อย';
+    if (strVal == 'medium') return 'ปานกลาง';
+    if (strVal == 'high') return 'มาก';
+    // Fallback for old numeric data if any
+    int? intVal = int.tryParse(strVal);
+    if (intVal != null) {
+      if (intVal <= 2) return 'น้อย';
+      if (intVal <= 4) return 'ปานกลาง';
+      return 'มาก';
+    }
+    return strVal;
   }
 
   String displayBudget(dynamic val) {
     if (val == null) return '-';
-    double? doubleVal = val is double ? val : (val is int ? val.toDouble() : double.tryParse(val.toString()));
-    if (doubleVal == null) return '-';
-    if (doubleVal <= 1000) return 'น้อย';
-    if (doubleVal <= 3000) return 'ปานกลาง';
-    return 'มาก';
+    String strVal = val.toString();
+    if (strVal == 'low') return 'น้อย';
+    if (strVal == 'medium') return 'ปานกลาง';
+    if (strVal == 'high') return 'มาก';
+    // Fallback for old numeric data if any
+    double? doubleVal = double.tryParse(strVal);
+    if (doubleVal != null) {
+      if (doubleVal <= 1000) return 'น้อย';
+      if (doubleVal <= 3000) return 'ปานกลาง';
+      return 'มาก';
+    }
+    return strVal;
   }
 
   String displayExp(String? val) {
-    if (val == 'none') return 'ไม่มี';
-    if (val == 'beginner') return 'พื้นฐาน';
-    if (val == 'experienced') return 'ระดับสูง';
+    if (val == 'low' || val == 'none') return 'ไม่มี';
+    if (val == 'medium' || val == 'beginner') return 'พื้นฐาน';
+    if (val == 'high' || val == 'experienced') return 'ระดับสูง';
     return val ?? '-';
   }
 
@@ -144,8 +167,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ),
                         const SizedBox(height: 16),
                         _buildInfoRow('ชื่อผู้ใช้', userData?['username'] ?? '-'),
+                        _buildInfoRow('ชื่อ-นามสกุล', userData?['fullname'] ?? '-'),
                         _buildInfoRow('email', userData?['email'] ?? '-'),
                         _buildInfoRow('เบอร์โทร', userData?['phonenumber'] ?? '-'),
+                        _buildInfoRow('Line ID', userData?['line_id'] ?? '-'),
                         _buildInfoRow('วันที่สมัครสมาชิก', formatDate(userData?['created_at'])),
                       ],
                     ),
@@ -169,10 +194,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildAdopterRow('🏡', 'ที่พักอาศัย', displayHousing(adopterData?['living_space_type'])),
+                        _buildAdopterRow('📏', 'ขนาดพื้นที่', displaySpaceSize(adopterData?['space_size'])),
                         _buildAdopterRow('⏳', 'เวลาว่างต่อวัน', displayFreeTime(adopterData?['daily_free_hours'])),
                         _buildAdopterRow('💰', 'งบประมาณต่อเดือน', displayBudget(adopterData?['max_monthly_budget'])),
                         _buildAdopterRow('🎓', 'ประสบการณ์', displayExp(adopterData?['experience'])),
-                        _buildAdopterRow('👶', 'เด็กเล็กในบ้าน/แพ้ขนแมว', (adopterData?['has_children']?.toString() == '1') ? 'มี' : 'ไม่มี'),
+                        _buildAdopterRow('👶', 'เด็กเล็กในบ้าน', (adopterData?['has_children']?.toString() == '1') ? 'มี' : 'ไม่มี'),
                         _buildAdopterRow('🐶', 'สัตว์เลี้ยงอื่น', (adopterData?['has_other_pets']?.toString() == '1') ? 'มี' : 'ไม่มี'),
                         const SizedBox(height: 16),
                         Row(
@@ -235,7 +261,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => PosterDashboardScreen(userId: widget.userId),
+                            builder: (context) => PosterCatsScreen(userId: widget.userId),
                           ),
                         );
                       } else {

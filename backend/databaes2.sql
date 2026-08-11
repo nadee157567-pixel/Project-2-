@@ -1,3 +1,4 @@
+DROP DATABASE IF EXISTS pet_adoption_db;
 CREATE DATABASE pet_adoption_db
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
@@ -8,7 +9,7 @@ USE pet_adoption_db;
 CREATE TABLE users (
     user_id  INT AUTO_INCREMENT PRIMARY KEY,
 	email VARCHAR(100) NOT NULL UNIQUE,
-    password VARCHAR(50) NOT NULL ,
+    password VARCHAR(255) NOT NULL ,
     fullname VARCHAR(100) NOT NULL ,
     username VARCHAR(50) NOT NULL UNIQUE,
 	phonenumber VARCHAR(15),
@@ -32,49 +33,7 @@ VALUES
 	'0888888888',
 	'adminhome',
 	'admin'
-),
-(
-	2,
-    'poster1@gmail.com',
-    '123456',
-    'สมหญิง รักแมว',
-    'somying',
-    '0811111111',
-    'somying_cat',
-    'poster'
-),
-(
-    3,
-    'poster2@gmail.com',
-    '123456',
-    'กานต์พิชชา ใจดี',
-    'kanpitcha',
-    '0822222222',
-    'kanpitcha_cat',
-    'poster'
-),
-(
-    4,
-    'adopter1@gmail.com',
-    '123456',
-    'สมชาย พร้อมเลี้ยง',
-    'somchai',
-    '0833333333',
-    'somchai_home',
-    'user'
-),
-(
-    5,
-    'adopter2@gmail.com',
-    '123456',
-    'นันทนา รักสัตว์',
-    'nantana',
-    '0844444444',
-    'nantana_pet',
-    'user'
 );
-
-DROP TABLE users; 
 
 -- 1. อัปเดตเปลี่ยนไอดีที่เคยเป็น poster ให้กลายเป็น user ทั้งหมด
 UPDATE users 
@@ -115,41 +74,7 @@ CREATE TABLE user_profiles (
 SELECT * FROM user_profiles;
 
 
-INSERT INTO user_profiles
-(
-	profile_id,
-    user_id,
-    living_space_type,
-    space_size,
-    max_monthly_budget,
-    daily_free_hours,
-    has_other_pets,
-    has_children,
-    experience
-)
-VALUES
-(
-	1,
-    4,
-    'house',
-    'medium',
-    5000.00,
-    5,
-    0,
-    0,
-    'experienced'
-),
-(
-	2,
-    5,
-    'condo',
-    'small',
-    3000.00,
-    3,
-    1,
-    0,
-    'beginner'
-);
+-- default profiles removed
 
 
 
@@ -170,16 +95,21 @@ CREATE TABLE cats (
         'large'
     ),
     req_attention ENUM(
-        'small',
+        'low',
         'medium',
-        'large'
+        'high'
     ),
+    req_experience_level ENUM(
+        'low',
+        'medium',
+        'high'
+    ) DEFAULT 'low',
     status ENUM(
         'available',
         'pending',
         'adopted'
     ) DEFAULT 'available',
-    est_monthlt_cost DECIMAL(10,2),
+    est_monthly_cost DECIMAL(10,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (poster_id)
 	REFERENCES users(user_id)
@@ -188,88 +118,7 @@ CREATE TABLE cats (
 SELECT * FROM cats;
 
 
-INSERT INTO cats
-(
-    cat_id,
-    poster_id,
-    pet_name,
-    pet_breed,
-    gender,
-    age_months,
-    is_sterilized,
-    is_vaccinated,
-    personality,
-    health_note,
-    req_space_level,
-    req_attention,
-    status,
-    est_monthly_cost
-)
-VALUES
-(
-    1,
-    2,
-    'มะลิ',
-    'ไทยผสม',
-    'female',
-    18,
-    1,
-    1,
-    'ขี้อ้อน เป็นมิตร และชอบอยู่ใกล้คน',
-    'สุขภาพแข็งแรง ไม่มีโรคประจำตัว',
-    'small',
-    'medium',
-    'available',
-    1800.00
-),
-(
-    2,
-    2,
-    'ส้มจี๊ด',
-    'ไทย',
-    'male',
-    10,
-    0,
-    1,
-    'ร่าเริง ขี้เล่น และเข้ากับคนง่าย',
-    'ยังไม่ได้ทำหมัน',
-    'small',
-    'high',
-    'available',
-    2000.00
-),
-(
-    3,
-    3,
-    'โมจิ',
-    'เปอร์เซียผสม',
-    'female',
-    30,
-    1,
-    1,
-    'เรียบร้อย ไม่ส่งเสียงดัง และชอบอยู่เงียบ ๆ',
-    'ต้องแปรงขนเป็นประจำ',
-    'medium',
-    'medium',
-    'available',
-    2800.00
-),
-(
-    4,
-    3,
-    'ถุงเงิน',
-    'ไทยผสม',
-    'male',
-    48,
-    1,
-    1,
-    'อ่อนโยนและคุ้นเคยกับเด็ก',
-    'ต้องรับประทานอาหารควบคุมน้ำหนัก',
-    'medium',
-    'low',
-    'pending',
-    2200.00
-);
+-- default cats removed
 
 ALTER TABLE cats
 ADD COLUMN good_with_children BOOLEAN DEFAULT TRUE,
@@ -291,38 +140,7 @@ CREATE TABLE catphotos (
 );
 SELECT * FROM catphotos;
 
-INSERT INTO catphotos
-(
-    photo_id,
-    cat_id,
-    image_url
-)
-VALUES
-(
-    1,
-    1,
-    'https://example.com/images/mali-1.jpg'
-),
-(
-    2,
-    1,
-    'https://example.com/images/mali-2.jpg'
-),
-(
-    3,
-    2,
-    'https://example.com/images/somjeed-1.jpg'
-),
-(
-    4,
-    3,
-    'https://example.com/images/mochi-1.jpg'
-),
-(
-    5,
-    4,
-    'https://example.com/images/thungngoen-1.jpg'
-);
+-- default catphotos removed
 
 
 
@@ -349,32 +167,7 @@ CREATE TABLE adoptionapplications (
 
 SELECT * FROM adoptionapplications;
 
-INSERT INTO adoptionapplications
-(
-    match_id,
-    cat_id,
-    applicant_id,
-    matchscore,
-    status,
-    upload_remark
-)
-VALUES
-(
-    1,
-    1,
-    4,
-    90,
-    'pending',
-    'มีความพร้อมและต้องการรับมะลิไปเลี้ยงภายในบ้าน'
-),
-(
-    2,
-    3,
-    5,
-    68,
-    'interview',
-    'ต้องการสอบถามรายละเอียดการดูแลขนของโมจิเพิ่มเติม'
-);
+-- default applications removed
 
 
 
@@ -400,22 +193,7 @@ CREATE TABLE adoption_approvals (
 
 SELECT * FROM adoption_approvals;
 
-INSERT INTO adoption_approvals
-(
-    approval_id,
-    match_id,
-    approver_id,
-    approver_status,
-    approver_remark
-)
-VALUES
-(
-    1,
-    2,
-    3,
-    'approved',
-    'ผู้ขอรับเลี้ยงมีความพร้อมเบื้องต้น นัดพูดคุยรายละเอียดเพิ่มเติม'
-);
+-- default approvals removed
 
 
 
@@ -692,32 +470,7 @@ CREATE TABLE assessments (
 
 SELECT * FROM assessments;
 
-INSERT INTO assessments
-(
-    assessment_id,
-    applicant_id,
-    cat_id,
-    total_score,
-    suitability_level,
-    recommendation
-)
-VALUES
-(
-    1,
-    4,
-    1,
-    90.00,
-    'highly_suitable',
-    'มีที่พัก เวลา งบประมาณ และประสบการณ์เหมาะสมกับการดูแลมะลิ'
-),
-(
-    2,
-    5,
-    3,
-    68.00,
-    'suitable',
-    'สามารถรับเลี้ยงได้ แต่ควรเตรียมเวลาและงบประมาณสำหรับการดูแลขนเพิ่มเติม'
-);
+-- default assessments removed
 
 ALTER TABLE assessments
 ADD COLUMN match_percentage DECIMAL(5,2) AFTER total_score,
@@ -866,10 +619,7 @@ CREATE TABLE conversations (
 
 SELECT * FROM conversations;
 
-INSERT INTO conversations (room_id, match_id) 
-VALUES 
-(1, 1), -- แชทสำหรับการขอรับเลี้ยงแมว 'มะลิ' (match_id = 1)
-(2, 2); -- แชทสำหรับการขอรับเลี้ยงแมว 'โมจิ' (match_id = 2)
+-- default conversations removed -- แชทสำหรับการขอรับเลี้ยงแมว 'โมจิ' (match_id = 2)
 
 
 CREATE TABLE messages (
@@ -891,16 +641,7 @@ CREATE TABLE messages (
 
 SELECT * FROM messages;
 
-INSERT INTO messages (message_id, room_id, sender_id, message_text, is_read, sent_at)
-VALUES
--- ห้องแชท 1 (match_id 1: มะลิ, Applicant = สมชาย(4), Poster = สมหญิง(2))
-(1, 1, 4, 'สวัสดีครับ ผมสนใจรับเลี้ยงน้องมะลิครับ พอดีมีคำถามนิดหน่อยครับ', TRUE, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
-(2, 1, 2, 'สวัสดีค่ะ ยินดีค่ะ สอบถามได้เลยนะคะ น้องมะลิขี้อ้อนมากค่ะ', TRUE, DATE_SUB(NOW(), INTERVAL 1 HOUR)),
-(3, 1, 4, 'อาหารที่น้องกินประจำคือยี่ห้ออะไรหรอครับ?', FALSE, NOW()),
-
--- ห้องแชท 2 (match_id 2: โมจิ, Applicant = นันทนา(5), Poster = กานต์พิชชา(3))
-(4, 2, 5, 'สวัสดีค่ะ น้องโมจิยังมีคนจองหรือยังคะ?', TRUE, DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
-(5, 2, 3, 'ยังว่างอยู่ค่ะ นัดเข้ามาดูตัวน้องก่อนได้นะคะ', FALSE, DATE_SUB(NOW(), INTERVAL 5 MINUTE));
+-- default messages removed
 
 DESCRIBE conversations;
 DESCRIBE messages;

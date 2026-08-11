@@ -28,6 +28,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
+          if (!mounted) return;
           setState(() {
             _requests = data['data'];
           });
@@ -115,6 +116,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
                           evaluationResult: fakeEvaluationResult,
                           matchId: int.tryParse(req['match_id'].toString()) ?? 0,
                           userId: widget.userId,
+                          catId: int.tryParse(req['cat_id']?.toString() ?? '') ?? 0,
                         ),
                       );
                     }).toList(),
@@ -134,6 +136,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
     required Map<String, dynamic> evaluationResult,
     required int matchId,
     required int userId,
+    required int catId,
   }) {
     String displayStatus = status == 'pending' ? 'รอการพิจารณา' 
                         : status == 'interview' ? 'นัดสัมภาษณ์'
@@ -163,7 +166,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(15),
             child: Image.network(
-              imageUrl,
+              ApiConfig.getImageUrl(imageUrl),
               width: 80,
               height: 80,
               fit: BoxFit.cover,
@@ -226,6 +229,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
                                     status: status,
                                     matchId: matchId,
                                     userId: userId,
+                                    catId: catId,
                                   ),
                                 ),
                               );

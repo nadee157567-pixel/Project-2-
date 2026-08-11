@@ -53,9 +53,13 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
   // ==============================
   String? requiredHousing;
   String? requiredTime;
+  String? requiredBudget;
   String? requiredOtherPets;
+  String? requiredExperience;
   bool okWithCat = false; 
   bool okWithDog = false; 
+  bool goodWithChildren = false;
+  bool hasSpecialNeeds = false;
 
   @override
   void initState() {
@@ -78,8 +82,8 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       else if (age <= 84) selectedAge = catAgeRanges[3];
       else selectedAge = catAgeRanges[4];
 
-      sterilizationStatus = data['is_sterilized'];
-      vaccinationStatus = data['is_vaccinated'];
+      sterilizationStatus = data['is_sterilized']?.toString();
+      vaccinationStatus = data['is_vaccinated']?.toString();
       
       if (data['req_space_level'] == 'large') requiredHousing = 'พื้นที่โล่งกว้างๆ';
       else if (data['req_space_level'] == 'small') requiredHousing = 'ไม่ต้องการพื้นที่มาก';
@@ -88,6 +92,10 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       if (data['req_attention'] == 'low' || data['req_attention'] == 'small') requiredTime = 'น้อย';
       else if (data['req_attention'] == 'high' || data['req_attention'] == 'large') requiredTime = 'มาก';
       else requiredTime = 'ปานกลาง';
+
+      if (data['req_budget_level'] == 'low') requiredBudget = 'น้อย';
+      else if (data['req_budget_level'] == 'high') requiredBudget = 'มาก';
+      else requiredBudget = 'ปานกลาง';
 
       if (data['personality'] != null) {
         String p = data['personality'].toString();
@@ -98,14 +106,65 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
         }
       }
 
+      if (data['req_experience_level'] == 'beginner') requiredExperience = 'พอมีประสบการณ์';
+      else if (data['req_experience_level'] == 'experienced') requiredExperience = 'มีประสบการณ์สูง';
+      else requiredExperience = 'ไม่จำเป็น';
+
       if (requiredOtherPets == 'เข้ากันได้ดี') {
-        okWithCat = true;
-        okWithDog = true;
+        if (data['good_with_cats'] != null) {
+          okWithCat = data['good_with_cats']?.toString() == '1' || data['good_with_cats']?.toString() == 'true';
+        } else {
+          okWithCat = true;
+        }
+        if (data['good_with_dogs'] != null) {
+          okWithDog = data['good_with_dogs']?.toString() == '1' || data['good_with_dogs']?.toString() == 'true';
+        } else {
+          okWithDog = true;
+        }
+      } else {
+        okWithCat = false;
+        okWithDog = false;
+      }
+
+      if (data['good_with_children'] != null) {
+        goodWithChildren = data['good_with_children']?.toString() == '1' || data['good_with_children']?.toString() == 'true';
+      }
+      if (data['has_special_needs'] != null) {
+        hasSpecialNeeds = data['has_special_needs']?.toString() == '1' || data['has_special_needs']?.toString() == 'true';
       }
     }
   } 
 
   void _nextPage() {
+    if (widget.editCatData == null && _selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเพิ่มรูปภาพน้องแมวอย่างน้อย 1 รูป")));
+      return;
+    }
+    if (_catNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอกชื่อน้องแมว")));
+      return;
+    }
+    if (selectedBreed == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสายพันธุ์")));
+      return;
+    }
+    if (selectedGender == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเพศ")));
+      return;
+    }
+    if (selectedAge == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกช่วงอายุ")));
+      return;
+    }
+    if (sterilizationStatus == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสถานะการทำหมัน")));
+      return;
+    }
+    if (vaccinationStatus == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสถานะการฉีดวัคซีน")));
+      return;
+    }
+
     setState(() => _currentPage = 1);
   }
 
@@ -116,6 +175,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
   Future<void> _pickImages() async {
     final List<XFile> images = await _picker.pickMultiImage();
     if (images.isNotEmpty) {
+      if (!mounted) return;
       setState(() {
         _selectedImages.addAll(images);
         if (_selectedImages.length > 5) {
@@ -143,15 +203,87 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
     
     try {
       var response = await request.send();
+      final respBody = await response.stream.bytesToString();
       if (response.statusCode != 200 && response.statusCode != 201) {
-        print("Failed to upload photos: ${response.statusCode}");
+        print("Failed to upload photos: ${response.statusCode} - $respBody");
+        if (mounted) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("อัปโหลดรูปภาพล้มเหลว: ${response.statusCode}\n$respBody"))
+          );
+        }
+      } else {
+        print("Upload photos successfully!");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("อัปโหลดรูปภาพสำเร็จ!"))
+          );
+        }
       }
     } catch (e) {
       print("Upload error: $e");
+      if (mounted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: $e"))
+        );
+      }
     }
   }
 
   Future<void> _submitCatPost() async {
+    // Validate Page 1 fields
+    if (widget.editCatData == null && _selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเพิ่มรูปภาพน้องแมวอย่างน้อย 1 รูป")));
+      return;
+    }
+    if (_catNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอกชื่อน้องแมว")));
+      return;
+    }
+    if (selectedBreed == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสายพันธุ์")));
+      return;
+    }
+    if (selectedGender == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเพศ")));
+      return;
+    }
+    if (selectedAge == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกช่วงอายุ")));
+      return;
+    }
+    if (sterilizationStatus == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสถานะการทำหมัน")));
+      return;
+    }
+    if (vaccinationStatus == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสถานะการฉีดวัคซีน")));
+      return;
+    }
+
+    // Validate Page 2 fields (except precautions / special care)
+    if (requiredHousing == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเงื่อนไขพื้นที่อยู่อาศัยที่ต้องการ")));
+      return;
+    }
+    if (requiredTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเงื่อนไขเวลาและการดูแลที่ต้องการ")));
+      return;
+    }
+    if (requiredBudget == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเงื่อนไขงบประมาณที่ต้องการ")));
+      return;
+    }
+    if (requiredOtherPets == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเงื่อนไขการเข้ากับสัตว์อื่น")));
+      return;
+    }
+    if (requiredExperience == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเงื่อนไขประสบการณ์ผู้เลี้ยงที่ต้องการ")));
+      return;
+    }
+
     if (_isSaving) return;
     setState(() => _isSaving = true);
 
@@ -167,7 +299,13 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       "healthDetails": _healthDetailsController.text,
       "reqHousing": requiredHousing,
       "reqTime": requiredTime,
+      "reqBudget": requiredBudget,
       "reqOtherPets": requiredOtherPets,
+      "reqExperience": requiredExperience,
+      "goodWithChildren": goodWithChildren,
+      "goodWithCats": okWithCat,
+      "goodWithDogs": okWithDog,
+      "hasSpecialNeeds": hasSpecialNeeds,
     };
 
     try {
@@ -669,30 +807,102 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 3. หมวดความเข้ากับสัตว์เลี้ยงตัวอื่น
+            // 3. หมวดงบประมาณ
+            _buildRequirementCard(
+              title: "งบประมาณในการดูแล",
+              icon: Icons.account_balance_wallet, 
+              content: Column(
+                children: [
+                  _buildSquareCheckbox("น้อย : แมวโต แข็งแรง กินง่าย", requiredBudget == "น้อย", (val) => setState(() => requiredBudget = "น้อย")),
+                  _buildSquareCheckbox("ปานกลาง : แมวทั่วไป ต้องการอาหารมาตรฐาน", requiredBudget == "ปานกลาง", (val) => setState(() => requiredBudget = "ปานกลาง")),
+                  _buildSquareCheckbox("มาก : แมวป่วย หรือต้องการอาหารดูแลพิเศษ", requiredBudget == "มาก", (val) => setState(() => requiredBudget = "มาก")),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 4. หมวดความเข้ากับสัตว์เลี้ยงตัวอื่น
             _buildRequirementCard(
               title: "ความเข้ากับสัตว์เลี้ยงตัวอื่น",
               icon: Icons.pets, 
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSquareCheckbox("เข้ากันได้ดี เคยเลี้ยงรวมกับ", requiredOtherPets == "เข้ากันได้ดี", (val) => setState(() => requiredOtherPets = "เข้ากันได้ดี")),
+                  _buildSquareCheckbox("เข้ากันได้ดี เคยเลี้ยงรวมกับ", requiredOtherPets == "เข้ากันได้ดี", (val) {
+                    setState(() {
+                      if (requiredOtherPets == "เข้ากันได้ดี") {
+                        requiredOtherPets = null;
+                        okWithCat = false;
+                        okWithDog = false;
+                      } else {
+                        requiredOtherPets = "เข้ากันได้ดี";
+                        okWithCat = true; 
+                      }
+                    });
+                  }),
                   // ตัวเลือกย่อย
                   _buildSquareCheckbox("แมว", okWithCat, (val) {
                     setState(() {
                       okWithCat = val ?? false;
-                      if(okWithCat) requiredOtherPets = "เข้ากันได้ดี"; 
+                      if(okWithCat) {
+                        requiredOtherPets = "เข้ากันได้ดี"; 
+                      } else if (!okWithDog) {
+                        requiredOtherPets = null;
+                      }
                     });
                   }, isSubOption: true),
                   _buildSquareCheckbox("สุนัข", okWithDog, (val) {
                     setState(() {
                       okWithDog = val ?? false;
-                      if(okWithDog) requiredOtherPets = "เข้ากันได้ดี";
+                      if(okWithDog) {
+                        requiredOtherPets = "เข้ากันได้ดี";
+                      } else if (!okWithCat) {
+                        requiredOtherPets = null;
+                      }
                     });
                   }, isSubOption: true),
                   
-                  _buildSquareCheckbox("ต้องการเลี้ยงเดี่ยว ขี้กลัว", requiredOtherPets == "ต้องการเลี้ยงเดี่ยว", (val) => setState(() => requiredOtherPets = "ต้องการเลี้ยงเดี่ยว")),
-                  _buildSquareCheckbox("ไม่เคยเลี้ยงรวมกับสัตว์อื่น", requiredOtherPets == "ไม่เคยเลี้ยงรวม", (val) => setState(() => requiredOtherPets = "ไม่เคยเลี้ยงรวม")),
+                  _buildSquareCheckbox("ต้องการเลี้ยงเดี่ยว ขี้กลัว", requiredOtherPets == "ต้องการเลี้ยงเดี่ยว", (val) {
+                    setState(() {
+                      requiredOtherPets = "ต้องการเลี้ยงเดี่ยว";
+                      okWithCat = false;
+                      okWithDog = false;
+                    });
+                  }),
+                  _buildSquareCheckbox("ไม่เคยเลี้ยงรวมกับสัตว์อื่น", requiredOtherPets == "ไม่เคยเลี้ยงรวม", (val) {
+                    setState(() {
+                      requiredOtherPets = "ไม่เคยเลี้ยงรวม";
+                      okWithCat = false;
+                      okWithDog = false;
+                    });
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 5. หมวดประสบการณ์ของผู้เลี้ยงที่ต้องการ
+            _buildRequirementCard(
+              title: "ประสบการณ์ของผู้เลี้ยงที่ต้องการ",
+              icon: Icons.star_border_purple500, 
+              content: Column(
+                children: [
+                  _buildSquareCheckbox("ไม่จำเป็นต้องมีประสบการณ์", requiredExperience == "ไม่จำเป็น", (val) => setState(() => requiredExperience = "ไม่จำเป็น")),
+                  _buildSquareCheckbox("พอมีประสบการณ์ (เคยเลี้ยงแมวมาก่อน)", requiredExperience == "พอมีประสบการณ์", (val) => setState(() => requiredExperience = "พอมีประสบการณ์")),
+                  _buildSquareCheckbox("มีประสบการณ์สูง (เช่น เคยดูแลแมวเด็ก แมวป่วย)", requiredExperience == "มีประสบการณ์สูง", (val) => setState(() => requiredExperience = "มีประสบการณ์สูง")),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 6. หมวดข้อควรระวัง / การดูแลพิเศษ(เลือกถ้ามี)
+            _buildRequirementCard(
+              title: "ข้อควรระวัง / การดูแลพิเศษ",
+              icon: Icons.warning_amber_rounded, 
+              content: Column(
+                children: [
+                  _buildSquareCheckbox("เป็นมิตรกับเด็กเล็ก / สามารถอยู่ร่วมกับเด็กได้", goodWithChildren, (val) => setState(() => goodWithChildren = val ?? false)),
+                  _buildSquareCheckbox("เป็นแมวที่ต้องการการดูแลพิเศษ (เช่น ป่วยเรื้อรัง, พิการ)", hasSpecialNeeds, (val) => setState(() => hasSpecialNeeds = val ?? false)),
                 ],
               ),
             ),

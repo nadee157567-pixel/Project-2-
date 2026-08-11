@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'adopter_profile_screen.dart'; 
 import 'adoption_status_screen.dart';
-import 'adoption_requests_screen.dart';
 import '../config/api_config.dart';
 
 class EvaluationScreen extends StatefulWidget {
@@ -23,7 +22,7 @@ class EvaluationScreen extends StatefulWidget {
 }
 
 class _EvaluationScreenState extends State<EvaluationScreen> {
-  static Set<int> requestedCats = {};
+  bool isRequested = false;
   Map<String, dynamic>? evaluationResult;
   bool isLoading = true; // Auto start loading
   bool isEvaluated = false;
@@ -49,6 +48,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
+          if (!mounted) return;
           setState(() {
             evaluationResult = jsonResponse['data'];
             isEvaluated = true;
@@ -62,24 +62,6 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
     }
   }
 
-  void _navigateToEditProfile() async {
-    // Navigate to AdopterProfileScreen with isEditing = true
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AdopterProfileScreen(
-          userId: widget.userId,
-          catId: widget.catId,
-          isEditing: true, // we will add this property
-        ),
-      ),
-    );
-
-    // if returned true, re-evaluate
-    if (result == true && mounted) {
-      fetchEvaluationScore();
-    }
-  }
 
   Widget _buildStarRow(String title, int score) {
     return Padding(
@@ -110,13 +92,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
         title: const Text('ประเมินความเหมาะสม', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.pink[100],
         iconTheme: const IconThemeData(color: Colors.black),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit, color: Colors.black87),
-            tooltip: 'แก้ไขข้อมูลโปรไฟล์',
-            onPressed: _navigateToEditProfile,
-          )
-        ],
+
       ),
       body: isLoading 
         ? const Center(child: CircularProgressIndicator(color: Colors.pink))
@@ -183,6 +159,22 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                 if (evaluationResult!['score_detail']['experience']['score'] < 3) reasons.add("แมวตัวนี้เหมาะกับผู้เลี้ยงที่มีประสบการณ์มากกว่า");
               }
 
+              // Add backend-provided warnings and positive reasons
+              if (evaluationResult!['warnings'] != null) {
+                for (var w in evaluationResult!['warnings']) {
+                  if (!reasons.contains(w.toString())) {
+                    reasons.add(w.toString());
+                  }
+                }
+              }
+              if (evaluationResult!['reasons'] != null) {
+                for (var r in evaluationResult!['reasons']) {
+                  if (!reasons.contains(r.toString())) {
+                    reasons.add(r.toString());
+                  }
+                }
+              }
+
               return [
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -247,7 +239,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                if (canAdopt && !requestedCats.contains(widget.catId))
+                if (canAdopt && !isRequested)
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -273,8 +265,9 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                             final respData = jsonDecode(response.body);
                             final int matchId = respData['data']?['match_id'] ?? 0;
                             
+                            if (!mounted) return;
                             setState(() {
-                              requestedCats.add(widget.catId);
+                              isRequested = true;
                             });
 
                             if (!mounted) return;
@@ -311,6 +304,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                                             status: 'pending',
                                             userId: widget.userId,
                                             matchId: matchId,
+                                            catId: widget.catId,
                                           ),
                                         ),
                                       );
@@ -341,7 +335,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                       child: const Text('ส่งคำขอรับเลี้ยง', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   )
-                else if (canAdopt && requestedCats.contains(widget.catId))
+                else if (canAdopt && isRequested)
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

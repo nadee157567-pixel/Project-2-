@@ -46,6 +46,7 @@ class _PosterProfileScreenState extends State<PosterProfileScreen> {
         if (catData['success'] == true && catData['data'] != null) {
           final cats = catData['data'] as List;
           
+          if (!mounted) return;
           setState(() {
             activeCats = cats.where((cat) => cat['status'] != 'adopted').toList();
             adoptedCats = cats.where((cat) => cat['status'] == 'adopted').toList();
@@ -132,7 +133,7 @@ class _PosterProfileScreenState extends State<PosterProfileScreen> {
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(10),
                             child: Image.network(
-                              cat['image_url'],
+                              ApiConfig.getImageUrl(cat['image_url']),
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) =>
                                   const Icon(Icons.pets, color: Colors.grey, size: 50),
@@ -143,7 +144,7 @@ class _PosterProfileScreenState extends State<PosterProfileScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(cat['pet_name'] ?? 'ไม่ทราบชื่อ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                Text("${cat['pet_breed'] ?? ''} อายุ ${int.tryParse(cat['age_months']?.toString() ?? '') ?? 0} เดือน", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                Text("${cat['pet_breed'] ?? ''} • ${ApiConfig.getShortAgeDesc(cat['age_months'])}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
                 const SizedBox(height: 4),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

@@ -55,6 +55,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
         if (data['success'] == true && data['profile'] != null) {
           final profile = data['profile'];
           
+          if (!mounted) return;
           setState(() {
             if (profile['living_space_type'] == 'condo') {
               housingType = 'คอนโด';
@@ -84,12 +85,13 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
               freeTime = dailyHours <= 2 ? 'low' : (dailyHours >= 6 ? 'high' : 'medium');
             }
 
-            if (profile['experience'] == 'medium') {
+            String expStr = profile['experience']?.toString() ?? 'none';
+            if (expStr == 'beginner' || expStr == 'medium') {
               experience = 'พื้นฐาน';
-            } else if (profile['experience'] == 'high') {
+            } else if (expStr == 'experienced' || expStr == 'high') {
               experience = 'ระดับสูง';
             } else {
-              experience = 'มือใหม่'; // low or any other value
+              experience = 'มือใหม่'; // none, low or any other value
             }
 
             int hasChild = profile['has_children'] is int ? profile['has_children'] : int.tryParse(profile['has_children']?.toString() ?? '0') ?? 0;
@@ -108,6 +110,30 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
   }
 
   void _nextPage() {
+    if (_currentStep == 0) {
+      if (housingType == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกประเภทที่พักอาศัย")));
+        return;
+      }
+      if (spaceSize == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกขนาดพื้นที่พักอาศัย")));
+        return;
+      }
+      if (hasPets == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกว่ามีสัตว์เลี้ยงอื่นหรือไม่")));
+        return;
+      }
+    } else if (_currentStep == 1) {
+      if (freeTime == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเวลาว่างให้สัตว์เลี้ยง")));
+        return;
+      }
+      if (experience == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกประสบการณ์การเลี้ยงแมว")));
+        return;
+      }
+    }
+
     if (_currentStep < 2) {
       _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     }
@@ -120,33 +146,57 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
+    // Validate Step 3 fields
+    if (hasChildren == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกว่ามีเด็กเล็กในบ้านหรือไม่")));
+      return;
+    }
+    if (_budgetController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอกงบประมาณการเลี้ยงแมว")));
+      return;
+    }
+    if (double.tryParse(_budgetController.text.trim()) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอกงบประมาณเป็นตัวเลขที่ถูกต้อง")));
+      return;
+    }
+
     setState(() => _isLoading = true);
+    // Map UI values to database schema formats
+    String livingSpaceType = 'house';
+    if (housingType == 'คอนโด') livingSpaceType = 'condo';
+    else if (housingType == 'หอพัก') livingSpaceType = 'apartment';
+
+    String spaceSizeMapped = 'medium';
+    if (spaceSize == 'กว้างขวาง') spaceSizeMapped = 'large';
+    else if (spaceSize == 'คับแคบ') spaceSizeMapped = 'small';
+
+    int hasOtherPets = (hasPets == 'มี') ? 1 : 0;
+    int hasChildrenMapped = (hasChildren == 'มี') ? 1 : 0;
+
+    String expMapped = 'none';
+    if (experience == 'พื้นฐาน') expMapped = 'beginner';
+    else if (experience == 'ระดับสูง') expMapped = 'experienced';
+
+    double maxMonthlyBudget = double.tryParse(_budgetController.text.trim()) ?? 3000.0;
+
     final Map<String, dynamic> adopterData = {
       "userId": widget.userId,
-      "housingType": housingType,
-      "spaceSize": spaceSize,
-      "hasPets": hasPets,
-      "freeTime": freeTime,
-      "experience": experience,
-      "hasChildren": hasChildren,
-      "budget": _budgetController.text,
+      "living_space_type": livingSpaceType,
+      "space_size": spaceSizeMapped,
+      "has_other_pets": hasOtherPets,
+      "daily_free_hours": freeTime ?? 'medium',
+      "experience": expMapped,
+      "has_children": hasChildrenMapped,
+      "max_monthly_budget": maxMonthlyBudget,
     };
 
     try {
-      http.Response response;
-      if (widget.isEditing) {
-        response = await http.put(
-          Uri.parse(ApiConfig.baseUrl + '/adopters/profile/${widget.userId}'),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode(adopterData),
-        );
-      } else {
-        response = await http.post(
-          Uri.parse(ApiConfig.baseUrl + '/adopters'),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode(adopterData),
-        );
-      }
+      // Backend POST /adopters already does UPSERT
+      http.Response response = await http.post(
+        Uri.parse(ApiConfig.baseUrl + '/adopters'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(adopterData),
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (!mounted) return;
@@ -443,7 +493,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
       child: Column(
         children: [
           _buildQuestionContainer(
-            question: "ในบ้านมีเด็กหรือคนแพ้ขนแมวหรือไม่ ?",
+            question: "ในบ้านมีเด็กเล็กหรือไม่ ?",
             subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
             content: Row(
               children: [

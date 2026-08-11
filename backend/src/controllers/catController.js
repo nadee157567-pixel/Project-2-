@@ -52,7 +52,14 @@ async function getCatById(req, res) {
                 c.*,
                 u.fullname AS poster_name,
                 u.phonenumber AS poster_phone,
-                u.line_id As poster_line_id
+                u.line_id As poster_line_id,
+                (
+                    SELECT cp.image_url
+                    FROM catphotos AS cp
+                    WHERE cp.cat_id = c.cat_id
+                    ORDER BY cp.photo_id ASC
+                    LIMIT 1
+                ) AS image_url
             FROM cats AS c
             JOIN users AS u
               ON c.poster_id = u.user_id
@@ -112,7 +119,11 @@ async function createCat(req, res) {
             reqHousing,
             reqTime,
             reqExperience,
-            reqOtherPets
+            reqOtherPets,
+            goodWithChildren,
+            goodWithCats,
+            goodWithDogs,
+            hasSpecialNeeds
         } = req.body;
 
         if (!userId) {
@@ -123,11 +134,13 @@ async function createCat(req, res) {
         const pet_gender = gender === 'ผู้' ? 'male' : 'female';
 
         let age_months = 12; // default
-        if (ageRange === 'ต่ำกว่า 2 เดือน (ยังไม่หย่านม)') age_months = 1;
-        else if (ageRange === '2 - 6 เดือน (ลูกแมว)') age_months = 4;
-        else if (ageRange === '6 เดือน - 1 ปี (แมววัยรุ่น)') age_months = 9;
-        else if (ageRange === '1 - 7 ปี (แมวโตเต็มวัย)') age_months = 36;
-        else if (ageRange === '7 ปีขึ้นไป (แมวสูงวัย)') age_months = 96;
+        if (ageRange) {
+            if (ageRange.includes('ยังไม่หย่านม')) age_months = 1;
+            else if (ageRange.includes('ลูกแมว')) age_months = 4;
+            else if (ageRange.includes('วัยรุ่น')) age_months = 9;
+            else if (ageRange.includes('โตเต็มวัย')) age_months = 36;
+            else if (ageRange.includes('สูงวัย')) age_months = 96;
+        }
 
         let req_space_level = 'medium';
         if (reqHousing && reqHousing.startsWith('พื้นที่โล่งกว้างๆ')) req_space_level = 'large';
@@ -145,8 +158,8 @@ async function createCat(req, res) {
 
         const [result] = await pool.query(`
             INSERT INTO cats 
-            (poster_id, pet_name, pet_breed, gender, age_months, is_sterilized, is_vaccinated, health_note, req_space_level, req_attention, req_experience_level, personality, est_monthly_cost)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (poster_id, pet_name, pet_breed, gender, age_months, is_sterilized, is_vaccinated, health_note, req_space_level, req_attention, req_experience_level, personality, est_monthly_cost, good_with_children, good_with_cats, good_with_dogs, has_special_needs)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             userId,
             name || null,
@@ -160,7 +173,11 @@ async function createCat(req, res) {
             req_attention,
             req_experience_level,
             personality_mapped,
-            3000 // default est_monthly_cost
+            3000, // default est_monthly_cost
+            goodWithChildren === undefined ? true : (goodWithChildren ? 1 : 0),
+            goodWithCats === undefined ? true : (goodWithCats ? 1 : 0),
+            goodWithDogs === undefined ? true : (goodWithDogs ? 1 : 0),
+            hasSpecialNeeds === undefined ? false : (hasSpecialNeeds ? 1 : 0)
         ]);
 
         return res.status(201).json({
@@ -171,7 +188,6 @@ async function createCat(req, res) {
 
     } catch (error) {
         console.error('createCat error:', error);
-        require('fs').writeFileSync('last_error.txt', error.toString() + '\\n' + error.stack);
         return res.status(500).json({
             success: false,
             message: 'ไม่สามารถบันทึกข้อมูลแมวได้'
@@ -222,9 +238,13 @@ async function uploadCatPhoto(req, res) {
                 message: 'กรุณาอัปโหลดรูปภาพ'
             });
         }
+
+        // ลบข้อมูลรูปภาพเดิมของแมวตัวนี้ เพื่อรองรับการอัปโหลดรูปใหม่แทนที่รูปเดิม
+        await pool.query('DELETE FROM catphotos WHERE cat_id = ?', [catId]);
+
         for (const file of files) {
             const normalizedPath = file.path.replace(/\\/g, '/');
-            const fullUrl = `http://10.0.2.2:3000/${normalizedPath}`;
+            const fullUrl = `/${normalizedPath}`;
             await pool.query(
                 `INSERT INTO catphotos (cat_id, image_url) VALUES (?,?)`,
                 [catId, fullUrl]
@@ -238,7 +258,6 @@ async function uploadCatPhoto(req, res) {
         });
     } catch (error) {
         console.error('uploadCatPhoto error:', error);
-        require('fs').writeFileSync('last_upload_error.txt', error.toString() + '\\n' + error.stack);
         return res.status(500).json({
             success: false,
             message: 'ไม่สามารถอัปโหลดรูปภาพได้'
@@ -299,7 +318,7 @@ async function updateCatPhoto(req, res) {
         }
 
         const normalizedPath = file.path.replace(/\\/g, '/');
-        const fullUrl = `http://10.0.2.2:3000/${normalizedPath}`;
+        const fullUrl = `/${normalizedPath}`;
 
         const [result] = await pool.query(`
             UPDATE catphotos 
@@ -338,8 +357,14 @@ async function updateCat(req, res) {
             reqTime,
             reqExperience,
             reqOtherPets,
-            status
+            status,
+            goodWithChildren,
+            goodWithCats,
+            goodWithDogs,
+            hasSpecialNeeds
         } = req.body;
+
+        console.log('updateCat req.body:', req.body);
 
         const pet_gender = gender === 'ผู้' ? 'male' : (gender === 'เมีย' ? 'female' : gender);
 
@@ -377,7 +402,7 @@ async function updateCat(req, res) {
 
         const [result] = await pool.query(`
             UPDATE cats 
-            SET pet_name = ?, pet_breed = ?, gender = ?, age_months = ?, is_sterilized = ?, is_vaccinated = ?, health_note = ?, req_space_level = ?, req_attention = ?, req_experience_level = COALESCE(?, req_experience_level), personality = ?, status = COALESCE(?, status)
+            SET pet_name = ?, pet_breed = ?, gender = ?, age_months = ?, is_sterilized = ?, is_vaccinated = ?, health_note = ?, req_space_level = ?, req_attention = ?, req_experience_level = COALESCE(?, req_experience_level), personality = ?, status = COALESCE(?, status), good_with_children = COALESCE(?, good_with_children), good_with_cats = COALESCE(?, good_with_cats), good_with_dogs = COALESCE(?, good_with_dogs), has_special_needs = COALESCE(?, has_special_needs)
             WHERE cat_id = ?
         `, [
             name || null,
@@ -392,6 +417,10 @@ async function updateCat(req, res) {
             req_experience_level,
             personality_mapped,
             status || null,
+            goodWithChildren !== undefined ? (goodWithChildren ? 1 : 0) : null,
+            goodWithCats !== undefined ? (goodWithCats ? 1 : 0) : null,
+            goodWithDogs !== undefined ? (goodWithDogs ? 1 : 0) : null,
+            hasSpecialNeeds !== undefined ? (hasSpecialNeeds ? 1 : 0) : null,
             catId
         ]);
 

@@ -11,7 +11,7 @@ const pool = require('../config/database');
 //แปลงระดับ
 const levelToNumber = (level) => {
     if (level === undefined || level === null || level === '') {
-        return 0;
+        return -1;
     }
 
     const normalizedLevel = String(level)
@@ -38,7 +38,7 @@ const levelToNumber = (level) => {
         มาก: 3,
     };
 
-    return levelMap[normalizedLevel] ?? 0;
+    return levelMap[normalizedLevel] ?? -1;
 };
 
 const normalizeBoolean = (value) => {
@@ -113,7 +113,7 @@ const calculateLevelScore = (
     const requireValue = levelToNumber(requireLevel);
 
     // ถ้าข้อมูลไม่ถูกต้องหรือไม่มีข้อมูล
-    if (userValue === 0 || requireValue === 0) {
+    if (userValue === -1 || requireValue === -1) {
         return {
             score: 0,
             maxScore: 0,
@@ -360,19 +360,39 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
         disqualifications.push('มีสมาชิกในบ้านแพ้ขนแมวรุนแรง');
     }
 
-    if (
-        profile.has_children === true &&
-        !mysqlBoolean(cat.good_with_children)
-    ) {
-        disqualifications.push('แมวตัวนี้ไม่เหมาะกับบ้านที่มีเด็กเล็ก');
+    let bonusScore = 0;
+
+    if (profile.has_children === true) {
+        if (mysqlBoolean(cat.good_with_children)) {
+            bonusScore += 5;
+            reasons.push('แมวสามารถเข้ากับเด็กได้ดี');
+        } else {
+            warnings.push('แมวตัวนี้ไม่เคยเลี้ยงกับเด็กหรืออาจไม่เหมาะกับเด็กเล็ก');
+        }
     }
 
-    if (profile.has_cats === true && !mysqlBoolean(cat.good_with_cats)) {
-        disqualifications.push('แมวตัวนี้ไม่เหมาะกับบ้านที่มีแมวตัวอื่น');
+    const needsSinglePet = cat.personality && cat.personality.includes('ต้องการเลี้ยงเดี่ยว');
+
+    if (profile.has_cats === true) {
+        if (needsSinglePet) {
+            disqualifications.push('แมวตัวนี้ต้องการเลี้ยงเดี่ยว ไม่เหมาะกับบ้านที่มีแมว');
+        } else if (mysqlBoolean(cat.good_with_cats)) {
+            bonusScore += 5;
+            reasons.push('แมวสามารถเข้ากับแมวตัวอื่นได้ดี');
+        } else {
+            warnings.push('แมวตัวนี้ไม่เคยเลี้ยงรวมกับแมวอื่น');
+        }
     }
 
-    if (profile.has_dogs === true && !mysqlBoolean(cat.good_with_dogs)) {
-        disqualifications.push('แมวตัวนี้ไม่เหมาะกับบ้านที่มีสุนัข');
+    if (profile.has_dogs === true) {
+        if (needsSinglePet) {
+            disqualifications.push('แมวตัวนี้ต้องการเลี้ยงเดี่ยว ไม่เหมาะกับบ้านที่มีสุนัข');
+        } else if (mysqlBoolean(cat.good_with_dogs)) {
+            bonusScore += 5;
+            reasons.push('แมวสามารถเข้ากับสุนัขได้ดี');
+        } else {
+            warnings.push('แมวตัวนี้ไม่เคยเลี้ยงรวมกับสุนัข');
+        }
     }
 
     if (
@@ -461,11 +481,12 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
     }
 
 
-    const totalScore =
+    let totalScore =
         spaceResult.score +
         budgetResult.score +
         attentionResult.score +
-        experienceResult.score;
+        experienceResult.score +
+        bonusScore;
 
     const totalMaxScore =
         spaceResult.maxScore +
@@ -473,6 +494,10 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
         attentionResult.maxScore +
         experienceResult.maxScore;
 
+
+    if (totalScore > totalMaxScore) {
+        totalScore = totalMaxScore;
+    }
 
     const matchPercentage = totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0;
 
@@ -620,7 +645,7 @@ const validateProfile = (body) => {
 
     if (!space_level) {
         errors.push('กรุณาระบุระดับพื้นที่');
-    } else if (levelToNumber(space_level) === 0) {
+    } else if (levelToNumber(space_level) === -1) {
         errors.push('ระดับพื้นที่ไม่ถูกต้อง');
     }
 
@@ -639,13 +664,13 @@ const validateProfile = (body) => {
 
     if (!attention_level) {
         errors.push('กรุณาระบุระดับเวลาดูแล');
-    } else if (levelToNumber(attention_level) === 0) {
+    } else if (levelToNumber(attention_level) === -1) {
         errors.push('ระดับเวลาดูแลไม่ถูกต้อง');
     }
 
     if (!experience_level) {
         errors.push('กรุณาระบุระดับประสบการณ์');
-    } else if (levelToNumber(experience_level) === 0) {
+    } else if (levelToNumber(experience_level) === -1) {
         errors.push('ระดับประสบการณ์ไม่ถูกต้อง');
     }
 

@@ -4,48 +4,17 @@ async function createAdopterProfile(req, res) {
     try {
         const {
             userId,
-            housingType,
-            spaceSize,
-            hasPets,
-            freeTime,
+            living_space_type,
+            space_size,
+            has_other_pets,
+            daily_free_hours,
             experience,
-            hasChildren,
-            budget
+            has_children,
+            max_monthly_budget
         } = req.body;
 
         if (!userId) {
             return res.status(400).json({ success: false, message: 'กรุณาระบุ userId' });
-        }
-
-        // Data Mapping
-        let living_space_type = 'house';
-        let space_size = 'medium';
-        if (housingType === 'คอนโด') { living_space_type = 'condo'; }
-        else if (housingType === 'หอพัก') { living_space_type = 'apartment'; }
-        else if (housingType === 'บ้านเดี่ยว') { living_space_type = 'house'; }
-
-        if (spaceSize === 'กว้างขวาง' || spaceSize === 'large') space_size = 'large';
-        else if (spaceSize === 'คับแคบ' || spaceSize === 'small') space_size = 'small';
-        else if (spaceSize === 'ปานกลาง' || spaceSize === 'medium') space_size = 'medium';
-
-        const has_other_pets = hasPets === 'มี' ? 1 : 0;
-        const has_children_mapped = hasChildren === 'มี' ? 1 : 0;
-
-        let daily_free_hours = 'medium'; // default
-        if (freeTime === 'low' || freeTime === 'น้อย') daily_free_hours = 'low';
-        else if (freeTime === 'high' || freeTime === 'มาก') daily_free_hours = 'high';
-
-        // experience: UI ส่งมาเป็นภาษาไทย แล้ว backend แปลงเป็น low/medium/high
-        let exp_mapped = 'low'; // default: มือใหม่ / ไม่มี
-        if (experience === 'พื้นฐาน') exp_mapped = 'medium';
-        else if (experience === 'ระดับสูง') exp_mapped = 'high';
-
-        let max_monthly_budget = 3000; // default
-        if (budget === 'low' || budget === 'น้อย') max_monthly_budget = 1000;
-        else if (budget === 'high' || budget === 'มาก') max_monthly_budget = 5000;
-        else if (budget === 'medium' || budget === 'ปานกลาง') max_monthly_budget = 3000;
-        else if (!Number.isNaN(Number(budget)) && Number(budget) > 0) {
-            max_monthly_budget = Number(budget);
         }
 
         // Insert into user_profiles
@@ -60,14 +29,14 @@ async function createAdopterProfile(req, res) {
                 UPDATE user_profiles 
                 SET living_space_type = ?, space_size = ?, max_monthly_budget = ?, daily_free_hours = ?, has_other_pets = ?, has_children = ?, experience = ?
                 WHERE user_id = ?
-            `, [living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children_mapped, exp_mapped, userId]);
+            `, [living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children, experience, userId]);
         } else {
             // Insert new
             const [result] = await pool.query(`
                 INSERT INTO user_profiles 
                 (user_id, living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children, experience)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `, [userId, living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children_mapped, exp_mapped]);
+            `, [userId, living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children, experience]);
             profileId = result.insertId;
         }
 

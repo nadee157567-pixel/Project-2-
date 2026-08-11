@@ -44,6 +44,7 @@ exports.getChats = async (req, res) => {
                 c.match_id, 
                 c.created_at,
                 aa.applicant_id,
+                aa.status AS application_status,
                 cat.poster_id,
                 cat.pet_name,
                 cat.pet_breed,
@@ -154,6 +155,27 @@ exports.updateIsRead = async (req, res) => {
         }
 
         res.status(200).json({ success: true, message: 'อัปเดตสำเร็จ' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+exports.deleteChat = async (req, res) => {
+    try {
+        const { roomId } = req.params;
+
+        if (!roomId) {
+            return res.status(400).json({ success: false, message: 'กรุณาระบุ roomId' });
+        }
+
+        // 1. Delete messages first due to foreign key constraint
+        await pool.query('DELETE FROM messages WHERE room_id = ?', [roomId]);
+        
+        // 2. Delete the conversation room
+        await pool.query('DELETE FROM conversations WHERE room_id = ?', [roomId]);
+
+        res.status(200).json({ success: true, message: 'ลบแชทสำเร็จ' });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: 'Server error' });

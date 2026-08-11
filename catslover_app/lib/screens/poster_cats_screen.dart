@@ -29,6 +29,7 @@ class _PosterCatsScreenState extends State<PosterCatsScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
+          if (!mounted) return;
           setState(() {
             _cats = data['data'];
           });
@@ -143,7 +144,7 @@ class _PosterCatsScreenState extends State<PosterCatsScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(15),
             child: Image.network(
-              imageUrl,
+              ApiConfig.getImageUrl(imageUrl),
               width: 80,
               height: 80,
               fit: BoxFit.cover,
@@ -158,7 +159,7 @@ class _PosterCatsScreenState extends State<PosterCatsScreen> {
               children: [
                 Text(petName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                 const SizedBox(height: 4),
-                Text("$breed อายุ $age เดือน", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text("$breed • ${ApiConfig.getShortAgeDesc(age)}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 8),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,

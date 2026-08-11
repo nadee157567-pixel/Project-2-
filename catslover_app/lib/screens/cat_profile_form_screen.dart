@@ -111,26 +111,60 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       else requiredExperience = 'ไม่จำเป็น';
 
       if (requiredOtherPets == 'เข้ากันได้ดี') {
-        okWithCat = true;
-        okWithDog = true;
+        if (data['good_with_cats'] != null) {
+          okWithCat = data['good_with_cats']?.toString() == '1' || data['good_with_cats']?.toString() == 'true';
+        } else {
+          okWithCat = true;
+        }
+        if (data['good_with_dogs'] != null) {
+          okWithDog = data['good_with_dogs']?.toString() == '1' || data['good_with_dogs']?.toString() == 'true';
+        } else {
+          okWithDog = true;
+        }
+      } else {
+        okWithCat = false;
+        okWithDog = false;
       }
 
       if (data['good_with_children'] != null) {
-        goodWithChildren = data['good_with_children'] == 1 || data['good_with_children'] == true;
+        goodWithChildren = data['good_with_children']?.toString() == '1' || data['good_with_children']?.toString() == 'true';
       }
       if (data['has_special_needs'] != null) {
-        hasSpecialNeeds = data['has_special_needs'] == 1 || data['has_special_needs'] == true;
-      }
-      if (data['good_with_cats'] != null) {
-        okWithCat = data['good_with_cats'] == 1 || data['good_with_cats'] == true;
-      }
-      if (data['good_with_dogs'] != null) {
-        okWithDog = data['good_with_dogs'] == 1 || data['good_with_dogs'] == true;
+        hasSpecialNeeds = data['has_special_needs']?.toString() == '1' || data['has_special_needs']?.toString() == 'true';
       }
     }
   } 
 
   void _nextPage() {
+    if (widget.editCatData == null && _selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเพิ่มรูปภาพน้องแมวอย่างน้อย 1 รูป")));
+      return;
+    }
+    if (_catNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอกชื่อน้องแมว")));
+      return;
+    }
+    if (selectedBreed == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสายพันธุ์")));
+      return;
+    }
+    if (selectedGender == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเพศ")));
+      return;
+    }
+    if (selectedAge == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกช่วงอายุ")));
+      return;
+    }
+    if (sterilizationStatus == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสถานะการทำหมัน")));
+      return;
+    }
+    if (vaccinationStatus == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสถานะการฉีดวัคซีน")));
+      return;
+    }
+
     setState(() => _currentPage = 1);
   }
 
@@ -141,6 +175,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
   Future<void> _pickImages() async {
     final List<XFile> images = await _picker.pickMultiImage();
     if (images.isNotEmpty) {
+      if (!mounted) return;
       setState(() {
         _selectedImages.addAll(images);
         if (_selectedImages.length > 5) {
@@ -168,15 +203,87 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
     
     try {
       var response = await request.send();
+      final respBody = await response.stream.bytesToString();
       if (response.statusCode != 200 && response.statusCode != 201) {
-        print("Failed to upload photos: ${response.statusCode}");
+        print("Failed to upload photos: ${response.statusCode} - $respBody");
+        if (mounted) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("อัปโหลดรูปภาพล้มเหลว: ${response.statusCode}\n$respBody"))
+          );
+        }
+      } else {
+        print("Upload photos successfully!");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("อัปโหลดรูปภาพสำเร็จ!"))
+          );
+        }
       }
     } catch (e) {
       print("Upload error: $e");
+      if (mounted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: $e"))
+        );
+      }
     }
   }
 
   Future<void> _submitCatPost() async {
+    // Validate Page 1 fields
+    if (widget.editCatData == null && _selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเพิ่มรูปภาพน้องแมวอย่างน้อย 1 รูป")));
+      return;
+    }
+    if (_catNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอกชื่อน้องแมว")));
+      return;
+    }
+    if (selectedBreed == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสายพันธุ์")));
+      return;
+    }
+    if (selectedGender == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเพศ")));
+      return;
+    }
+    if (selectedAge == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกช่วงอายุ")));
+      return;
+    }
+    if (sterilizationStatus == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสถานะการทำหมัน")));
+      return;
+    }
+    if (vaccinationStatus == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสถานะการฉีดวัคซีน")));
+      return;
+    }
+
+    // Validate Page 2 fields (except precautions / special care)
+    if (requiredHousing == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเงื่อนไขพื้นที่อยู่อาศัยที่ต้องการ")));
+      return;
+    }
+    if (requiredTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเงื่อนไขเวลาและการดูแลที่ต้องการ")));
+      return;
+    }
+    if (requiredBudget == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเงื่อนไขงบประมาณที่ต้องการ")));
+      return;
+    }
+    if (requiredOtherPets == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเงื่อนไขการเข้ากับสัตว์อื่น")));
+      return;
+    }
+    if (requiredExperience == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกเงื่อนไขประสบการณ์ผู้เลี้ยงที่ต้องการ")));
+      return;
+    }
+
     if (_isSaving) return;
     setState(() => _isSaving = true);
 

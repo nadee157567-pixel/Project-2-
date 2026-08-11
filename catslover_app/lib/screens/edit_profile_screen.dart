@@ -36,7 +36,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String _housingType = 'บ้านเดี่ยว';
   String _spaceSize = 'ปานกลาง';
   String _freeTime = 'ปานกลาง';
-  String _budget = 'ปานกลาง';
+  final TextEditingController _budgetController = TextEditingController();
   String _experience = 'พื้นฐาน';
   String _hasChildren = 'ไม่มี';
   String _hasPets = 'ไม่มี';
@@ -83,16 +83,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       if (data['max_monthly_budget'] != null) {
-        String budget = data['max_monthly_budget'].toString();
-        if (budget == 'low') _budget = 'น้อย';
-        else if (budget == 'high') _budget = 'มาก';
-        else if (budget == 'medium') _budget = 'ปานกลาง';
-        else {
-          double b = double.tryParse(budget) ?? 0.0;
-          if (b <= 1000) _budget = 'น้อย';
-          else if (b >= 5000) _budget = 'มาก';
-          else _budget = 'ปานกลาง';
-        }
+        _budgetController.text = data['max_monthly_budget'].toString();
       }
 
       if (data['experience'] == 'medium' || data['experience'] == 'beginner') _experience = 'พื้นฐาน';
@@ -151,13 +142,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'userId': widget.userId,
-          'housingType': _housingType,
-          'spaceSize': _spaceSize,
-          'hasPets': _hasPets,
-          'freeTime': _freeTime,
-          'experience': _experience,
-          'hasChildren': _hasChildren,
-          'budget': _budget,
+          'living_space_type': _housingType == 'บ้านเดี่ยว' ? 'house' : (_housingType == 'คอนโด' ? 'condo' : 'apartment'),
+          'space_size': _spaceSize == 'กว้างขวาง' ? 'large' : (_spaceSize == 'คับแคบ' ? 'small' : 'medium'),
+          'has_other_pets': _hasPets == 'มี' ? 1 : 0,
+          'daily_free_hours': _freeTime == 'น้อย' ? 'low' : (_freeTime == 'มาก' ? 'high' : 'medium'),
+          'experience': _experience == 'พื้นฐาน' ? 'beginner' : (_experience == 'ระดับสูง' ? 'experienced' : 'none'),
+          'has_children': _hasChildren == 'มี' ? 1 : 0,
+          'max_monthly_budget': double.tryParse(_budgetController.text) ?? 0.0,
         }),
       );
 
@@ -302,13 +293,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ], (val) {
                       setState(() => _freeTime = val!);
                     }),
-                    _buildDropdown('งบประมาณต่อเดือน', _budget, [
-                      {'value': 'น้อย', 'label': 'น้อย (ต่ำกว่า 1,000 บาท)'},
-                      {'value': 'ปานกลาง', 'label': 'ปานกลาง (1,000 - 3,000 บาท)'},
-                      {'value': 'มาก', 'label': 'มาก (3,000 บาทขึ้นไป)'}
-                    ], (val) {
-                      setState(() => _budget = val!);
-                    }),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text('งบประมาณต่อเดือน (บาท)', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    TextFormField(
+                      controller: _budgetController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        hintText: 'เช่น 3000',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.isEmpty) return 'กรุณากรอกงบประมาณ';
+                        if (double.tryParse(val) == null) return 'กรุณากรอกตัวเลขที่ถูกต้อง';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10),
                     _buildDropdown('ประสบการณ์', _experience, [
                       {'value': 'ไม่มี', 'label': 'ไม่มี/มือใหม่'},
                       {'value': 'พื้นฐาน', 'label': 'พื้นฐาน (เคยเลี้ยง)'},
@@ -316,7 +319,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ], (val) {
                       setState(() => _experience = val!);
                     }),
-                    _buildDropdown('เด็กเล็กในบ้าน/แพ้ขนแมว', _hasChildren, [
+                    _buildDropdown('เด็กเล็กในบ้าน', _hasChildren, [
                       {'value': 'ไม่มี', 'label': 'ไม่มี'},
                       {'value': 'มี', 'label': 'มี'}
                     ], (val) {

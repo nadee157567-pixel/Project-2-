@@ -23,6 +23,21 @@ class _HomeScreenState extends State<HomeScreen> {
   List cats = [];
   List filteredCats = [];
   bool isLoading = true;
+  String? username;
+  Map<String, dynamic>? userInfo;
+
+  String _formatDate(String? isoDate) {
+    if (isoDate == null) return "ไม่ระบุ";
+    try {
+      final date = DateTime.parse(isoDate);
+      final List<String> thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+      final month = thaiMonths[date.month - 1];
+      final year = date.year + 543;
+      return "$month $year";
+    } catch (e) {
+      return "-";
+    }
+  }
 
   // State สำหรับ Filter
   String searchQuery = "";
@@ -53,6 +68,25 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     fetchCats();
+    fetchUserInfo();
+  }
+
+  Future<void> fetchUserInfo() async {
+    try {
+      final response = await http.get(Uri.parse(ApiConfig.baseUrl + '/auth/user/${widget.userId}'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          if (!mounted) return;
+          setState(() {
+            userInfo = data['data'];
+            username = data['data']['username'] ?? data['data']['fullname'];
+          });
+        }
+      }
+    } catch (e) {
+      print('Error fetching user info in HomeScreen: $e');
+    }
   }
 
   List<int> _requestedCatIds = [];
@@ -76,6 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
+        if (!mounted) return;
         setState(() {
           // ดึงข้อมูลจาก responseData['data'] เพราะ API ส่ง { success: true, count: X, data: [...] }
           cats = responseData['data'] ?? [];
@@ -99,50 +134,29 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> fetchRecommendedCats() async {
     setState(() { isLoadingRecommended = true; });
     try {
-      // 1. ดึงโปรไฟล์
-      final profileRes = await http.get(Uri.parse(ApiConfig.baseUrl + '/adopters/profile/${widget.userId}'));
-      if (profileRes.statusCode != 200) {
-        setState(() { isLoadingRecommended = false; });
-        return;
-      }
-      final profileData = json.decode(profileRes.body)['profile'];
-      if (profileData == null) {
-        setState(() { isLoadingRecommended = false; });
-        return;
-      }
-
-      // 2. จัดรูปแบบข้อมูลให้เข้ากับ matchAllCats
-      String freeHoursStr = profileData['daily_free_hours']?.toString() ?? 'medium';
-      String attentionLevel = freeHoursStr; // 'low', 'medium', 'high' matches attention_level format
-
-      String budgetStr = profileData['max_monthly_budget']?.toString() ?? 'medium';
-
-      final reqBody = {
-        "housing_type": profileData['living_space_type'] ?? 'house',
-        "space_level": profileData['space_size'] ?? 'medium',
-        "budget_level": budgetStr, // Used budget_level instead of monthly_budget
-        "attention_level": attentionLevel,
-        "experience_level": profileData['experience'] ?? 'none',
-        "pets_allowed": true,
-        "has_children": (profileData['has_children'] == 1),
-        "has_cats": (profileData['has_other_pets'] == 1),
-        "has_dogs": false,
-        "has_severe_allergy": false,
-        "accepts_special_needs": false,
-        "applicant_id": widget.userId
-      };
-
-      // 3. เรียก API matching
+      // 1. เรียก API matching โดยส่งแค่ userId
+      // Backend จะดึงโปรไฟล์จากฐานข้อมูลและประเมินให้โดยอัตโนมัติ
       final matchRes = await http.post(
         Uri.parse(ApiConfig.baseUrl + '/matching/'),
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode(reqBody)
+        body: jsonEncode({"userId": widget.userId})
       );
 
       if (matchRes.statusCode == 200) {
         final matchData = json.decode(matchRes.body);
+        if (!mounted) return;
         setState(() {
-          recommendedCats = matchData['data'] ?? [];
+          List<dynamic> recs = matchData['data'] ?? [];
+          recs.sort((a, b) => (b['match_percentage'] as num).compareTo(a['match_percentage'] as num));
+          recs = recs.where((cat) {
+            if ((cat['match_percentage'] as num) < 80) return false;
+            if (cat['eligible'] == false) return false;
+            if (cat['poster_id'] == widget.userId) return false;
+            if (_requestedCatIds.contains(cat['cat_id'])) return false;
+            if (cat['status'] == 'adopted') return false;
+            return true;
+          }).toList();
+          recommendedCats = recs;
           isLoadingRecommended = false;
         });
       } else {
@@ -205,6 +219,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return matchesSearch && matchesBreed && matchesAge;
       }).toList();
+
+      if (recommendedCats.isNotEmpty) {
+        recommendedCats = recommendedCats.where((cat) {
+          if (_requestedCatIds.contains(cat['cat_id'])) return false;
+          return true;
+        }).toList();
+      }
     });
   }
 
@@ -439,7 +460,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       catId: int.tryParse(cat['cat_id'].toString()) ?? 0, 
                     ),
                   ),
-                );
+                ).then((_) {
+                  fetchRecommendedCats();
+                });
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.pink[400],
@@ -469,54 +492,12 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header: Profile & Greeting
+            // Header: Profile Card style
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "วันนี้คุณสนใจรับน้องแมวไปเลี้ยงสักตัวไหมครับ",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 5,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: Icon(Icons.chat_bubble_outline, color: Colors.pink[300]),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ChatListScreen(userId: widget.userId),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -524,19 +505,73 @@ class _HomeScreenState extends State<HomeScreen> {
                         MaterialPageRoute(
                           builder: (context) => UserProfileScreen(userId: widget.userId),
                         ),
-                      );
+                      ).then((_) {
+                        fetchRecommendedCats();
+                      });
                     },
                     child: Container(
-                      width: 50,
-                      height: 50,
+                      width: 60,
+                      height: 60,
                       decoration: BoxDecoration(
-                        color: Colors.brown[300],
+                        color: Colors.indigo[200],
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.person, color: Colors.white, size: 30),
+                      child: const Icon(Icons.person, size: 36, color: Colors.white),
                     ),
-                  )
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              username ?? 'กำลังโหลด...',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.verified, color: Colors.blue, size: 16),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          userInfo?['role'] == 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ขอรับเลี้ยง',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "เข้าร่วมเมื่อ ${_formatDate(userInfo?['created_at'])}",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 10, 20, 15),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "กำลังมองหาเพื่อนเหมียวที่น่ารักอยู่ใช่ไหม",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
               ),
             ),
 
@@ -677,7 +712,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 ? ClipRRect(
                                                     borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                                                     child: Image.network(
-                                                      cat['image_url'],
+                                                      ApiConfig.getImageUrl(cat['image_url']),
                                                       fit: BoxFit.cover,
                                                       errorBuilder: (context, error, stackTrace) =>
                                                           const Icon(Icons.pets, color: Colors.grey, size: 40),
@@ -715,7 +750,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            "${cat['pet_breed'] ?? 'ไม่ระบุ'} อายุ ${cat['age_months']} เดือน",
+                                            "${cat['pet_breed'] ?? 'ไม่ระบุ'} • ${ApiConfig.getShortAgeDesc(cat['age_months'])}",
                                             style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -743,16 +778,25 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _selectedIndex == 0 ? _buildAdopterView() : _buildPosterView(),
+      body: _selectedIndex == 0
+          ? _buildAdopterView()
+          : _selectedIndex == 1
+              ? ChatListScreen(userId: widget.userId)
+              : _buildPosterView(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         selectedItemColor: Colors.pink[400],
         unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'ผู้รับเลี้ยง',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble),
+            label: 'แชท',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.add_circle_outline),

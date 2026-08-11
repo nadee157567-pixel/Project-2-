@@ -5,6 +5,7 @@ import 'adopter_profile_screen.dart';
 import 'cat_evaluation_screen.dart';
 import 'cat_profile_form_screen.dart';
 import 'poster_profile_screen.dart';
+import '../config/api_config.dart';
 
 class CatDetailScreen extends StatefulWidget {
   final int userId;
@@ -18,16 +19,43 @@ class CatDetailScreen extends StatefulWidget {
 
 class _CatDetailScreenState extends State<CatDetailScreen> {
   bool _isLoading = false;
+  Map<String, dynamic>? _currentCat;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentCat = widget.catData;
+    _loadCatDetails();
+  }
+
+  Future<void> _loadCatDetails() async {
+    try {
+      final response = await http.get(
+        Uri.parse(ApiConfig.baseUrl + '/cats/${widget.catData['cat_id']}')
+      );
+      if (response.statusCode == 200) {
+        final resData = json.decode(response.body);
+        if (resData['success'] == true && resData['data'] != null) {
+          if (!mounted) return;
+          setState(() {
+            _currentCat = resData['data'];
+          });
+        }
+      }
+    } catch (e) {
+      print("Error loading cat details: $e");
+    }
+  }
 
   void _handleEvaluationClick() {
-    // เนื่องจากเราเช็คโปรไฟล์มาตั้งแต่หน้า HomeScreen แล้ว จึงไม่ต้องเช็คซ้ำ
+    final cat = _currentCat ?? widget.catData;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => EvaluationScreen(
           userId: widget.userId,
-          catId: int.tryParse(widget.catData['cat_id'].toString()) ?? 0,
-          catImageUrl: widget.catData['image_url'] ?? '',
+          catId: int.tryParse(cat['cat_id'].toString()) ?? 0,
+          catImageUrl: cat['image_url'] ?? '',
         ),
       ),
     );
@@ -35,7 +63,7 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cat = widget.catData;
+    final cat = _currentCat ?? widget.catData;
     
     return Scaffold(
       backgroundColor: const Color(0xFFFFF5F5), // Pale pink background
@@ -64,7 +92,7 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                                 bottomRight: Radius.circular(30),
                               ),
                               child: Image.network(
-                                cat['image_url'],
+                                ApiConfig.getImageUrl(cat['image_url']),
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) =>
                                     const Icon(Icons.pets, color: Colors.grey, size: 80),
@@ -146,11 +174,11 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                         
                         // Specs
                         _buildDetailRow("เพศ", cat['gender'] == 'male' ? 'ผู้' : cat['gender'] == 'female' ? 'เมีย' : '-'),
-                        _buildDetailRow("อายุ", "${cat['age_months']} เดือน"),
+                        _buildDetailRow("อายุ", _mapAgeRange(cat['age_months'])),
                         _buildDetailRow("สายพันธุ์", cat['pet_breed'] ?? '-'),
                         _buildDetailRow("เคยรับวัคซีนแล้ว", cat['is_vaccinated'] ?? '-'), // สมมติว่ามีฟิลด์นี้ในข้อมูล ถ้าไม่มีจะแสดง -
                         _buildDetailRow("ทำหมันแล้ว", cat['is_sterilized'] ?? '-'), // สมมติ
-                        _buildDetailRow("ลักษณะนิสัย", cat['personality'] ?? '-'),
+                        _buildDetailRow("ลักษณะนิสัย", _mapPersonality(cat)),
                         _buildDetailRow("สุขภาพ", cat['health_note'] ?? 'แข็งแรงดี'),
                       ],
                     ),
@@ -251,9 +279,9 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                     ),
                   )
                 : ElevatedButton(
-              onPressed: _isLoading ? null : () {
+              onPressed: _isLoading ? null : () async {
                 if (cat['poster_id'].toString() == widget.userId.toString()) {
-                  Navigator.push(
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => CatProfileFormScreen(
@@ -262,6 +290,7 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                       ),
                     ),
                   );
+                  _loadCatDetails();
                 } else {
                   _handleEvaluationClick();
                 }
@@ -319,5 +348,32 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
     if (val == 'large' || val == 'high') return "ต้องการคนที่มีเวลาเล่นด้วย";
     if (val == 'small' || val == 'low') return "ดูแลตัวเองได้ ไม่ติดคนมาก";
     return "ต้องการเวลาดูแลปานกลาง";
+  }
+
+  String _mapAgeRange(dynamic ageMonths) {
+    if (ageMonths == null) return '-';
+    int age = int.tryParse(ageMonths.toString()) ?? 12;
+    if (age < 2) return "ต่ำกว่า 2 เดือน (ยังไม่หย่านม)";
+    if (age <= 6) return "2 - 6 เดือน (ลูกแมว)";
+    if (age <= 12) return "มากกว่า 6 เดือน - 1 ปี (แมววัยรุ่น)";
+    if (age <= 84) return "มากกว่า 1 ปี - 7 ปี (แมวโตเต็มวัย)";
+    return "มากกว่า 7 ปี (แมวสูงวัย)";
+  }
+
+  String _mapPersonality(Map<String, dynamic> cat) {
+    String p = cat['personality'] ?? '-';
+    if (p.contains('เข้ากันได้ดี')) {
+      List<String> list = [];
+      if (cat['good_with_cats']?.toString() == '1' || cat['good_with_cats']?.toString() == 'true') {
+        list.add('แมว');
+      }
+      if (cat['good_with_dogs']?.toString() == '1' || cat['good_with_dogs']?.toString() == 'true') {
+        list.add('สุนัข');
+      }
+      if (list.isNotEmpty) {
+        return "เข้ากับสัตว์อื่น: เข้ากันได้ดี (${list.join(', ')})";
+      }
+    }
+    return p;
   }
 }

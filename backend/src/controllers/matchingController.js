@@ -19,6 +19,7 @@ const levelToNumber = (level) => {
         .toLowerCase();
 
     const levelMap = {
+        none: 0,
         low: 1,
         small: 1,
         beginner: 1,
@@ -359,10 +360,7 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
         disqualifications.push('มีสมาชิกในบ้านแพ้ขนแมวรุนแรง');
     }
 
-    if (
-        profile.has_children === true &&
-        !mysqlBoolean(cat.good_with_children)
-    ) {
+    if (profile.has_children === true && !mysqlBoolean(cat.good_with_children)) {
         disqualifications.push('แมวตัวนี้ไม่เหมาะกับบ้านที่มีเด็กเล็ก');
     }
 
@@ -720,22 +718,22 @@ const matchSelectedCat = async (req, res) => {
             const [rows] = await pool.query('SELECT * FROM user_profiles WHERE user_id = ?', [req.body.userId]);
             if (rows.length > 0) {
                 const p = rows[0];
-                let attention_level = 'medium';
-                if (p.daily_free_hours >= 6) attention_level = 'high';
-                else if (p.daily_free_hours <= 2) attention_level = 'low';
+                // let attention_level = 'medium';
+                // if (p.daily_free_hours >= 6) attention_level = 'high';
+                // else if (p.daily_free_hours <= 2) attention_level = 'low';
 
                 profileData = {
                     housing_type: p.living_space_type,
                     space_level: p.space_size,
                     monthly_budget: p.max_monthly_budget,
-                    attention_level: attention_level,
+                    attention_level: p.daily_free_hours,
                     experience_level: p.experience,
                     pets_allowed: true, // ค่า default
                     has_children: p.has_children === 1,
                     has_cats: p.has_other_pets === 1,
                     has_dogs: false,
                     has_severe_allergy: false,
-                    accepts_special_needs: true
+                    accepts_special_needs: true // อนุญาตให้แมวพิเศษผ่านการประเมินได้
                 };
             }
         }
@@ -964,15 +962,15 @@ const matchAllCats = async (req, res) => {
             const [rows] = await pool.query('SELECT * FROM user_profiles WHERE user_id = ?', [applicantId]);
             if (rows.length > 0) {
                 const p = rows[0];
-                let attention_level = 'medium';
-                if (p.daily_free_hours >= 6) attention_level = 'high';
-                else if (p.daily_free_hours <= 2) attention_level = 'low';
+                // let attention_level = 'medium';
+                // if (p.daily_free_hours >= 6) attention_level = 'high';
+                // else if (p.daily_free_hours <= 2) attention_level = 'low';
 
                 profileData = {
                     housing_type: p.living_space_type,
                     space_level: p.space_size,
                     monthly_budget: p.max_monthly_budget,
-                    attention_level: attention_level,
+                    attention_level: p.daily_free_hours,
                     experience_level: p.experience,
                     pets_allowed: true, // ค่า default
                     has_children: p.has_children === 1,

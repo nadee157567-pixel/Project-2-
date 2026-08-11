@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'cat_detail_screen.dart';
 import '../config/api_config.dart';
+import 'cat_adopters_list_screen.dart';
+import 'cat_profile_form_screen.dart';
 
 class PosterProfileScreen extends StatefulWidget {
   final int posterId;
@@ -75,37 +77,37 @@ class _PosterProfileScreenState extends State<PosterProfileScreen> {
     }
   }
 
-  Widget _buildCatGrid(List<dynamic> cats) {
+  Widget _buildCatList(List cats, String listStatus) {
     if (cats.isEmpty) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20),
-        child: Text("ยังไม่มีข้อมูลแมวในหมวดหมู่นี้", style: TextStyle(color: Colors.grey)),
+        padding: EdgeInsets.symmetric(vertical: 10),
+        child: Text("ยังไม่มีข้อมูลแมวในหมวดหมู่นี้", style: TextStyle(color: Colors.grey, fontSize: 13)),
       );
     }
-    
+
     return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.8, 
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: widget.currentUserId == widget.posterId ? 0.6 : 0.72,
       ),
       itemCount: cats.length,
       itemBuilder: (context, index) {
         final Map<String, dynamic> cat = Map<String, dynamic>.from(cats[index]);
         cat['poster_id'] = widget.posterId;
-        
+        final String currentStatus = cat['status'] ?? 'available';
+
         return GestureDetector(
           onTap: () {
-            // Fetch detailed cat data and navigate
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => CatDetailScreen(
                   userId: widget.currentUserId,
-                  catData: cat, // Basic data passed, detailed data fetched inside if necessary
+                  catData: cat,
                 ),
               ),
             );
@@ -113,75 +115,96 @@ class _PosterProfileScreenState extends State<PosterProfileScreen> {
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(15),
             ),
+            padding: const EdgeInsets.all(8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                          color: Colors.grey[200],
-                        ),
-                        child: cat['image_url'] != null
-                            ? ClipRRect(
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                                child: Image.network(
-                                  cat['image_url'],
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      const Icon(Icons.pets, color: Colors.grey, size: 40),
-                                ),
-                              )
-                            : const Icon(Icons.pets, color: Colors.grey, size: 40),
-                      ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: cat['image_url'] != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              cat['image_url'],
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.pets, color: Colors.grey, size: 50),
+                            ),
+                          )
+                        : const Icon(Icons.pets, color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(cat['pet_name'] ?? 'ไม่ทราบชื่อ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text("${cat['pet_breed'] ?? ''} อายุ ${int.tryParse(cat['age_months']?.toString() ?? '') ?? 0} เดือน", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: currentStatus == 'available' ? Colors.green : (currentStatus == 'pending' ? Colors.orange : Colors.grey),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    currentStatus == 'available' ? "ว่าง" : (currentStatus == 'pending' ? "มีผู้ขอรับเลี้ยง" : "ได้บ้านแล้ว"),
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                // Details Button
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1B3B5A),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Text("รายละเอียด", style: TextStyle(color: Colors.white, fontSize: 10)),
+                      Icon(Icons.arrow_right, color: Colors.white, size: 14),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                // Adopters Button (Only if widget.currentUserId == widget.posterId)
+                if (widget.currentUserId == widget.posterId)
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CatAdoptersListScreen(
+                            catId: int.tryParse(cat['cat_id'].toString()) ?? 0,
+                            catName: cat['pet_name'] ?? 'น้องแมว',
+                            isAdopted: currentStatus == 'adopted',
+                            posterId: widget.posterId,
                           ),
-                          child: const Icon(Icons.favorite_border, size: 16, color: Colors.pinkAccent),
                         ),
-                      )
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        cat['pet_name'] ?? 'ไม่ระบุชื่อ',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      );
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.pink[400],
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "${cat['pet_breed'] ?? 'ไม่ระบุ'} อายุ ${cat['age_months']} เดือน",
-                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: const Center(
+                        child: Text(
+                          "ดูผู้ขอรับเลี้ยง",
+                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -190,17 +213,14 @@ class _PosterProfileScreenState extends State<PosterProfileScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildCategoryPill(String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.pink[200],
+        color: color,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-      ),
+      child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
     );
   }
 
@@ -281,9 +301,9 @@ class _PosterProfileScreenState extends State<PosterProfileScreen> {
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                posterInfo?['role'] == 'poster' ? 'ผู้ประกาศหาบ้าน' : 'ผู้รับเลี้ยง',
-                                style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                              const Text(
+                                'ผู้ประกาศหาบ้าน',
+                                style: TextStyle(color: Colors.grey, fontSize: 13),
                               ),
                               const SizedBox(height: 2),
                               Text(
@@ -296,23 +316,76 @@ class _PosterProfileScreenState extends State<PosterProfileScreen> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 20),
+
+                  // Show Register Button ONLY if viewing own profile
+                  if (widget.currentUserId == widget.posterId)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text(
+                            "กำลังมองหาบ้านที่อบอุ่นให้เจ้าเหมียวใช่ไหม?",
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 10),
+                          ElevatedButton(
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => CatProfileFormScreen(userId: widget.posterId)),
+                              );
+                              fetchPosterData(); // Refresh list after returning
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFF8A8A), // Salmon pink
+                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              "ลงประกาศหาบ้านให้แมว",
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
 
                   // Cats seeking homes
                   Padding(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildSectionTitle("แมวที่กำลังหาบ้าน"),
-                        const SizedBox(height: 16),
-                        _buildCatGrid(activeCats),
-                        
-                        const SizedBox(height: 30),
-                        
-                        // Adopted cats
-                        _buildSectionTitle("แมวที่ได้บ้านที่อบอุ่นแล้ว"),
-                        const SizedBox(height: 16),
-                        _buildCatGrid(adoptedCats),
+                        const Text(
+                          "ประวัติการโพสต์หาบ้าน",
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFE4E4),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildCategoryPill("แมวที่กำลังหาบ้าน", Colors.pink[200]!),
+                              const SizedBox(height: 10),
+                              _buildCatList(activeCats, 'active'),
+                              const SizedBox(height: 20),
+                              _buildCategoryPill("แมวที่ได้บ้านที่อบอุ่นแล้ว", Colors.pink[300]!),
+                              const SizedBox(height: 10),
+                              _buildCatList(adoptedCats, 'adopted'),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),

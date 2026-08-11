@@ -358,7 +358,7 @@ async function updateCatPhoto(req, res) {
         `, [file.path, catId, photoId]);
 
         try {
-            const relativePath = oldImageUrl.replace("public/", "");
+            const relativePath = oldImageUrl.replace("/public/", "");
             const filePath = path.join(__dirname, "../uploads", relativePath);
             if (fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);

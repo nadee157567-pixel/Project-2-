@@ -61,12 +61,87 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
     );
   }
 
+  Future<void> _deleteCat() async {
+    final cat = _currentCat ?? widget.catData;
+    final catName = cat['pet_name'] ?? 'แมว';
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 8),
+            Text('ยืนยันการลบ', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'คุณต้องการลบข้อมูลน้อง$catName ออกจากระบบใช่ไหม?\nการลบจะไม่สามารถกู้คืนได้',
+          style: const TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey, fontSize: 15)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[400],
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('ลบ', style: TextStyle(color: Colors.white, fontSize: 15)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.baseUrl}/cats/${cat['cat_id']}'),
+      );
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('ลบน้อง$catName เรียบร้อยแล้ว'),
+            backgroundColor: Colors.green[400],
+          ),
+        );
+        Navigator.pop(context, true); // กลับพร้อม refresh
+      } else {
+        final errData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errData['message'] ?? 'ลบไม่สำเร็จ'),
+            backgroundColor: Colors.red[400],
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('เกิดข้อผิดพลาด: $e'), backgroundColor: Colors.red[400]),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cat = _currentCat ?? widget.catData;
-    
+
+    final bool isOwner = cat['poster_id'].toString() == widget.userId.toString();
+    final bool isAvailable = cat['status'] == 'available';
+    final bool isAdopted = cat['status'] == 'adopted';
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF5F5), // Pale pink background
+      backgroundColor: const Color(0xFFFFF5F5),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -118,10 +193,10 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                     ),
                   ],
                 ),
-                
+
                 // 2. Details Card
                 Transform.translate(
-                  offset: const Offset(0, -30), // Pull up to overlap image slightly
+                  offset: const Offset(0, -30),
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     padding: const EdgeInsets.all(20),
@@ -139,7 +214,7 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Tag
+                        // Status Tag
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
@@ -164,29 +239,29 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Name
                         Text(
                           cat['pet_name'] ?? 'ไม่ระบุชื่อ',
                           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 12),
-                        
+
                         // Specs
                         _buildDetailRow("เพศ", cat['gender'] == 'male' ? 'ผู้' : cat['gender'] == 'female' ? 'เมีย' : '-'),
                         _buildDetailRow("อายุ", _mapAgeRange(cat['age_months'])),
                         _buildDetailRow("สายพันธุ์", cat['pet_breed'] ?? '-'),
-                        _buildDetailRow("เคยรับวัคซีนแล้ว", cat['is_vaccinated'] ?? '-'), // สมมติว่ามีฟิลด์นี้ในข้อมูล ถ้าไม่มีจะแสดง -
-                        _buildDetailRow("ทำหมันแล้ว", cat['is_sterilized'] ?? '-'), // สมมติ
+                        _buildDetailRow("เคยรับวัคซีนแล้ว", cat['is_vaccinated'] ?? '-'),
+                        _buildDetailRow("ทำหมันแล้ว", cat['is_sterilized'] ?? '-'),
                         _buildDetailRow("ลักษณะนิสัย", _mapPersonality(cat)),
                         _buildDetailRow("สุขภาพ", cat['health_note'] ?? 'แข็งแรงดี'),
                       ],
                     ),
                   ),
                 ),
-                
+
                 // 3. Requirements Card
-                if (!(cat['status'] == 'adopted' && cat['poster_id'].toString() != widget.userId.toString())) ...[
+                if (!(isAdopted && !isOwner)) ...[
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     padding: const EdgeInsets.all(20),
@@ -212,9 +287,9 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                       ],
                     ),
                   ),
-                  
+
                   // 4. Poster Profile mini
-                  if (cat['poster_id'].toString() != widget.userId.toString())
+                  if (!isOwner)
                     Padding(
                       padding: const EdgeInsets.only(right: 20, top: 10),
                       child: Align(
@@ -253,65 +328,141 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                       ),
                     ),
                 ],
-                
-                const SizedBox(height: 100), // Space for bottom button
+
+                const SizedBox(height: 110), // Space for bottom button(s)
               ],
             ),
           ),
-          
-          // 5. Evaluate / Edit Button (Bottom Fixed)
+
+          // 5. Action Buttons (Bottom Fixed)
           Positioned(
             bottom: 30,
-            left: 40,
-            right: 40,
-            child: cat['status'] == 'adopted' && cat['poster_id'].toString() != widget.userId.toString()
-                ? Container(
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[400],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        "ได้บ้านที่อบอุ่นแล้ว",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ),
-                  )
-                : ElevatedButton(
-              onPressed: _isLoading ? null : () async {
-                if (cat['poster_id'].toString() == widget.userId.toString()) {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CatProfileFormScreen(
-                        userId: widget.userId,
-                        editCatData: cat,
-                      ),
-                    ),
-                  );
-                  _loadCatDetails();
-                } else {
-                  _handleEvaluationClick();
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: cat['poster_id'].toString() == widget.userId.toString() ? Colors.pink[400] : const Color(0xFFFFB6B6),
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                elevation: 5,
-                shadowColor: Colors.pink.withOpacity(0.3),
-              ),
-              child: _isLoading 
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : Text(
-                    cat['poster_id'].toString() == widget.userId.toString() ? "แก้ไขข้อมูลแมว" : "ประเมินความเหมาะสมกับคุณ",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: cat['poster_id'].toString() == widget.userId.toString() ? Colors.white : Colors.black87),
-                  ),
-            ),
+            left: 20,
+            right: 20,
+            child: _buildBottomButtons(isOwner, isAvailable, isAdopted, cat),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBottomButtons(bool isOwner, bool isAvailable, bool isAdopted, Map<String, dynamic> cat) {
+    // ── ผู้โพสต์ดูแมวตัวเอง ──
+    if (isOwner) {
+      if (isAdopted) {
+        // ได้บ้านแล้ว: ล็อกทุกปุ่ม
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.grey[400],
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Center(
+            child: Text(
+              'ได้บ้านที่อบอุ่นแล้ว',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          ),
+        );
+      }
+
+      // สถานะ available (หาบ้าน): แสดง 2 ปุ่ม
+      return Row(
+        children: [
+          // ── ปุ่มแก้ไข ──
+          Expanded(
+            flex: 3,
+            child: ElevatedButton.icon(
+              onPressed: _isLoading
+                  ? null
+                  : () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CatProfileFormScreen(
+                            userId: widget.userId,
+                            editCatData: cat,
+                          ),
+                        ),
+                      );
+                      _loadCatDetails();
+                    },
+              icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 20),
+              label: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text(
+                      'แก้ไขข้อมูล',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.pink[400],
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                elevation: 4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // ── ปุ่มลบ ──
+          Expanded(
+            flex: 2,
+            child: ElevatedButton.icon(
+              onPressed: _isLoading ? null : _deleteCat,
+              icon: const Icon(Icons.delete_outline, color: Colors.white, size: 20),
+              label: const Text(
+                'ลบแมว',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[400],
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                elevation: 4,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // ── ผู้ดูทั่วไป ──
+    if (isAdopted) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          color: Colors.grey[400],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(
+          child: Text(
+            'ได้บ้านที่อบอุ่นแล้ว',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+        ),
+      );
+    }
+
+    return ElevatedButton(
+      onPressed: _isLoading ? null : _handleEvaluationClick,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFFFB6B6),
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 5,
+        shadowColor: Colors.pink.withOpacity(0.3),
+      ),
+      child: _isLoading
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+          : const Text(
+              'ประเมินความเหมาะสมกับคุณ',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
     );
   }
 

@@ -39,11 +39,11 @@ router.get('/:userId/:catId', async (req, res) => {
       budgetScore = Math.max(1, Math.round((user.max_monthly_budget / catCost) * 5));
     }
 
-    // 2. ด้านเวลา (เทียบ daily_free_hours กับ req_attention: small, medium, large)
+    // 2. ด้านเวลา (เทียบ daily_free_hours กับ req_attention: low, medium, high)
     let timeScore = 5;
     const userHoursVal = user.daily_free_hours === 'high' ? 3 : (user.daily_free_hours === 'medium' ? 2 : 1);
     const catAttentionVal = cat.req_attention === 'high' ? 3 : (cat.req_attention === 'medium' ? 2 : 1);
-
+    
     if (userHoursVal < catAttentionVal) {
       if (catAttentionVal - userHoursVal === 1) {
         timeScore = 3; // ต่ำกว่า 1 ระดับ

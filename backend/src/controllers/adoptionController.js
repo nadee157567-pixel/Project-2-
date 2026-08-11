@@ -222,16 +222,88 @@ const updateRequestStatus = async (req, res) => {
         const { status } = req.body;
         await pool.query("UPDATE adoptionapplications SET status = ? WHERE match_id = ?", [status, matchId]);
         
-        if (status === 'approved') {
+        if (status === 'rejected') {
+            // Delete the conversation room when a request is rejected
+            await pool.query("DELETE FROM conversations WHERE match_id = ?", [matchId]);
+        } else if (status === 'approved') {
             const [app] = await pool.query("SELECT cat_id FROM adoptionapplications WHERE match_id = ?", [matchId]);
             if (app.length > 0) {
                 await pool.query("UPDATE cats SET status = 'adopted' WHERE cat_id = ?", [app[0].cat_id]);
+                
+                // Get other match_ids for this cat to delete their conversation rooms
+                const [otherApps] = await pool.query("SELECT match_id FROM adoptionapplications WHERE cat_id = ? AND match_id != ?", [app[0].cat_id, matchId]);
+                
                 await pool.query("UPDATE adoptionapplications SET status = 'rejected' WHERE cat_id = ? AND match_id != ?", [app[0].cat_id, matchId]);
+                
+                if (otherApps.length > 0) {
+                    const otherMatchIds = otherApps.map(oa => oa.match_id);
+                    await pool.query("DELETE FROM conversations WHERE match_id IN (?)", [otherMatchIds]);
+                }
             }
         }
         
         return res.status(200).json({ success: true, message: 'อัปเดตสถานะสำเร็จ' });
     } catch (error) {
+        console.error('updateRequestStatus error:', error);
+        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด' });
+    }
+};
+
+const getAssessmentDetails = async (req, res) => {
+    try {
+        const { applicantId, catId } = req.params;
+        
+        // Find latest assessment for this applicant and cat
+        const [assessments] = await pool.query(
+            "SELECT * FROM assessments WHERE applicant_id = ? AND cat_id = ? ORDER BY assessed_at DESC LIMIT 1",
+            [applicantId, catId]
+        );
+        
+        if (assessments.length === 0) {
+            return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลการประเมิน' });
+        }
+        
+        const assessment = assessments[0];
+        
+        // Find assessment details
+        const [details] = await pool.query(
+            "SELECT ad.*, ec.profile_field FROM assessment_details ad JOIN evaluation_criteria ec ON ad.criteria_id = ec.criteria_id WHERE ad.assessment_id = ?",
+            [assessment.assessment_id]
+        );
+        
+        // Build score_detail object
+        const score_detail = {
+            space: { stars: 0 },
+            budget: { stars: 0 },
+            attention: { stars: 0 },
+            experience: { stars: 0 }
+        };
+        
+        details.forEach(d => {
+            let key = null;
+            if (d.profile_field === 'space_level') key = 'space';
+            else if (d.profile_field === 'monthly_budget') key = 'budget';
+            else if (d.profile_field === 'attention_level') key = 'attention';
+            else if (d.profile_field === 'experience_level') key = 'experience';
+            
+            if (key) {
+                score_detail[key] = {
+                    stars: d.stars || 0,
+                    score: d.score_received,
+                    max_score: d.max_score
+                };
+            }
+        });
+        
+        return res.status(200).json({
+            success: true,
+            data: {
+                match_percentage: assessment.match_percentage || assessment.total_score,
+                score_detail: score_detail
+            }
+        });
+    } catch (error) {
+        console.error('getAssessmentDetails error:', error);
         return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด' });
     }
 };
@@ -241,5 +313,6 @@ module.exports = {
     createAdoptionRequest,
     getRequestsByAdopter,
     getRequestsByCat,
-    updateRequestStatus
+    updateRequestStatus,
+    getAssessmentDetails
 };

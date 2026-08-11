@@ -56,6 +56,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     } catch (e) {
       print('Error fetching profile: $e');
     } finally {
+      if (!mounted) return;
       setState(() {
         isLoading = false;
       });
@@ -197,7 +198,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         _buildAdopterRow('⏳', 'เวลาว่างต่อวัน', displayFreeTime(adopterData?['daily_free_hours'])),
                         _buildAdopterRow('💰', 'งบประมาณต่อเดือน', displayBudget(adopterData?['max_monthly_budget'])),
                         _buildAdopterRow('🎓', 'ประสบการณ์', displayExp(adopterData?['experience'])),
-                        _buildAdopterRow('👶', 'เด็กเล็กในบ้าน/แพ้ขนแมว', (adopterData?['has_children']?.toString() == '1') ? 'มี' : 'ไม่มี'),
+                        _buildAdopterRow('👶', 'เด็กเล็กในบ้าน', (adopterData?['has_children']?.toString() == '1') ? 'มี' : 'ไม่มี'),
                         _buildAdopterRow('🐶', 'สัตว์เลี้ยงอื่น', (adopterData?['has_other_pets']?.toString() == '1') ? 'มี' : 'ไม่มี'),
                         const SizedBox(height: 16),
                         Row(

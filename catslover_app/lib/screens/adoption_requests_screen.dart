@@ -28,6 +28,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
+          if (!mounted) return;
           setState(() {
             _requests = data['data'];
           });
@@ -165,7 +166,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(15),
             child: Image.network(
-              imageUrl,
+              ApiConfig.getImageUrl(imageUrl),
               width: 80,
               height: 80,
               fit: BoxFit.cover,

@@ -54,12 +54,14 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
   Future<void> _fetchRealEvaluation() async {
     if (mounted) setState(() => _isFetching = true);
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/matching/${widget.catId}');
-      final response = await http.post(
+      final url = Uri.parse('${ApiConfig.baseUrl}/adoption/assessment/${widget.userId}/${widget.catId}');
+      final response = await http.get(
         url,
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"userId": widget.userId}),
       );
+
+      print("DEBUG: _fetchRealEvaluation status: ${response.statusCode}");
+      print("DEBUG: _fetchRealEvaluation body: ${response.body}");
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);

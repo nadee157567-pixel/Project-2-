@@ -7,12 +7,14 @@ class ChatMessageScreen extends StatefulWidget {
   final int roomId;
   final int userId;
   final String partnerName;
+  final String? applicationStatus;
 
   const ChatMessageScreen({
     super.key,
     required this.roomId,
     required this.userId,
     required this.partnerName,
+    this.applicationStatus,
   });
 
   @override
@@ -43,47 +45,63 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
     }
   }
 
-  String _formatDate(String? dateStr) {
+  String _formatDateSeparator(String? dateStr) {
     if (dateStr == null) return '';
     try {
       final date = DateTime.parse(dateStr).toLocal();
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      final yesterday = today.subtract(const Duration(days: 1));
       final msgDay = DateTime(date.year, date.month, date.day);
+
       if (msgDay == today) return 'วันนี้';
-      if (msgDay == yesterday) return 'เมื่อวาน';
-      return '${date.day}/${date.month}/${date.year}';
+      if (msgDay == today.subtract(const Duration(days: 1))) return 'เมื่อวาน';
+
+      const thaiMonths = [
+        '', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+      ];
+      return '${date.day} ${thaiMonths[date.month]} ${date.year + 543}';
     } catch (e) {
       return '';
     }
   }
 
-  bool _isSameDay(String? a, String? b) {
-    if (a == null || b == null) return false;
+  bool _isSameDay(String? date1, String? date2) {
+    if (date1 == null || date2 == null) return false;
     try {
-      final da = DateTime.parse(a).toLocal();
-      final db = DateTime.parse(b).toLocal();
-      return da.year == db.year && da.month == db.month && da.day == db.day;
+      final d1 = DateTime.parse(date1).toLocal();
+      final d2 = DateTime.parse(date2).toLocal();
+      return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
     } catch (e) {
       return false;
     }
   }
 
-  Widget _buildDateDivider(String label) {
+  Widget _buildDateSeparator(String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          const Expanded(child: Divider(thickness: 1, color: Color(0xFFE0E0E0))),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+          Expanded(child: Divider(color: Colors.pink[100], thickness: 1)),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.pink[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.pink[100]!, width: 1),
+            ),
             child: Text(
               label,
-              style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.pink[400],
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-          const Expanded(child: Divider(thickness: 1, color: Color(0xFFE0E0E0))),
+          const SizedBox(width: 10),
+          Expanded(child: Divider(color: Colors.pink[100], thickness: 1)),
         ],
       ),
     );
@@ -154,8 +172,49 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
     }
   }
 
+  Future<void> _deleteChat() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ยืนยันการลบแชท'),
+        content: const Text('คุณแน่ใจหรือไม่ว่าต้องการลบประวัติแชทนี้? การลบจะไม่สามารถกู้คืนได้'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('ลบ', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.baseUrl}/chats/${widget.roomId}'),
+      );
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ลบแชทเรียบร้อยแล้ว')));
+        Navigator.pop(context); // กลับไปหน้าก่อนหน้า
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ลบแชทไม่สำเร็จ')));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    bool isRejected = widget.applicationStatus == 'rejected';
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF5F5),
       appBar: AppBar(
@@ -163,6 +222,13 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
         backgroundColor: Colors.pink[300],
         elevation: 0,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: _deleteChat,
+            tooltip: 'ลบแชท',
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -177,30 +243,52 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
                         itemBuilder: (context, index) {
                           final msg = _messages[index];
                           final bool isMe = msg['sender_id'] == widget.userId;
-                          final String? prevDate = index > 0 ? _messages[index - 1]['sent_at'] : null;
-                          final bool showDate = !_isSameDay(prevDate, msg['sent_at']);
+
+                          // แสดง date separator เมื่อวันเปลี่ยน
+                          final bool showDate = index == 0 ||
+                              !_isSameDay(
+                                _messages[index - 1]['sent_at'],
+                                msg['sent_at'],
+                              );
 
                           return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              if (showDate) _buildDateDivider(_formatDate(msg['sent_at'])),
+                              if (showDate)
+                                _buildDateSeparator(
+                                    _formatDateSeparator(msg['sent_at'])),
                               Align(
-                                alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                                alignment: isMe
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
                                 child: Padding(
                                   padding: const EdgeInsets.only(bottom: 12),
                                   child: Column(
-                                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                    crossAxisAlignment: isMe
+                                        ? CrossAxisAlignment.end
+                                        : CrossAxisAlignment.start,
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 12),
                                         decoration: BoxDecoration(
-                                          color: isMe ? Colors.pink[200] : Colors.white,
-                                          borderRadius: BorderRadius.circular(20).copyWith(
-                                            bottomRight: isMe ? const Radius.circular(0) : const Radius.circular(20),
-                                            bottomLeft: !isMe ? const Radius.circular(0) : const Radius.circular(20),
+                                          color: isMe
+                                              ? Colors.pink[200]
+                                              : Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(20)
+                                                  .copyWith(
+                                            bottomRight: isMe
+                                                ? const Radius.circular(0)
+                                                : const Radius.circular(20),
+                                            bottomLeft: !isMe
+                                                ? const Radius.circular(0)
+                                                : const Radius.circular(20),
                                           ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(0.05),
+                                              color: Colors.black
+                                                  .withOpacity(0.05),
                                               blurRadius: 5,
                                               offset: const Offset(0, 2),
                                             ),
@@ -209,7 +297,9 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
                                         child: Text(
                                           msg['message_text'] ?? '',
                                           style: TextStyle(
-                                            color: isMe ? Colors.white : Colors.black87,
+                                            color: isMe
+                                                ? Colors.white
+                                                : Colors.black87,
                                             fontSize: 16,
                                           ),
                                         ),
@@ -260,37 +350,47 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
                 )
               ],
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: "พิมพ์ข้อความ...",
-                      hintStyle: TextStyle(color: Colors.grey[400]),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide.none,
+            child: isRejected
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        "ไม่สามารถติดต่อกับผู้ใช้รายนี้ได้",
+                        style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold, fontSize: 16),
                       ),
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     ),
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _messageController,
+                          decoration: InputDecoration(
+                            hintText: "พิมพ์ข้อความ...",
+                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(30),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.pink[300],
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.send, color: Colors.white),
+                          onPressed: _sendMessage,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.pink[300],
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: _sendMessage,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

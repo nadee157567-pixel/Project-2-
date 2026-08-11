@@ -14,5 +14,7 @@ router.post('/room', chatController.createRoom);
 
 // อัปเดตสถานะการอ่านข้อความ
 router.put('/:roomId/read', chatController.updateIsRead);
+// ลบห้องแชท
+router.delete('/:roomId', chatController.deleteChat);
 
 module.exports = router;

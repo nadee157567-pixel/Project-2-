@@ -28,17 +28,19 @@ class _ChatListScreenState extends State<ChatListScreen> {
       final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/chats?userId=${widget.userId}'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['success'] == true) {
+        if (data['success'] == true && data['data'] != null) {
+          if (!mounted) return;
           setState(() {
             _chats = data['data'];
             _isLoading = false;
           });
         }
       } else {
+        if (!mounted) return;
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print("Error fetching chats: $e");
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
@@ -95,6 +97,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                 roomId: chat['room_id'],
                                 userId: widget.userId,
                                 partnerName: chatPartnerName,
+                                applicationStatus: chat['application_status'],
                               ),
                             ),
                           );

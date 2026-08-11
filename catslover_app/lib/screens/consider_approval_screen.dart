@@ -53,6 +53,7 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
     } catch (e) {
       print("Error fetching data: $e");
     } finally {
+      if (!mounted) return;
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -70,6 +71,7 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
         );
         Navigator.pop(context);
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('เกิดข้อผิดพลาดในการอัปเดตสถานะ')),
         );
@@ -165,7 +167,7 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
                               }
                               return imageUrl != null && imageUrl.isNotEmpty
                                   ? Image.network(
-                                      imageUrl,
+                                      ApiConfig.getImageUrl(imageUrl),
                                       height: 150,
                                       width: double.infinity,
                                       fit: BoxFit.cover,

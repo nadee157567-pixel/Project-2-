@@ -42,8 +42,8 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
         }
       }
 
-      // Fetch evaluation scores
-      final evalRes = await http.get(Uri.parse(ApiConfig.baseUrl + '/evaluate/${widget.adopter['applicant_id'] ?? widget.adopter['user_id']}/${widget.catId}'));
+      // Fetch evaluation scores (saved assessment)
+      final evalRes = await http.get(Uri.parse(ApiConfig.baseUrl + '/adoption/assessment/${widget.adopter['applicant_id'] ?? widget.adopter['user_id']}/${widget.catId}'));
       if (evalRes.statusCode == 200) {
         final evalData = jsonDecode(evalRes.body);
         if (evalData['success'] == true && evalData['data'] != null) {
@@ -60,10 +60,15 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
 
   Future<void> _updateStatus(String status) async {
     try {
+      final Map<String, dynamic> body = {'status': status};
+      if (_remarkController.text.trim().isNotEmpty) {
+        body['rejection_reason'] = _remarkController.text.trim();
+      }
+      
       final response = await http.put(
         Uri.parse(ApiConfig.baseUrl + '/adoption/request/${widget.adopter['match_id']}/status'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'status': status}),
+        body: jsonEncode(body),
       );
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -79,6 +84,65 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
     } catch (e) {
       print("Error updating status: $e");
     }
+  }
+
+  void _showConfirmationDialog(String status) {
+    _remarkController.clear();
+    final bool isApprove = status == 'approved';
+    final String title = isApprove ? 'ยืนยันการอนุมัติ' : 'ยืนยันการไม่อนุมัติ';
+    final String contentText = isApprove 
+        ? 'คุณต้องการอนุมัติให้ผู้ใช้นี้รับเลี้ยงแมวใช่หรือไม่? คุณสามารถระบุข้อความเพิ่มเติมให้ผู้รับเลี้ยงได้ (ถ้ามี):'
+        : 'คุณต้องการปฏิเสธคำขอรับเลี้ยงนี้ใช่หรือไม่? กรุณาระบุเหตุผล (ถ้ามี):';
+    final String confirmBtnText = isApprove ? 'ยืนยันการอนุมัติ' : 'ยืนยันการปฏิเสธ';
+    final Color confirmBtnColor = isApprove ? Colors.green : Colors.red;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(contentText),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _remarkController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'พิมพ์หมายเหตุ...',
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _updateStatus(status);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: confirmBtnColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(confirmBtnText, style: const TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   String _getMatchResultText(int percent) {
@@ -126,7 +190,7 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
 
     int matchPercent = 0;
     try {
-      var rawScore = _evaluationScores?['matchPercent'] ?? widget.adopter['matchscore'] ?? 0;
+      var rawScore = widget.adopter['matchscore'] ?? 0;
       matchPercent = double.parse(rawScore.toString()).toInt();
     } catch (e) {
       matchPercent = 0;
@@ -279,10 +343,10 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
                         const SizedBox(height: 16),
                         
                         // Stars
-                        _buildStarRow("ที่พักอาศัย", (double.tryParse(_evaluationScores?['scores']?['space']?.toString() ?? '0') ?? 0).toInt()),
-                        _buildStarRow("เวลาว่าง", (double.tryParse(_evaluationScores?['scores']?['time']?.toString() ?? '0') ?? 0).toInt()),
-                        _buildStarRow("ค่าใช้จ่าย", (double.tryParse(_evaluationScores?['scores']?['budget']?.toString() ?? '0') ?? 0).toInt()),
-                        _buildStarRow("ประสบการณ์", (double.tryParse(_evaluationScores?['scores']?['experience']?.toString() ?? '0') ?? 0).toInt()),
+                        _buildStarRow("ที่พักอาศัย", (double.tryParse(_evaluationScores?['score_detail']?['space']?['stars']?.toString() ?? '0') ?? 0).toInt()),
+                        _buildStarRow("เวลาว่าง", (double.tryParse(_evaluationScores?['score_detail']?['attention']?['stars']?.toString() ?? '0') ?? 0).toInt()),
+                        _buildStarRow("ค่าใช้จ่าย", (double.tryParse(_evaluationScores?['score_detail']?['budget']?['stars']?.toString() ?? '0') ?? 0).toInt()),
+                        _buildStarRow("ประสบการณ์", (double.tryParse(_evaluationScores?['score_detail']?['experience']?['stars']?.toString() ?? '0') ?? 0).toInt()),
                         const SizedBox(height: 24),
 
                         // Action Buttons
@@ -291,7 +355,7 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
                             children: [
                               Expanded(
                                 child: ElevatedButton(
-                                  onPressed: () => _updateStatus('rejected'),
+                                  onPressed: () => _showConfirmationDialog('rejected'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.red[400],
                                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -303,7 +367,7 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: ElevatedButton(
-                                  onPressed: () => _updateStatus('approved'),
+                                  onPressed: () => _showConfirmationDialog('approved'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
                                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -313,23 +377,6 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
                                 ),
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 24),
-                          const Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text("หมายเหตุ/ข้อเสนอแนะการเลี้ยง", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _remarkController,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
                           ),
                         ] else ...[
                           Container(

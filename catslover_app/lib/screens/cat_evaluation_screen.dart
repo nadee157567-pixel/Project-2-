@@ -52,6 +52,9 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
           setState(() {
             evaluationResult = jsonResponse['data'];
             isEvaluated = true;
+            if (evaluationResult!['is_requested'] == true) {
+              isRequested = true;
+            }
           });
         }
       }
@@ -159,18 +162,21 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                 if (evaluationResult!['score_detail']['experience']['score'] < 3) reasons.add("แมวตัวนี้เหมาะกับผู้เลี้ยงที่มีประสบการณ์มากกว่า");
               }
 
-              // Add backend-provided warnings and positive reasons
-              if (evaluationResult!['warnings'] != null) {
-                for (var w in evaluationResult!['warnings']) {
-                  if (!reasons.contains(w.toString())) {
-                    reasons.add(w.toString());
+              // Add backend-provided warnings and positive reasons only if eligible
+              if (isEligible) {
+                if (evaluationResult!['warnings'] != null) {
+                  for (var w in evaluationResult!['warnings']) {
+                    if (!reasons.contains(w.toString())) {
+                      reasons.add(w.toString());
+                    }
                   }
                 }
-              }
-              if (evaluationResult!['reasons'] != null) {
-                for (var r in evaluationResult!['reasons']) {
-                  if (!reasons.contains(r.toString())) {
-                    reasons.add(r.toString());
+                // Only show positive reasons if they actually passed the evaluation
+                if (canAdopt && evaluationResult!['reasons'] != null) {
+                  for (var r in evaluationResult!['reasons']) {
+                    if (!reasons.contains(r.toString())) {
+                      reasons.add(r.toString());
+                    }
                   }
                 }
               }
@@ -209,18 +215,35 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                                   style: TextStyle(fontWeight: FontWeight.bold, color: statusColor[800]),
                                 ),
                                 const SizedBox(height: 8),
-                                ...reasons.map((reason) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text("• ", style: TextStyle(color: statusColor[800], fontWeight: FontWeight.bold)),
-                                      Expanded(
-                                        child: Text(reason, style: TextStyle(color: statusColor[800], fontSize: 13)),
-                                      ),
-                                    ],
-                                  ),
-                                )).toList(),
+                                ...reasons.map((reason) {
+                                  bool isSpecial = reason.contains('เด็ก') || 
+                                                   reason.contains('สัตว์') || 
+                                                   reason.contains('แมวอื่น') || 
+                                                   reason.contains('แมวตัวอื่น') || 
+                                                   reason.contains('สุนัข') ||
+                                                   reason.contains('พิเศษ');
+                                  Color textColor = isSpecial ? Colors.orange[800]! : statusColor[800]!;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        if (!reason.startsWith('*'))
+                                          Text("• ", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                                        Expanded(
+                                          child: Text(
+                                            reason, 
+                                            style: TextStyle(
+                                              color: textColor, 
+                                              fontSize: 13, 
+                                              fontWeight: isSpecial ? FontWeight.bold : FontWeight.normal
+                                            )
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
                               ],
                             ),
                           ),

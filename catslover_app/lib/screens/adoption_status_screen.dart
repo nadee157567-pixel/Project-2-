@@ -10,6 +10,7 @@ class AdoptionStatusScreen extends StatefulWidget {
   final int userId;
   final int matchId;
   final int catId;
+  final String? rejectionReason;
 
   const AdoptionStatusScreen({
     super.key,
@@ -19,6 +20,7 @@ class AdoptionStatusScreen extends StatefulWidget {
     required this.userId,
     required this.matchId,
     required this.catId,
+    this.rejectionReason,
   });
 
   @override
@@ -68,7 +70,12 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
         if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
           if (mounted) {
             setState(() {
-              _realEvaluationResult = jsonResponse['data'];
+              var newData = jsonResponse['data'];
+              // Preserve the original matchPercent passed from the list to avoid discrepancies
+              if (widget.evaluationResult.containsKey('matchPercent')) {
+                newData['matchPercent'] = widget.evaluationResult['matchPercent'];
+              }
+              _realEvaluationResult = newData;
             });
           }
         }
@@ -103,7 +110,9 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
                   builder: (context) => ChatMessageScreen(
                     roomId: int.parse(chat['room_id'].toString()),
                     userId: widget.userId,
+                    partnerId: int.parse(chat['poster_id'].toString()),
                     partnerName: chat['poster_name'] ?? 'ผู้โพสต์',
+                    catId: chat['cat_id'] != null ? int.parse(chat['cat_id'].toString()) : null,
                   ),
                 ),
               );
@@ -220,9 +229,9 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
     int matchPercent = 0;
     if (_realEvaluationResult != null) {
       if (_realEvaluationResult!.containsKey('matchPercent') && _realEvaluationResult!['matchPercent'] != null) {
-        matchPercent = (double.tryParse(_realEvaluationResult!['matchPercent'].toString()) ?? 0).toInt();
+        matchPercent = (double.tryParse(_realEvaluationResult!['matchPercent'].toString()) ?? 0).round();
       } else if (_realEvaluationResult!.containsKey('match_percentage') && _realEvaluationResult!['match_percentage'] != null) {
-        matchPercent = (double.tryParse(_realEvaluationResult!['match_percentage'].toString()) ?? 0).toInt();
+        matchPercent = (double.tryParse(_realEvaluationResult!['match_percentage'].toString()) ?? 0).round();
       }
     }
 
@@ -234,16 +243,16 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
     if (_realEvaluationResult != null) {
       if (_realEvaluationResult!.containsKey('scores') && _realEvaluationResult!['scores'] != null) {
         final s = _realEvaluationResult!['scores'];
-        spaceScore = (double.tryParse(s['space']?.toString() ?? '0') ?? 0).toInt();
-        timeScore = (double.tryParse(s['time']?.toString() ?? '0') ?? 0).toInt();
-        budgetScore = (double.tryParse(s['budget']?.toString() ?? '0') ?? 0).toInt();
-        expScore = (double.tryParse(s['experience']?.toString() ?? '0') ?? 0).toInt();
+        spaceScore = (double.tryParse(s['space']?.toString() ?? '0') ?? 0).round();
+        timeScore = (double.tryParse(s['time']?.toString() ?? '0') ?? 0).round();
+        budgetScore = (double.tryParse(s['budget']?.toString() ?? '0') ?? 0).round();
+        expScore = (double.tryParse(s['experience']?.toString() ?? '0') ?? 0).round();
       } else if (_realEvaluationResult!.containsKey('score_detail') && _realEvaluationResult!['score_detail'] != null) {
         final sd = _realEvaluationResult!['score_detail'];
-        spaceScore = (double.tryParse(sd['space']?['stars']?.toString() ?? '0') ?? 0).toInt();
-        timeScore = (double.tryParse(sd['attention']?['stars']?.toString() ?? '0') ?? 0).toInt();
-        budgetScore = (double.tryParse(sd['budget']?['stars']?.toString() ?? '0') ?? 0).toInt();
-        expScore = (double.tryParse(sd['experience']?['stars']?.toString() ?? '0') ?? 0).toInt();
+        spaceScore = (double.tryParse(sd['space']?['stars']?.toString() ?? '0') ?? 0).round();
+        timeScore = (double.tryParse(sd['attention']?['stars']?.toString() ?? '0') ?? 0).round();
+        budgetScore = (double.tryParse(sd['budget']?['stars']?.toString() ?? '0') ?? 0).round();
+        expScore = (double.tryParse(sd['experience']?['stars']?.toString() ?? '0') ?? 0).round();
       }
     }
 
@@ -357,7 +366,13 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
                         } else if (widget.status == 'rejected') {
                           iconUrl = 'https://cdn-icons-png.flaticon.com/512/1904/1904428.png'; // fail
                           titleText = "เสียใจด้วย ใบสมัครไม่ผ่านการอนุมัติ";
-                          subtitleText = "ผู้โพสต์พิจารณาแล้วเห็นว่าอาจยังไม่เหมาะสมในขณะนี้\nแต่ยังมีน้องแมวอีกหลายตัวที่รอคุณอยู่!";
+                          if (widget.rejectionReason == 'adopted_by_other') {
+                            subtitleText = "แมวที่ขอรับเลี้ยงมีคนรับเลี้ยงไปแล้ว แต่ยังมีน้องแมวอีกหลายตัวที่รอคุณอยู่!";
+                          } else if (widget.rejectionReason != null && widget.rejectionReason!.trim().isNotEmpty) {
+                            subtitleText = "เหตุผล: ${widget.rejectionReason} แต่ยังมีน้องแมวอีกหลายตัวที่รอคุณอยู่!";
+                          } else {
+                            subtitleText = "คุณสมบัติของคุณอาจจะยังไม่เหมาะกับสัตว์เลี้ยงตัวนี้ แต่ยังมีน้องแมวอีกหลายตัวที่รอคุณอยู่!";
+                          }
                         } else if (widget.status == 'interview') {
                           iconUrl = 'https://cdn-icons-png.flaticon.com/512/9374/9374944.png'; // interview
                           titleText = "ใบสมัครอยู่ระหว่างพิจารณาสัมภาษณ์";
@@ -376,14 +391,74 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
                               titleText,
                               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1C3A5B)),
                             ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 8.0),
-                              child: Text(
-                                subtitleText,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 12, color: Colors.black54, height: 1.5),
-                              ),
+                            Builder(
+                              builder: (context) {
+                                Color boxColor = Colors.grey[50]!;
+                                Color borderColor = Colors.grey[200]!;
+                                Color textColor = Colors.black87;
+
+                                if (widget.status == 'rejected') {
+                                  boxColor = Colors.red[50]!;
+                                  borderColor = Colors.red[200]!;
+                                  textColor = Colors.red[800]!;
+                                } else if (widget.status == 'approved') {
+                                  boxColor = Colors.green[50]!;
+                                  borderColor = Colors.green[200]!;
+                                  textColor = Colors.green[800]!;
+                                } else if (widget.status == 'interview') {
+                                  boxColor = Colors.blue[50]!;
+                                  borderColor = Colors.blue[200]!;
+                                  textColor = Colors.blue[800]!;
+                                } else if (widget.status == 'pending') {
+                                  boxColor = Colors.orange[50]!;
+                                  borderColor = Colors.orange[200]!;
+                                  textColor = Colors.orange[800]!;
+                                }
+
+                                return Container(
+                                  margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: boxColor,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: borderColor, width: 1.5),
+                                  ),
+                                  child: Text(
+                                    subtitleText,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 13, color: textColor, height: 1.5, fontWeight: FontWeight.w500),
+                                  ),
+                                );
+                              }
                             ),
+                            if (widget.status == 'approved' && widget.rejectionReason != null && widget.rejectionReason!.trim().isNotEmpty)
+                              Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.green[50],
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.green[200]!),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(Icons.comment, color: Colors.green[800], size: 20),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text("ข้อความจากเจ้าของแมว:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.green[800])),
+                                          const SizedBox(height: 4),
+                                          Text(widget.rejectionReason!, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
                           ],
                         );
                       }),
@@ -411,19 +486,19 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
                               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                               child: widget.catImageUrl.isNotEmpty
                                   ? Image.network(
-                                      widget.catImageUrl,
-                                      height: 120,
+                                      ApiConfig.getImageUrl(widget.catImageUrl),
+                                      height: 220,
                                       width: double.infinity,
                                       fit: BoxFit.cover,
                                       errorBuilder: (context, error, stackTrace) => Container(
-                                        height: 120,
+                                        height: 220,
                                         width: double.infinity,
                                         color: Colors.grey[200],
                                         child: const Icon(Icons.pets, color: Colors.grey),
                                       ),
                                     )
                                   : Container(
-                                      height: 120,
+                                      height: 220,
                                       width: double.infinity,
                                       color: Colors.grey[200],
                                       child: const Icon(Icons.pets, color: Colors.grey),

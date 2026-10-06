@@ -45,19 +45,25 @@ exports.getChats = async (req, res) => {
                 c.created_at,
                 aa.applicant_id,
                 aa.status AS application_status,
+                cat.cat_id,
                 cat.poster_id,
                 cat.pet_name,
                 cat.pet_breed,
                 applicant.fullname AS applicant_name,
-                poster.fullname AS poster_name
+                poster.fullname AS poster_name,
+                (SELECT message_text FROM messages WHERE room_id = c.room_id ORDER BY sent_at DESC LIMIT 1) AS last_message,
+                (SELECT sent_at FROM messages WHERE room_id = c.room_id ORDER BY sent_at DESC LIMIT 1) AS last_message_time,
+                (SELECT COUNT(*) FROM messages WHERE room_id = c.room_id AND sender_id != ? AND is_read = 0) AS unread_count
             FROM conversations c
             JOIN adoptionapplications aa ON c.match_id = aa.match_id
             JOIN cats cat ON aa.cat_id = cat.cat_id
             JOIN users applicant ON aa.applicant_id = applicant.user_id
             JOIN users poster ON cat.poster_id = poster.user_id
-            WHERE aa.applicant_id = ? OR cat.poster_id = ?
-            ORDER BY c.created_at DESC
-        `, [userId, userId]);
+            WHERE (aa.applicant_id = ? OR cat.poster_id = ?)
+            AND aa.applicant_id NOT IN (SELECT blocked_id FROM blocked_users WHERE blocker_id = ?)
+            AND cat.poster_id NOT IN (SELECT blocked_id FROM blocked_users WHERE blocker_id = ?)
+            ORDER BY COALESCE((SELECT sent_at FROM messages WHERE room_id = c.room_id ORDER BY sent_at DESC LIMIT 1), c.created_at) DESC
+        `, [userId, userId, userId, userId, userId]);
 
         res.status(200).json({ success: true, data: chats });
     } catch (error) {

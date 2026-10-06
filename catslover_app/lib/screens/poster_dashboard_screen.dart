@@ -3,8 +3,10 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'cat_profile_form_screen.dart';
 import 'cat_detail_screen.dart';
+import 'cat_detail_screen.dart';
 import 'user_profile_screen.dart';
 import 'cat_adopters_list_screen.dart';
+import 'adoption_requests_screen.dart';
 import '../config/api_config.dart';
 
 class PosterDashboardScreen extends StatefulWidget {
@@ -21,6 +23,7 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
   List _pendingCats = [];
   List _adoptedCats = [];
   bool _isLoading = true;
+  bool _hasNotification = false;
 
   @override
   void initState() {
@@ -51,12 +54,127 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
           _adoptedCats = cats.where((c) => c['status'] == 'adopted').toList();
         }
       }
+      // 3. Fetch Notifications Count
+      final notifRes = await http.get(Uri.parse(ApiConfig.baseUrl + '/notifications/unread-counts/${widget.userId}'));
+      if (notifRes.statusCode == 200) {
+        final notifData = jsonDecode(notifRes.body);
+        if (notifData['success'] == true) {
+          _hasNotification = (notifData['unreadNotifications'] ?? 0) > 0;
+        }
+      }
+
     } catch (e) {
       print("Error fetching dashboard data: $e");
     } finally {
       if (!mounted) return;
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() {
+        _isLoading = false;
+      });
     }
+  }
+
+  void _showNotificationsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return FutureBuilder(
+          future: http.get(Uri.parse(ApiConfig.baseUrl + '/notifications/${widget.userId}')),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 300,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (!snapshot.hasData || snapshot.hasError) {
+              return const SizedBox(
+                height: 300,
+                child: Center(child: Text("ไม่สามารถดึงข้อมูลได้")),
+              );
+            }
+
+            final data = json.decode((snapshot.data as http.Response).body);
+            List notifications = data['data'] ?? [];
+
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("การแจ้งเตือน", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Divider(),
+                  if (notifications.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Text("ไม่มีการแจ้งเตือนใหม่", style: TextStyle(color: Colors.grey)),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: notifications.length,
+                        itemBuilder: (itemContext, index) {
+                          final notif = notifications[index];
+                          bool isRead = notif['is_read'] == 1;
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isRead ? Colors.grey[200] : Colors.pink[100],
+                              child: Icon(
+                                Icons.notifications,
+                                color: isRead ? Colors.grey : Colors.pink[400],
+                              ),
+                            ),
+                            title: Text(notif['title'] ?? 'แจ้งเตือน', style: TextStyle(fontWeight: isRead ? FontWeight.normal : FontWeight.bold)),
+                            subtitle: Text(notif['message'] ?? ''),
+                            trailing: Text(
+                              _formatJoinedDate(notif['created_at']),
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                            onTap: () {
+                              Navigator.pop(itemContext);
+                              if (notif['type'] == 'adoption_request' && notif['cat_id'] != null) {
+                                Navigator.push(
+                                  this.context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CatAdoptersListScreen(
+                                      catId: int.tryParse(notif['cat_id'].toString()) ?? 0,
+                                      catName: notif['pet_name']?.toString() ?? 'น้องแมว',
+                                      isAdopted: notif['cat_status'] == 'adopted',
+                                      posterId: widget.userId,
+                                    ),
+                                  ),
+                                );
+                              } else if (notif['type'] == 'adoption_status') {
+                                Navigator.push(
+                                  this.context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AdoptionRequestsScreen(userId: widget.userId),
+                                  ),
+                                );
+                              }
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      // Mark as read when closing the bottom sheet
+      http.put(Uri.parse(ApiConfig.baseUrl + '/notifications/${widget.userId}/read')).then((_) {
+        if (mounted) {
+          setState(() {
+            _hasNotification = false;
+          });
+        }
+      });
+    });
   }
 
   // Helper เพื่อแปลงวันที่
@@ -65,7 +183,7 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
     try {
       final date = DateTime.parse(dateStr);
       final months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-      return "${months[date.month - 1]} ${date.year + 543}";
+      return "${date.day} ${months[date.month - 1]} ${date.year + 543}";
     } catch (e) {
       return "-";
     }
@@ -134,6 +252,29 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                                 ),
                               ],
                             ),
+                          ),
+                          Stack(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.notifications_none, size: 28, color: Colors.black87),
+                                onPressed: () {
+                                  _showNotificationsBottomSheet();
+                                },
+                              ),
+                              if (_hasNotification)
+                                Positioned(
+                                  right: 12,
+                                  top: 12,
+                                  child: Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.redAccent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ],
                       ),

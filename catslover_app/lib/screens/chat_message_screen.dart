@@ -2,19 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/api_config.dart';
+import '../utils/report_utils.dart';
 
 class ChatMessageScreen extends StatefulWidget {
   final int roomId;
   final int userId;
+  final int partnerId;
   final String partnerName;
   final String? applicationStatus;
+  final int? catId;
 
   const ChatMessageScreen({
     super.key,
     required this.roomId,
     required this.userId,
+    required this.partnerId,
     required this.partnerName,
     this.applicationStatus,
+    this.catId,
   });
 
   @override
@@ -211,6 +216,52 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
     }
   }
 
+  void _blockUser() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ยืนยันการบล็อก'),
+        content: Text('คุณแน่ใจหรือไม่ว่าต้องการบล็อก ${widget.partnerName}?\n(คุณจะไม่ได้รับข้อความจากผู้ใช้นี้อีก)'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('บล็อก', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final response = await http.post(
+          Uri.parse('${ApiConfig.baseUrl}/blocks'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'blockerId': widget.userId,
+            'blockedId': widget.partnerId,
+          }),
+        );
+        if (response.statusCode == 200) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('บล็อกผู้ใช้เรียบร้อยแล้ว'), backgroundColor: Colors.green),
+          );
+          Navigator.pop(context); // Go back after blocking
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('บล็อกผู้ใช้ไม่สำเร็จ')));
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isRejected = widget.applicationStatus == 'rejected';
@@ -223,10 +274,55 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
         elevation: 0,
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: _deleteChat,
-            tooltip: 'ลบแชท',
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'report') {
+                ReportUtils.showReportDialog(
+                  context, 
+                  reporterId: widget.userId,
+                  reportedUserId: widget.partnerId,
+                  catId: widget.catId,
+                );
+              } else if (value == 'block') {
+                _blockUser();
+              } else if (value == 'delete') {
+                _deleteChat();
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem(
+                value: 'report',
+                child: Row(
+                  children: [
+                    Icon(Icons.report_problem_outlined, color: Colors.orange, size: 20),
+                    SizedBox(width: 10),
+                    Text('รายงาน'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'block',
+                child: Row(
+                  children: [
+                    Icon(Icons.block, color: Colors.grey, size: 20),
+                    SizedBox(width: 10),
+                    Text('บล็อก'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                    SizedBox(width: 10),
+                    Text('ลบแชท', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'ตัวเลือกเพิ่มเติม',
           ),
         ],
       ),

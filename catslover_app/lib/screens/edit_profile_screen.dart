@@ -40,6 +40,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String _experience = 'พื้นฐาน';
   String _hasChildren = 'ไม่มี';
   String _hasPets = 'ไม่มี';
+  final TextEditingController _catsCountController = TextEditingController(text: '0');
+  final TextEditingController _dogsCountController = TextEditingController(text: '0');
+  final TextEditingController _otherPetsController = TextEditingController();
+  String _acceptsSpecialNeeds = 'ไม่พร้อม';
 
   bool _isLoading = false;
   bool _isOtpSent = false;
@@ -95,6 +99,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       
       int hasPets = data['has_other_pets'] is int ? data['has_other_pets'] : int.tryParse(data['has_other_pets']?.toString() ?? '0') ?? 0;
       _hasPets = hasPets == 1 ? 'มี' : 'ไม่มี';
+
+      _catsCountController.text = data['existing_cats_count']?.toString() ?? '0';
+      _dogsCountController.text = data['existing_dogs_count']?.toString() ?? '0';
+      _otherPetsController.text = data['other_pets_details']?.toString() ?? '';
+
+      int acceptsSpecial = data['accepts_special_needs'] is int ? data['accepts_special_needs'] : int.tryParse(data['accepts_special_needs']?.toString() ?? '0') ?? 0;
+      _acceptsSpecialNeeds = acceptsSpecial == 1 ? 'พร้อม' : 'ไม่พร้อม';
     }
   }
 
@@ -106,6 +117,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('กรุณากรอกรหัสผ่านเดิม หรือ OTP เพื่อยืนยันการเปลี่ยนรหัสผ่าน')),
         );
+        return;
+      }
+    }
+
+    if (_hasPets == 'มี') {
+      int cats = int.tryParse(_catsCountController.text.trim()) ?? 0;
+      int dogs = int.tryParse(_dogsCountController.text.trim()) ?? 0;
+      String otherPets = _otherPetsController.text.trim();
+      if (cats == 0 && dogs == 0 && otherPets.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาระบุจำนวนแมว สุนัข หรือสัตว์เลี้ยงอื่นๆ")));
         return;
       }
     }
@@ -145,9 +166,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'living_space_type': _housingType == 'บ้านเดี่ยว' ? 'house' : (_housingType == 'คอนโด' ? 'condo' : 'apartment'),
           'space_size': _spaceSize == 'กว้างขวาง' ? 'large' : (_spaceSize == 'คับแคบ' ? 'small' : 'medium'),
           'has_other_pets': _hasPets == 'มี' ? 1 : 0,
+          'existing_cats_count': _hasPets == 'มี' ? (int.tryParse(_catsCountController.text) ?? 0) : 0,
+          'existing_dogs_count': _hasPets == 'มี' ? (int.tryParse(_dogsCountController.text) ?? 0) : 0,
+          'other_pets_details': _hasPets == 'มี' ? _otherPetsController.text.trim() : null,
           'daily_free_hours': _freeTime == 'น้อย' ? 'low' : (_freeTime == 'มาก' ? 'high' : 'medium'),
           'experience': _experience == 'พื้นฐาน' ? 'beginner' : (_experience == 'ระดับสูง' ? 'experienced' : 'none'),
           'has_children': _hasChildren == 'มี' ? 1 : 0,
+          'accepts_special_needs': _acceptsSpecialNeeds == 'พร้อม' ? 1 : 0,
           'max_monthly_budget': double.tryParse(_budgetController.text) ?? 0.0,
         }),
       );
@@ -198,51 +223,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Text('ข้อมูลบัญชี', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _usernameController,
-                      decoration: const InputDecoration(labelText: 'ชื่อผู้ใช้', border: OutlineInputBorder()),
-                      validator: (val) => val == null || val.isEmpty ? 'กรุณากรอกชื่อผู้ใช้' : null,
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _emailController,
-                      decoration: const InputDecoration(labelText: 'อีเมล', border: OutlineInputBorder()),
-                      validator: (val) => val == null || val.isEmpty ? 'กรุณากรอกอีเมล' : null,
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _phoneController,
-                      decoration: const InputDecoration(labelText: 'เบอร์โทร', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _fullnameController,
-                      decoration: const InputDecoration(labelText: 'ชื่อ-นามสกุล', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _lineIdController,
-                      decoration: const InputDecoration(labelText: 'Line ID', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _oldPasswordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'รหัสผ่านเดิม (เว้นว่างหากไม่ต้องการเปลี่ยน)', 
-                        border: OutlineInputBorder()
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _newPasswordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'รหัสผ่านใหม่ (ถ้าต้องการเปลี่ยน)', 
-                        border: OutlineInputBorder()
-                      ),
-                    ),
+                    _buildTextField('ชื่อผู้ใช้', _usernameController, isRequired: true, validator: (val) => val == null || val.isEmpty ? 'กรุณากรอกชื่อผู้ใช้' : null),
+                    _buildTextField('อีเมล', _emailController, isRequired: true, validator: (val) => val == null || val.isEmpty ? 'กรุณากรอกอีเมล' : null),
+                    _buildTextField('เบอร์โทร', _phoneController, isRequired: true, validator: (val) => val == null || val.isEmpty ? 'กรุณากรอกเบอร์โทร' : null),
+                    _buildTextField('ชื่อ-นามสกุล', _fullnameController, isRequired: true, validator: (val) => val == null || val.isEmpty ? 'กรุณากรอกชื่อ-นามสกุล' : null),
+                    _buildTextField('Line ID', _lineIdController),
+                    _buildTextField('รหัสผ่านเดิม (เว้นว่างหากไม่ต้องการเปลี่ยน)', _oldPasswordController, obscureText: true),
+                    _buildTextField('รหัสผ่านใหม่ (ถ้าต้องการเปลี่ยน)', _newPasswordController, obscureText: true),
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
@@ -293,9 +280,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ], (val) {
                       setState(() => _freeTime = val!);
                     }),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text('งบประมาณต่อเดือน (บาท)', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
+                      child: RichText(
+                        text: const TextSpan(
+                          text: 'งบประมาณต่อเดือน (บาท)',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                          children: [
+                            TextSpan(text: ' *', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
                     ),
                     TextFormField(
                       controller: _budgetController,
@@ -315,7 +310,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _buildDropdown('ประสบการณ์', _experience, [
                       {'value': 'ไม่มี', 'label': 'ไม่มี/มือใหม่'},
                       {'value': 'พื้นฐาน', 'label': 'พื้นฐาน (เคยเลี้ยง)'},
-                      {'value': 'ระดับสูง', 'label': 'ระดับสูง (ดูแลแมวป่วยได้)'}
+                      {'value': 'ระดับสูง', 'label': 'ระดับสูง (มีประสบการณ์มาก)'}
                     ], (val) {
                       setState(() => _experience = val!);
                     }),
@@ -331,7 +326,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ], (val) {
                       setState(() => _hasPets = val!);
                     }),
+                    if (_hasPets == 'มี') ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildNumberSpinner('จำนวนแมวที่มี', _catsCountController),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildNumberSpinner('จำนวนสุนัขที่มี', _dogsCountController),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 15),
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8.0, left: 4.0),
+                        child: Text(
+                          "สัตว์เลี้ยงอื่นๆ (ระบุ)",
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                        ),
+                      ),
+                      TextFormField(
+                        controller: _otherPetsController,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          hintText: "เช่น นก 1 ตัว, กระต่าย 2 ตัว",
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        ),
+                      ),
+                    ],
                     
+                    _buildDropdown('พร้อมดูแลแมวที่มีความต้องการพิเศษหรือไม่ (เช่น ป่วยเรื้อรัง/พิการ)', _acceptsSpecialNeeds, const [
+                      {'label': 'ไม่พร้อม', 'value': 'ไม่พร้อม'},
+                      {'label': 'พร้อม', 'value': 'พร้อม'}
+                    ], (val) => setState(() => _acceptsSpecialNeeds = val!)),
+
                     const SizedBox(height: 30),
                     ElevatedButton(
                       onPressed: _saveProfile,
@@ -354,15 +386,120 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: DropdownButtonFormField<String>(
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-        value: currentValue,
-        items: items.map((e) => DropdownMenuItem(value: e['value'], child: Text(e['label']!))).toList(),
-        onChanged: onChanged,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
+            child: RichText(
+              text: TextSpan(
+                text: label,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                children: const [
+                  TextSpan(text: ' *', style: TextStyle(color: Colors.red)),
+                ],
+              ),
+            ),
+          ),
+          DropdownButtonFormField<String>(
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            value: currentValue,
+            items: items.map((e) => DropdownMenuItem(value: e['value'], child: Text(e['label']!))).toList(),
+            onChanged: onChanged,
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller, {bool isRequired = false, bool obscureText = false, String? hintText, String? Function(String?)? validator}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
+            child: RichText(
+              text: TextSpan(
+                text: label,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                children: isRequired ? const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))] : [],
+              ),
+            ),
+          ),
+          TextFormField(
+            controller: controller,
+            obscureText: obscureText,
+            decoration: InputDecoration(
+              hintText: hintText,
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            validator: validator,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNumberSpinner(String label, TextEditingController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
+          child: RichText(
+            text: TextSpan(
+              text: label,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+              children: const [
+                TextSpan(text: ' *', style: TextStyle(color: Colors.red)),
+              ],
+            ),
+          ),
+        ),
+        TextFormField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            suffixIcon: Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  InkWell(
+                    onTap: () {
+                      int val = int.tryParse(controller.text) ?? 0;
+                      controller.text = (val + 1).toString();
+                    },
+                    child: const Icon(Icons.keyboard_arrow_up, size: 24, color: Colors.grey),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      int val = int.tryParse(controller.text) ?? 0;
+                      if (val > 0) {
+                        controller.text = (val - 1).toString();
+                      }
+                    },
+                    child: const Icon(Icons.keyboard_arrow_down, size: 24, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

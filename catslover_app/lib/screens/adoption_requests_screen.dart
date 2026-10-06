@@ -92,7 +92,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
                       double matchscoreD = (req['matchscore'] != null) 
                           ? double.parse(req['matchscore'].toString()) 
                           : 0.0;
-                      int score = matchscoreD.toInt();
+                      int score = matchscoreD.round();
                       
                       String resultText = score >= 80 ? 'มีความเหมาะสม' : (score >= 50 ? 'พอใช้' : 'ควรพิจารณาเพิ่มเติม');
                       String catName = req['pet_name'] ?? 'ไม่ทราบชื่อ';
@@ -117,6 +117,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
                           matchId: int.tryParse(req['match_id'].toString()) ?? 0,
                           userId: widget.userId,
                           catId: int.tryParse(req['cat_id']?.toString() ?? '') ?? 0,
+                          rejectionReason: req['rejection_reason']?.toString(),
                         ),
                       );
                     }).toList(),
@@ -137,6 +138,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
     required int matchId,
     required int userId,
     required int catId,
+    String? rejectionReason,
   }) {
     String displayStatus = status == 'pending' ? 'รอการพิจารณา' 
                         : status == 'interview' ? 'นัดสัมภาษณ์'
@@ -230,6 +232,7 @@ class _AdoptionRequestsScreenState extends State<AdoptionRequestsScreen> {
                                     matchId: matchId,
                                     userId: userId,
                                     catId: catId,
+                                    rejectionReason: rejectionReason,
                                   ),
                                 ),
                               );

@@ -6,6 +6,8 @@ import 'user_profile_screen.dart';
 import 'poster_dashboard_screen.dart';
 import 'adopter_profile_screen.dart';
 import 'chat_list_screen.dart';
+import 'adoption_requests_screen.dart';
+import 'cat_adopters_list_screen.dart';
 import '../config/api_config.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -26,6 +28,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String? username;
   Map<String, dynamic>? userInfo;
 
+  int unreadChatCount = 0;
+  bool hasAdopterNotification = false;
   String _formatDate(String? isoDate) {
     if (isoDate == null) return "ไม่ระบุ";
     try {
@@ -33,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final List<String> thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
       final month = thaiMonths[date.month - 1];
       final year = date.year + 543;
-      return "$month $year";
+      return "${date.day} $month $year";
     } catch (e) {
       return "-";
     }
@@ -69,6 +73,129 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     fetchCats();
     fetchUserInfo();
+    _fetchNotifications();
+  }
+
+  Future<void> _fetchNotifications() async {
+    try {
+      final response = await http.get(Uri.parse(ApiConfig.baseUrl + '/notifications/unread-counts/${widget.userId}'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          if (!mounted) return;
+          setState(() {
+            unreadChatCount = data['unreadChats'] ?? 0;
+            hasAdopterNotification = (data['unreadNotifications'] ?? 0) > 0;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error fetching notifications: $e');
+    }
+  }
+
+  void _showNotificationsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return FutureBuilder(
+          future: http.get(Uri.parse(ApiConfig.baseUrl + '/notifications/${widget.userId}')),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 300,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (!snapshot.hasData || snapshot.hasError) {
+              return const SizedBox(
+                height: 300,
+                child: Center(child: Text("ไม่สามารถดึงข้อมูลได้")),
+              );
+            }
+
+            final data = json.decode((snapshot.data as http.Response).body);
+            List notifications = data['data'] ?? [];
+
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("การแจ้งเตือน", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Divider(),
+                  if (notifications.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Text("ไม่มีการแจ้งเตือนใหม่", style: TextStyle(color: Colors.grey)),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: notifications.length,
+                        itemBuilder: (itemContext, index) {
+                          final notif = notifications[index];
+                          bool isRead = notif['is_read'] == 1;
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isRead ? Colors.grey[200] : Colors.pink[100],
+                              child: Icon(
+                                Icons.notifications,
+                                color: isRead ? Colors.grey : Colors.pink[400],
+                              ),
+                            ),
+                            title: Text(notif['title'] ?? 'แจ้งเตือน', style: TextStyle(fontWeight: isRead ? FontWeight.normal : FontWeight.bold)),
+                            subtitle: Text(notif['message'] ?? ''),
+                            trailing: Text(
+                              _formatDate(notif['created_at']),
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                            onTap: () {
+                              Navigator.pop(itemContext); // ปิดหน้าต่าง
+                              if (notif['type'] == 'adoption_status') {
+                                Navigator.push(
+                                  this.context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AdoptionRequestsScreen(userId: widget.userId),
+                                  ),
+                                );
+                              } else if (notif['type'] == 'adoption_request' && notif['cat_id'] != null) {
+                                Navigator.push(
+                                  this.context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CatAdoptersListScreen(
+                                      catId: int.tryParse(notif['cat_id'].toString()) ?? 0,
+                                      catName: notif['pet_name']?.toString() ?? 'น้องแมว',
+                                      isAdopted: notif['cat_status'] == 'adopted',
+                                      posterId: widget.userId,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      // Mark as read when closing the bottom sheet
+      http.put(Uri.parse(ApiConfig.baseUrl + '/notifications/${widget.userId}/read')).then((_) {
+        if (mounted) {
+          setState(() {
+            hasAdopterNotification = false;
+          });
+        }
+      });
+    });
   }
 
   Future<void> fetchUserInfo() async {
@@ -557,6 +684,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
+                  Stack(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.notifications_none, size: 28, color: Colors.black87),
+                        onPressed: () {
+                          _showNotificationsBottomSheet();
+                        },
+                      ),
+                      if (hasAdopterNotification)
+                        Positioned(
+                          right: 12,
+                          top: 12,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: Colors.redAccent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -781,7 +931,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: _selectedIndex == 0
           ? _buildAdopterView()
           : _selectedIndex == 1
-              ? ChatListScreen(userId: widget.userId)
+              ? ChatListScreen(userId: widget.userId, onRefreshUnread: _fetchNotifications)
               : _buildPosterView(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
@@ -789,16 +939,38 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedItemColor: Colors.pink[400],
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'ผู้รับเลี้ยง',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.chat_bubble),
+                if (unreadChatCount > 0)
+                  Positioned(
+                    right: -4,
+                    top: -4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.redAccent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        unreadChatCount > 9 ? '9+' : unreadChatCount.toString(),
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             label: 'แชท',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.add_circle_outline),
             label: 'ผู้โพสต์หาบ้าน',
           ),

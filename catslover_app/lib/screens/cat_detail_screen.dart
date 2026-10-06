@@ -6,6 +6,7 @@ import 'cat_evaluation_screen.dart';
 import 'cat_profile_form_screen.dart';
 import 'poster_profile_screen.dart';
 import '../config/api_config.dart';
+import '../utils/report_utils.dart';
 
 class CatDetailScreen extends StatefulWidget {
   final int userId;
@@ -191,6 +192,30 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                         ),
                       ),
                     ),
+                    // Report Button (Top Right)
+                    Positioned(
+                      top: 50,
+                      right: 20,
+                      child: GestureDetector(
+                        onTap: () {
+                          // Report the cat poster
+                          ReportUtils.showReportDialog(
+                            context,
+                            reporterId: widget.userId,
+                            reportedUserId: int.tryParse(cat['poster_id'].toString()),
+                            catId: int.tryParse(cat['cat_id'].toString()),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.report_problem_outlined, color: Colors.redAccent),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
 
@@ -281,7 +306,11 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                       children: [
                         _buildReqRow("พื้นที่ที่ต้องการ", _mapSpace(cat['req_space_level'])),
                         const SizedBox(height: 8),
-                        _buildReqRow("เวลาที่ต้องให้", _mapAttention(cat['req_attention'])),
+                        _buildReqRow(
+                          "เวลาที่ต้องให้", 
+                          _mapAttention(cat['req_attention']) + 
+                          ((cat['has_special_needs'] == 1 || cat['has_special_needs'] == true || cat['has_special_needs'] == "1") ? " / ต้องการการดูแลพิเศษ" : "")
+                        ),
                         const SizedBox(height: 8),
                         _buildReqRow("ค่าใช้จ่ายโดยประมาณ", "${cat['est_monthly_cost'] ?? '3,000'} บาท/เดือน"),
                       ],

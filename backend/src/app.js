@@ -10,6 +10,9 @@ const adopterRouter = require('./routes/adopterRoutes');
 
 const chatRouter = require('./routes/chatRoutes');
 const adoptionRoutes = require('./routes/adoptionRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const reportRoutes = require('./routes/reportRoutes');
+const blockRoutes = require('./routes/blockRoutes');
 
 const app = express();
 
@@ -36,6 +39,9 @@ app.use('/api/adopters', adopterRouter);
 
 app.use('/api/chats', chatRouter);
 app.use('/api/adoption', adoptionRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/blocks', blockRoutes);
 app.use('/upload', express.static(path.join(__dirname, '../upload')));
 
 

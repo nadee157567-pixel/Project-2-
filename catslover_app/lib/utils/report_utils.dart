@@ -21,7 +21,7 @@ class ReportUtils {
       'อื่นๆ'
     ];
     final TextEditingController detailsController = TextEditingController();
-    File? selectedImage;
+    List<File> selectedImages = [];
     final ImagePicker picker = ImagePicker();
 
     showModalBottomSheet(
@@ -108,15 +108,22 @@ class ReportUtils {
                     children: [
                       ElevatedButton.icon(
                         onPressed: () async {
-                          final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-                          if (image != null) {
+                          final List<XFile> images = await picker.pickMultiImage();
+                          if (images.isNotEmpty) {
                             setState(() {
-                              selectedImage = File(image.path);
+                              selectedImages.addAll(images.map((image) => File(image.path)));
+                              // จำกัดไม่เกิน 5 รูป
+                              if (selectedImages.length > 5) {
+                                selectedImages = selectedImages.sublist(0, 5);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('เลือกรูปได้สูงสุด 5 รูป')),
+                                );
+                              }
                             });
                           }
                         },
                         icon: const Icon(Icons.image, size: 18),
-                        label: const Text('เลือกรูปภาพ'),
+                        label: const Text('เลือกรูปภาพ (สูงสุด 5)'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey[200],
                           foregroundColor: Colors.black87,
@@ -124,35 +131,54 @@ class ReportUtils {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      if (selectedImage != null)
-                        Expanded(
-                          child: Row(
-                            children: [
-                              const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  'แนบรูปภาพแล้ว',
-                                  style: TextStyle(color: Colors.green[700], fontSize: 12),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.close, size: 18, color: Colors.red),
-                                onPressed: () {
-                                  setState(() {
-                                    selectedImage = null;
-                                  });
-                                },
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
-                            ],
-                          ),
-                        ),
                     ],
                   ),
+                  const SizedBox(height: 10),
+                  if (selectedImages.isNotEmpty)
+                    SizedBox(
+                      height: 80,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: selectedImages.length,
+                        itemBuilder: (context, index) {
+                          return Stack(
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(right: 10),
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  image: DecorationImage(
+                                    image: FileImage(selectedImages[index]),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 5,
+                                top: 0,
+                                child: InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      selectedImages.removeAt(index);
+                                    });
+                                  },
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.red,
+                                    ),
+                                    padding: const EdgeInsets.all(4),
+                                    child: const Icon(Icons.close, size: 12, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -172,31 +198,45 @@ class ReportUtils {
                         );
 
                         try {
-                          var request = http.MultipartRequest(
-                            'POST',
+                          // 1. ส่งข้อมูลหลักของรายงานก่อน (ไม่มีรูป)
+                          var response = await http.post(
                             Uri.parse('${ApiConfig.baseUrl}/reports'),
+                            headers: {'Content-Type': 'application/json'},
+                            body: jsonEncode({
+                              'reporterId': reporterId.toString(),
+                              if (reportedUserId != null) 'reportedUserId': reportedUserId.toString(),
+                              if (catId != null) 'catId': catId.toString(),
+                              'reason': selectedReason,
+                              'details': detailsController.text,
+                            }),
                           );
-                          request.fields['reporterId'] = reporterId.toString();
-                          if (reportedUserId != null) {
-                            request.fields['reportedUserId'] = reportedUserId.toString();
-                          }
-                          if (catId != null) {
-                            request.fields['catId'] = catId.toString();
-                          }
-                          request.fields['reason'] = selectedReason;
-                          request.fields['details'] = detailsController.text;
-
-                          if (selectedImage != null) {
-                            request.files.add(await http.MultipartFile.fromPath(
-                              'evidence_image',
-                              selectedImage!.path,
-                            ));
-                          }
-
-                          var streamedResponse = await request.send();
-                          var response = await http.Response.fromStream(streamedResponse);
 
                           if (response.statusCode == 201) {
+                            final responseData = jsonDecode(response.body);
+                            final reportId = responseData['reportId'];
+
+                            // 2. ถ้ามีรูปภาพ ให้ส่งรูปแยกตามไปที่ API สำหรับรูปภาพ
+                            if (selectedImages.isNotEmpty && reportId != null) {
+                              var request = http.MultipartRequest(
+                                'POST',
+                                Uri.parse('${ApiConfig.baseUrl}/reports/$reportId/photos'),
+                              );
+                              
+                              for (var image in selectedImages) {
+                                request.files.add(await http.MultipartFile.fromPath(
+                                  'evidence_images',
+                                  image.path,
+                                ));
+                              }
+
+                              var streamedResponse = await request.send();
+                              var photoResponse = await http.Response.fromStream(streamedResponse);
+                              
+                              if (photoResponse.statusCode != 201) {
+                                throw Exception('Failed to upload photos');
+                              }
+                            }
+
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('ส่งรายงานสำเร็จ ทีมงานจะรีบตรวจสอบ'),
@@ -204,7 +244,7 @@ class ReportUtils {
                               ),
                             );
                           } else {
-                            throw Exception('Failed');
+                            throw Exception('Failed to create report');
                           }
                         } catch (e) {
                           ScaffoldMessenger.of(context).showSnackBar(

@@ -10,7 +10,8 @@ const upload = multer({
 const router = express.Router();
 const reportController = require('../controllers/reportController');
 
-router.post('/', upload.single('evidence_image'), reportController.createReport);
+router.post('/', reportController.createReport);
+router.post('/:reportId/photos', upload.array('evidence_images', 5), reportController.uploadReportPhotos);
 router.put('/:reportId/status', reportController.updateReportStatus);
 
 module.exports = router;

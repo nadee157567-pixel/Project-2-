@@ -4,19 +4,15 @@ exports.createReport = async (req, res) => {
     try {
         const { reporterId, reportedUserId, catId, reason, details } = req.body;
         
-        let evidenceImage = null;
-        if (req.file) {
-            evidenceImage = req.file.path; // Cloudinary URL
-        }
-
         if (!reporterId || !reason) {
             return res.status(400).json({ success: false, message: 'กรุณาส่งข้อมูลผู้รายงานและเหตุผล' });
         }
 
+        // insert report data without evidence_image column since we upload photos separately
         const [result] = await pool.query(`
-            INSERT INTO reports (reporter_id, reported_user_id, cat_id, reason, details, evidence_image, status)
-            VALUES (?, ?, ?, ?, ?, ?, 'Pending')
-        `, [reporterId, reportedUserId || null, catId || null, reason, details || null, evidenceImage]);
+            INSERT INTO reports (reporter_id, reported_user_id, cat_id, reason, details, status)
+            VALUES (?, ?, ?, ?, ?, 'Pending')
+        `, [reporterId, reportedUserId || null, catId || null, reason, details || null]);
 
         // แจ้งเตือนผู้รายงานว่าได้รับเรื่องแล้ว
         await pool.query(`
@@ -82,5 +78,28 @@ exports.updateReportStatus = async (req, res) => {
     } catch (error) {
         console.error('Error updating report status:', error);
         res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตสถานะ' });
+    }
+};
+
+exports.uploadReportPhotos = async (req, res) => {
+    try {
+        const reportId = req.params.reportId;
+        const files = req.files;
+
+        if (!files || files.length === 0) {
+            return res.status(400).json({ success: false, message: 'กรุณาอัปโหลดรูปภาพ' });
+        }
+
+        const imageValues = files.map(file => [reportId, file.path]);
+        
+        await pool.query(`
+            INSERT INTO report_images (report_id, image_url)
+            VALUES ?
+        `, [imageValues]);
+
+        res.status(201).json({ success: true, message: 'อัปโหลดรูปภาพหลักฐานสำเร็จ' });
+    } catch (error) {
+        console.error('Error uploading report photos:', error);
+        res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ' });
     }
 };

@@ -7,6 +7,21 @@ export const statsData = {
   findingHomeCats: 81
 };
 
+export const thaiMonths = [
+  { label: 'มกราคม', value: '1', name: 'มกราคม', short: 'ม.ค.' },
+  { label: 'กุมภาพันธ์', value: '2', name: 'กุมภาพันธ์', short: 'ก.พ.' },
+  { label: 'มีนาคม', value: '3', name: 'มีนาคม', short: 'มี.ค.' },
+  { label: 'เมษายน', value: '4', name: 'เมษายน', short: 'เม.ย.' },
+  { label: 'พฤษภาคม', value: '5', name: 'พฤษภาคม', short: 'พ.ค.' },
+  { label: 'มิถุนายน', value: '6', name: 'มิถุนายน', short: 'มิ.ย.' },
+  { label: 'กรกฎาคม', value: '7', name: 'กรกฎาคม', short: 'ก.ค.' },
+  { label: 'สิงหาคม', value: '8', name: 'สิงหาคม', short: 'ส.ค.' },
+  { label: 'กันยายน', value: '9', name: 'กันยายน', short: 'ก.ย.' },
+  { label: 'ตุลาคม', value: '10', name: 'ตุลาคม', short: 'ต.ค.' },
+  { label: 'พฤศจิกายน', value: '11', name: 'พฤศจิกายน', short: 'พ.ย.' },
+  { label: 'ธันวาคม', value: '12', name: 'ธันวาคม', short: 'ธ.ค.' },
+];
+
 export const monthlyAdoptionData = [
   { name: 'มกราคม', added: 12, adopted: 2 },
   { name: 'กุมภาพันธ์', added: 18, adopted: 5 },
@@ -14,6 +29,12 @@ export const monthlyAdoptionData = [
   { name: 'เมษายน', added: 30, adopted: 10 },
   { name: 'พฤษภาคม', added: 15, adopted: 7 },
   { name: 'มิถุนายน', added: 20, adopted: 7 },
+  { name: 'กรกฎาคม', added: 22, adopted: 9 },
+  { name: 'สิงหาคม', added: 28, adopted: 12 },
+  { name: 'กันยายน', added: 19, adopted: 8 },
+  { name: 'ตุลาคม', added: 24, adopted: 11 },
+  { name: 'พฤศจิกายน', added: 16, adopted: 6 },
+  { name: 'ธันวาคม', added: 26, adopted: 14 },
 ];
 
 export const userTypesData = [
@@ -57,18 +78,7 @@ export const catBreedsDataAdopters = [
   { name: 'ไม่ทราบสายพันธุ์', value: 3 },
 ];
 
-export const pendingActionsData = [
-  { id: 1, username: 'Catlover', date: 'Mar 2,2026', issue: 'รูปภาพไม่เหมาะสม', status: 'Pending' },
-  { id: 2, username: 'Mycatt', date: 'Mar 10,2026', issue: 'พฤติกรรมน่าสงสัย', status: 'Inspecting' },
-  { id: 3, username: 'Catss', date: 'Mar 12,2026', issue: 'เนื้อหาไม่เหมาะสม', status: 'Pending' },
-  { id: 4, username: 'JohnDoe', date: 'Mar 15,2026', issue: 'ใช้คำหยาบคาย', status: 'Resolved' },
-  { id: 5, username: 'MeowMaster', date: 'Mar 16,2026', issue: 'สแปมข้อความ', status: 'Pending' },
-  { id: 6, username: 'Kitty99', date: 'Mar 18,2026', issue: 'แอบอ้างเป็นผู้อื่น', status: 'Inspecting' },
-  { id: 7, username: 'DogLover123', date: 'Mar 20,2026', issue: 'รูปภาพไม่เหมาะสม', status: 'Resolved' },
-  { id: 8, username: 'Somsri', date: 'Mar 21,2026', issue: 'ขายของผิดประเภท', status: 'Pending' },
-  { id: 9, username: 'Ployy', date: 'Mar 22,2026', issue: 'หลอกลวง', status: 'Inspecting' },
-  { id: 10, username: 'Manow', date: 'Mar 25,2026', issue: 'เนื้อหารุนแรง', status: 'Pending' }
-];
+export const pendingActionsData = [];
 
 export const evaluationCriteriaData = [
   { id: 1, topic: 'พื้นที่ในการเลี้ยง', condition: 'ความพร้อมเท่ากับหรือสูงกว่า', maxScore: 25, scoreRatio: 1.0, isBlocking: false, isActive: true, updated: '17 ก.ย. 69' },

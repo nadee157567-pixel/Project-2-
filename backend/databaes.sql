@@ -91,7 +91,7 @@ CREATE TABLE user_profiles (
         'large'
     ),
 	max_monthly_budget DECIMAL(10,2),
-	daily_free_hours numeric,
+	daily_free_hours ENUM('low', 'medium', 'high'),
     has_other_pets BOOLEAN,
 	has_children BOOLEAN,
     experience ENUM(

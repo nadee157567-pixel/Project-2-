@@ -132,6 +132,19 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       if (data['has_special_needs'] != null) {
         hasSpecialNeeds = data['has_special_needs']?.toString() == '1' || data['has_special_needs']?.toString() == 'true';
       }
+
+      if (data['good_with_children'] != null) {
+        goodWithChildren = data['good_with_children'] == 1 || data['good_with_children'] == true;
+      }
+      if (data['has_special_needs'] != null) {
+        hasSpecialNeeds = data['has_special_needs'] == 1 || data['has_special_needs'] == true;
+      }
+      if (data['good_with_cats'] != null) {
+        okWithCat = data['good_with_cats'] == 1 || data['good_with_cats'] == true;
+      }
+      if (data['good_with_dogs'] != null) {
+        okWithDog = data['good_with_dogs'] == 1 || data['good_with_dogs'] == true;
+      }
     }
   } 
 

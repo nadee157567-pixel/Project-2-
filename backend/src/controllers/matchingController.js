@@ -471,7 +471,6 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
     } else if (experienceResult.difference === -1) {
         warnings.push('ประสบการณ์ต่ำกว่าที่แนะนำเล็กน้อย');
     } else {
-        warnings.push('ประสบการณ์ต่ำกว่าที่แมวต้องการมาก');
         if (experienceResult.isBlocking) { disqualifications.push('ประสบการณ์ไม่เพียงพอต่อการดูแลแมว'); }
     }
 

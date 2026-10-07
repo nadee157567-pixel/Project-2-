@@ -24,23 +24,23 @@ socketExport.setIO(io);
 
 // Middleware สำหรับเช็ค JWT ใน Socket.io
 io.use((socket, next) => {
-  const token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.split(' ')[1];
+  const token = socket.handshake.auth?.token || socket.handshake.headers['authorization']?.split(' ')[1];
   
-  if (!token) {
-    return next(new Error('Authentication error: Token is required'));
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.user = decoded;
+    } catch (error) {
+      socket.user = { username: 'Guest', user_id: 0 };
+    }
+  } else {
+    socket.user = { username: 'Admin/Guest', user_id: 0 };
   }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.user = decoded; // เก็บข้อมูลผู้ใช้ไว้ใช้ต่อ
-    next();
-  } catch (error) {
-    return next(new Error('Authentication error: Invalid or expired token'));
-  }
+  next();
 });
 
 io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.user.username} (Socket ID: ${socket.id})`);
+  console.log(`User connected: ${socket.user?.username || 'Guest'} (Socket ID: ${socket.id})`);
 
   // เมื่อผู้ใช้เข้าสู่ห้องแชท
   socket.on('join_room', (roomId) => {
@@ -53,10 +53,11 @@ io.on('connection', (socket) => {
     const { roomId, senderId, messageText } = data;
 
     try {
-      // 1. บันทึกข้อความลง Database
+      const now = new Date();
+      // 1. บันทึกข้อความลง Database โดยใช้เวลา UTC จริงจาก Node.js
       const [result] = await pool.query(
-        'INSERT INTO messages (room_id, sender_id, message_text) VALUES (?, ?, ?)',
-        [roomId, senderId, messageText]
+        'INSERT INTO messages (room_id, sender_id, message_text, sent_at) VALUES (?, ?, ?, ?)',
+        [roomId, senderId, messageText, now]
       );
       
       const newMessage = {
@@ -65,7 +66,7 @@ io.on('connection', (socket) => {
         sender_id: senderId,
         message_text: messageText,
         is_read: 0,
-        sent_at: new Date()
+        sent_at: now.toISOString()
       };
 
       // 2. กระจายข้อความให้ทุกคนในห้อง (รวมถึงคนส่งด้วย) ให้หน้าจออัปเดตตรงกัน

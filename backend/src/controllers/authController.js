@@ -62,6 +62,18 @@ async function login(req, res) {
 
         const user = users[0];
 
+        // ตรวจสอบสถานะการระงับบัญชี (banned)
+        if (Number(user.is_banned) === 1) {
+            const banReasonText = user.ban_reason 
+                ? ` (${user.ban_reason})`
+                : '';
+            return res.status(403).json({
+                success: false,
+                is_banned: true,
+                message: `บัญชีของคุณถูกระงับการใช้งาน${banReasonText} กรุณาติดต่อผู้ดูแลระบบ`
+            });
+        }
+
         // ตรวจสอบรหัสผ่าน
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {

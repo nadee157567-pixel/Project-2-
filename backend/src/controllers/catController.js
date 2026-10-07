@@ -22,7 +22,7 @@ async function getAllCats(req, res) {
             
             JOIN users AS u
               ON c.poster_id = u.user_id
-              
+            WHERE c.is_hidden = 0
             ORDER BY c.created_at DESC`);
         return res.status(200).json({
             success: true,

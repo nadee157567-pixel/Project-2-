@@ -101,10 +101,11 @@ exports.sendMessage = async (req, res) => {
             return res.status(400).json({ success: false, message: 'กรุณาส่งข้อมูลให้ครบถ้วน' });
         }
 
+        const now = new Date();
         const [result] = await pool.query(`
-            INSERT INTO messages (room_id, sender_id, message_text, is_read)
-            VALUES (?, ?, ?, 0)
-        `, [roomId, senderId, messageText]);
+            INSERT INTO messages (room_id, sender_id, message_text, sent_at, is_read)
+            VALUES (?, ?, ?, ?, 0)
+        `, [roomId, senderId, messageText, now]);
 
         const [newMessage] = await pool.query(`
                 SELECT 

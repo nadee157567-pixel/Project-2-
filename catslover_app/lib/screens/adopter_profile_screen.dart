@@ -267,7 +267,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
                           color: Colors.orange[100],
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.pets, size: 80, color: Colors.orange),
+                        child: const Icon(Icons.favorite, size: 80, color: Colors.orange),
                       ),
                       const SizedBox(height: 30),
                       SizedBox(
@@ -351,7 +351,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
               children: [
                 const Expanded(
                   child: Text(
-                    "มาสร้างโปรไฟล์ในการค้นหาเพื่อนใหม่กัน",
+                    "มาสร้างโปรไฟล์ทาสแมวกันเถอะ! 🐾",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -437,8 +437,8 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
       child: Column(
         children: [
           _buildQuestionContainer(
-            question: "ที่พักอาศัยของคุณเป็นแบบไหน ?",
-            subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
+            question: "ลักษณะที่พักอาศัยของคุณเป็นแบบไหน?",
+            subtitle: "เพื่อให้เราช่วยหาน้องแมวที่เข้ากับไลฟ์สไตล์ของคุณที่สุด",
             content: Row(
               children: [
                 Expanded(child: _buildImageChoice(label: "บ้านเดี่ยว", icon: Icons.house, isSelected: housingType == "บ้านเดี่ยว", onTap: () => setState(() => housingType = "บ้านเดี่ยว"))),
@@ -452,21 +452,21 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
           const SizedBox(height: 20),
           _buildQuestionContainer(
             question: "ขนาดพื้นที่พักอาศัยของคุณเป็นอย่างไร ?",
-            subtitle: "เพื่อประเมินความเหมาะสมกับแมวที่ต้องการพื้นที่",
+            subtitle: "น้องแมวบางตัวชอบวิ่งเล่น พื้นที่นี้จะช่วยให้เราจับคู่ได้ดียิ่งขึ้น",
             content: Row(
               children: [
-                Expanded(child: _buildImageChoice(label: "กว้างขวาง", icon: Icons.landscape, isSelected: spaceSize == "กว้างขวาง", onTap: () => setState(() => spaceSize = "กว้างขวาง"))),
+                Expanded(child: _buildImageChoice(label: "กว้างขวาง", icon: Icons.sentiment_satisfied, isSelected: spaceSize == "กว้างขวาง", onTap: () => setState(() => spaceSize = "กว้างขวาง"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "ปานกลาง", icon: Icons.crop_square, isSelected: spaceSize == "ปานกลาง", onTap: () => setState(() => spaceSize = "ปานกลาง"))),
+                Expanded(child: _buildImageChoice(label: "ปานกลาง", icon: Icons.sentiment_satisfied_alt, isSelected: spaceSize == "ปานกลาง", onTap: () => setState(() => spaceSize = "ปานกลาง"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "คับแคบ", icon: Icons.view_compact, isSelected: spaceSize == "คับแคบ", onTap: () => setState(() => spaceSize = "คับแคบ"))),
+                Expanded(child: _buildImageChoice(label: "คับแคบ", icon: Icons.sentiment_very_satisfied, isSelected: spaceSize == "คับแคบ", onTap: () => setState(() => spaceSize = "คับแคบ"))),
               ],
             ),
           ),
           const SizedBox(height: 20),
           _buildQuestionContainer(
-            question: "ปัจจุบันมีสัตว์เลี้ยงอื่นอยู่แล้วหรือไม่ ?",
-            subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
+            question: "ปัจจุบันมีสัตว์เลี้ยงอื่นอยู่แล้วหรือไม่?",
+            subtitle: "เพื่อให้เราช่วยหาน้องแมวที่เข้ากับไลฟ์สไตล์ของคุณที่สุด",
             content: Row(
               children: [
                 Expanded(child: _buildImageChoice(label: "มี", icon: Icons.pets, isSelected: hasPets == "มี", onTap: () => setState(() => hasPets = "มี"))),
@@ -479,7 +479,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
             const SizedBox(height: 20),
             _buildQuestionContainer(
               question: "ระบุจำนวนสัตว์เลี้ยงที่มีอยู่",
-              subtitle: "เพื่อคำนวณคะแนนโบนัสว่าแมวเข้ากับสัตว์เลี้ยงอื่นได้หรือไม่",
+              subtitle: "เพื่อดูว่าน้องแมวตัวใหม่จะไปวิ่งเล่นกับเพื่อนๆ ได้รึเปล่า",
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -533,28 +533,28 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
         children: [
           _buildQuestionContainer(
             question: "คุณมีเวลาว่างให้สัตว์เลี้ยงมากแค่ไหน ?",
-            subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
+            subtitle: "เพื่อให้เราช่วยหาน้องแมวที่เข้ากับไลฟ์สไตล์ของคุณที่สุด",
             content: Row(
               children: [
-                Expanded(child: _buildImageChoice(label: "น้อย\n(1-2 ชม.)", icon: Icons.computer, isSelected: freeTime == "low", onTap: () => setState(() => freeTime = "low"))),
+                Expanded(child: _buildImageChoice(label: "น้อย\n(1-2 ชม.)", icon: Icons.sentiment_satisfied, isSelected: freeTime == "low", onTap: () => setState(() => freeTime = "low"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "ปานกลาง\n(3-5 ชม.)", icon: Icons.access_time, isSelected: freeTime == "medium", onTap: () => setState(() => freeTime = "medium"))),
+                Expanded(child: _buildImageChoice(label: "ปานกลาง\n(3-5 ชม.)", icon: Icons.sentiment_satisfied_alt, isSelected: freeTime == "medium", onTap: () => setState(() => freeTime = "medium"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "มาก\n(> 5 ชม.)", icon: Icons.home_work, isSelected: freeTime == "high", onTap: () => setState(() => freeTime = "high"))),
+                Expanded(child: _buildImageChoice(label: "มาก\n(> 5 ชม.)", icon: Icons.sentiment_very_satisfied, isSelected: freeTime == "high", onTap: () => setState(() => freeTime = "high"))),
               ],
             ),
           ),
           const SizedBox(height: 20),
           _buildQuestionContainer(
             question: "คุณมีประสบการณ์การเลี้ยงแมวหรือไม่ ?",
-            subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
+            subtitle: "เพื่อให้เราช่วยหาน้องแมวที่เข้ากับไลฟ์สไตล์ของคุณที่สุด",
             content: Row(
               children: [
-                Expanded(child: _buildImageChoice(label: "มือใหม่", icon: Icons.face, isSelected: experience == "มือใหม่", onTap: () => setState(() => experience = "มือใหม่"))),
+                Expanded(child: _buildImageChoice(label: "มือใหม่", icon: Icons.sentiment_satisfied, isSelected: experience == "มือใหม่", onTap: () => setState(() => experience = "มือใหม่"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "พื้นฐาน", icon: Icons.pets, isSelected: experience == "พื้นฐาน", onTap: () => setState(() => experience = "พื้นฐาน"))),
+                Expanded(child: _buildImageChoice(label: "พื้นฐาน", icon: Icons.sentiment_satisfied_alt, isSelected: experience == "พื้นฐาน", onTap: () => setState(() => experience = "พื้นฐาน"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "ระดับสูง", icon: Icons.health_and_safety, isSelected: experience == "ระดับสูง", onTap: () => setState(() => experience = "ระดับสูง"))),
+                Expanded(child: _buildImageChoice(label: "ระดับสูง", icon: Icons. sentiment_very_satisfied, isSelected: experience == "ระดับสูง", onTap: () => setState(() => experience = "ระดับสูง"))),
               ],
             ),
           ),
@@ -581,7 +581,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
         children: [
           _buildQuestionContainer(
             question: "ในบ้านมีเด็กเล็กหรือไม่ ?",
-            subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
+            subtitle: "เพื่อให้เราช่วยหาน้องแมวที่เข้ากับไลฟ์สไตล์ของคุณที่สุด",
             content: Row(
               children: [
                 Expanded(child: _buildImageChoice(label: "มี", icon: Icons.child_care, isSelected: hasChildren == "มี", onTap: () => setState(() => hasChildren = "มี"))),

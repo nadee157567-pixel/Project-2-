@@ -280,7 +280,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
                                 "cat_id": widget.catId,
                                 "applicant_id": widget.userId,
                                 "assessment_id": evaluationResult?['assessmentId'],
-                                "message": "สนใจรับเลี้ยงน้องแมวตัวนี้ครับ/ค่ะ (ส่งจากแอป)"
+                                "message": "สนใจรับเลี้ยงน้องแมวตัวนี้ (ส่งจากแอป)"
                               }),
                             );
 

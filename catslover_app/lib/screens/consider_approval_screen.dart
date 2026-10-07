@@ -72,7 +72,7 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
       );
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('อัปเดตสถานะเป็น ${status == 'approved' ? 'อนุมัติ' : 'ไม่อนุมัติ'} สำเร็จ')),
+          SnackBar(content: Text('อัปเดตสถานะเป็น ${status == 'approved' ? 'ตกลงให้รับเลี้ยง' : 'ปฏิเสธคำขอ'} เรียบร้อยแล้ว 😻')),
         );
         Navigator.pop(context);
       } else {
@@ -89,11 +89,11 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
   void _showConfirmationDialog(String status) {
     _remarkController.clear();
     final bool isApprove = status == 'approved';
-    final String title = isApprove ? 'ยืนยันการอนุมัติ' : 'ยืนยันการไม่อนุมัติ';
+    final String title = isApprove ? 'ตกลงเลือกผู้รับเลี้ยงนี้ 🐾' : 'ปฏิเสธผู้รับเลี้ยง';
     final String contentText = isApprove 
-        ? 'คุณต้องการอนุมัติให้ผู้ใช้นี้รับเลี้ยงแมวใช่หรือไม่? คุณสามารถระบุข้อความเพิ่มเติมให้ผู้รับเลี้ยงได้ (ถ้ามี):'
-        : 'คุณต้องการปฏิเสธคำขอรับเลี้ยงนี้ใช่หรือไม่? กรุณาระบุเหตุผล (ถ้ามี):';
-    final String confirmBtnText = isApprove ? 'ยืนยันการอนุมัติ' : 'ยืนยันการปฏิเสธ';
+        ? 'คุณแน่ใจไหมที่จะเลือกผู้ใช้คนนี้ไปดูแลน้องแมว? คุณสามารถฝากข้อความถึงว่าที่ทาสแมวคนใหม่ได้นะ (ถ้ามี):'
+        : 'คุณต้องการปฏิเสธคำขอนี้ใช่ไหม? กรุณาระบุเหตุผลเพื่อแจ้งให้ผู้ขอทราบ (ถ้ามี):';
+    final String confirmBtnText = isApprove ? 'ตกลง! มอบน้องแมวให้เลย' : 'ยืนยันปฏิเสธ';
     final Color confirmBtnColor = isApprove ? Colors.green : Colors.red;
 
     showDialog(
@@ -146,9 +146,9 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
   }
 
   String _getMatchResultText(int percent) {
-    if (percent >= 80) return 'มีความเหมาะสม';
-    if (percent >= 50) return 'พอใช้';
-    return 'ควรพิจารณาเพิ่มเติม';
+    if (percent >= 80) return 'เหมาะสมมาก (ว่าที่ทาสแมวตัวจริง!)';
+    if (percent >= 50) return 'พอใช้ (ลองพูดคุยกันดูก่อนได้น้า)';
+    return 'อาจจะยังไม่เหมาะ';
   }
 
   Color _getMatchResultColor(int percent) {

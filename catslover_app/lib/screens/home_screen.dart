@@ -557,7 +557,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 catData: cat,
               ),
             ),
-          );
+          ).then((_) {
+            _fetchNotifications();
+          });
           return;
         }
       }
@@ -567,14 +569,14 @@ class _HomeScreenState extends State<HomeScreen> {
         context: context,
         builder: (context) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text("ขอข้อมูลเพิ่มเติม", style: TextStyle(fontWeight: FontWeight.bold)),
+          title: const Text("ยินดีต้อนรับว่าที่ทาสแมว!", style: TextStyle(fontWeight: FontWeight.bold)),
           content: const Text(
-              "เนื่องจากเป็นการใช้งานครั้งแรก ระบบขอให้คุณกรอกข้อมูลเพื่อนำไปประเมินความเหมาะสมในการรับเลี้ยงแมว\n\n* ข้อมูลนี้ทำเพียงครั้งแรกและสามารถแก้ไขได้ภายหลัง\n* กรุณากรอกข้อมูลตามความเป็นจริง",
+              "เนื่องจากเป็นการเจอกันครั้งแรก เราขอให้คุณสร้างโปรไฟล์เล็กน้อยเพื่อนำไปจับคู่กับน้องแมวที่เหมาะกับไลฟ์สไตล์ของคุณที่สุด\n\n* ทำเพียงครั้งแรกและสามารถแก้ไขทีหลังได้\n* ข้อมูลของคุณจะช่วยให้น้องแมวได้บ้านที่ใช่!",
               style: TextStyle(height: 1.5)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("ยกเลิก", style: TextStyle(color: Colors.grey)),
+              child: const Text("ไว้ทีหลัง", style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -589,13 +591,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ).then((_) {
                   fetchRecommendedCats();
+                  _fetchNotifications();
                 });
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.pink[400],
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
-              child: const Text("กรอกข้อมูล", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text("สร้างโปรไฟล์ทาสแมว", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -634,6 +637,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ).then((_) {
                         fetchRecommendedCats();
+                        _fetchNotifications();
                       });
                     },
                     child: Container(

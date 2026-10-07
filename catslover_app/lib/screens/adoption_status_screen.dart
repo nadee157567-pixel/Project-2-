@@ -355,28 +355,28 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
                       
                       // Hero Image and Title dynamic based on status
                       Builder(builder: (context) {
-                        String iconUrl = 'https://cdn-icons-png.flaticon.com/512/3209/3209971.png';
-                        String titleText = "ใบสมัครของคุณอยู่ระหว่างการพิจารณา";
-                        String subtitleText = "ผู้โพสต์ได้รับข้อมูลการประเมินของคุณแล้ว\nกรุณารอการติดต่อกลับ หรือการอนุมัติเลี้ยงดู";
+                        String iconUrl = 'https://cdn-icons-png.flaticon.com/128/763/763789.png'; // Cute cat waiting
+                        String titleText = "กำลังพิจารณาคุณสมบัติทาสแมว ⏳";
+                        String subtitleText = "ส่งแบบประเมินให้เจ้าของเรียบร้อยแล้ว\nรบกวนรอการติดต่อกลับสักครู่นะ";
                         
                         if (widget.status == 'approved') {
-                          iconUrl = 'https://cdn-icons-png.flaticon.com/512/1904/1904425.png'; // success
-                          titleText = "ยินดีด้วย! คุณได้รับการอนุมัติ";
-                          subtitleText = "ผู้โพสต์เลือกคุณเป็นผู้รับเลี้ยงน้องแมว\nกรุณาติดต่อนัดรับน้องแมวตามช่องทางที่ให้ไว้";
+                          iconUrl = 'https://cdn-icons-png.flaticon.com/128/763/763704.png'; // Cute cat with heart
+                          titleText = "เย้! คุณได้รับเลือกให้เป็นทาสแมวแล้ว 🐾";
+                          subtitleText = "เจ้าของเลือกคุณให้ดูแลน้องแมวต่อ\nรบกวนติดต่อนัดรับน้องแมวตามช่องทางที่ให้ไว้นะคะ";
                         } else if (widget.status == 'rejected') {
-                          iconUrl = 'https://cdn-icons-png.flaticon.com/512/1904/1904428.png'; // fail
-                          titleText = "เสียใจด้วย ใบสมัครไม่ผ่านการอนุมัติ";
+                          iconUrl = 'https://cdn-icons-png.flaticon.com/128/763/763764.png'; // Sad cat
+                          titleText = "แง... ยังไม่ผ่านการคัดเลือกน้า 😿";
                           if (widget.rejectionReason == 'adopted_by_other') {
-                            subtitleText = "แมวที่ขอรับเลี้ยงมีคนรับเลี้ยงไปแล้ว แต่ยังมีน้องแมวอีกหลายตัวที่รอคุณอยู่!";
+                            subtitleText = "น้องแมวได้บ้านใหม่ไปแล้ว แต่ไม่ต้องเสียใจนะ ยังมีน้องตัวอื่นรอคุณอยู่!";
                           } else if (widget.rejectionReason != null && widget.rejectionReason!.trim().isNotEmpty) {
-                            subtitleText = "เหตุผล: ${widget.rejectionReason} แต่ยังมีน้องแมวอีกหลายตัวที่รอคุณอยู่!";
+                            subtitleText = "เหตุผล: ${widget.rejectionReason}\nแต่ไม่ต้องเสียใจนะ ยังมีน้องตัวอื่นรอคุณอยู่!";
                           } else {
-                            subtitleText = "คุณสมบัติของคุณอาจจะยังไม่เหมาะกับสัตว์เลี้ยงตัวนี้ แต่ยังมีน้องแมวอีกหลายตัวที่รอคุณอยู่!";
+                            subtitleText = "คุณสมบัติอาจจะยังไม่ตรงกับที่น้องต้องการ\nแต่ไม่ต้องเสียใจนะ ยังมีน้องตัวอื่นรอคุณอยู่!";
                           }
                         } else if (widget.status == 'interview') {
-                          iconUrl = 'https://cdn-icons-png.flaticon.com/512/9374/9374944.png'; // interview
-                          titleText = "ใบสมัครอยู่ระหว่างพิจารณาสัมภาษณ์";
-                          subtitleText = "ผู้โพสต์กำลังพิจารณาและอาจติดต่อคุณเร็วๆนี้";
+                          iconUrl = 'https://cdn-icons-png.flaticon.com/512/616/616430.png'; // Cat talking
+                          titleText = "เจ้าของกำลังสนใจคุณอยู่น้า 💬";
+                          subtitleText = "เจ้าของกำลังพิจารณา และอาจติดต่อคุณเร็วๆ นี้นะคะ";
                         }
                         
                         return Column(

@@ -207,7 +207,7 @@ class _LandingScreenState extends State<LandingScreen> {
               // Image placeholder for stacked cats
               Center(
                 child: Image.network(
-                  'https://cdn-icons-png.flaticon.com/512/616/616430.png', 
+                  'https://cdn-icons-png.flaticon.com/128/1864/1864514.png', 
                   height: 120, // ลดขนาดรูปภาพลงเพื่อให้ส่วนอื่นเด่นขึ้น
                   errorBuilder: (context, error, stackTrace) => const Icon(Icons.pets, size: 80, color: Colors.pinkAccent),
                 ),
@@ -216,7 +216,7 @@ class _LandingScreenState extends State<LandingScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
-                  "ค้นหาน้องเหมียวที่ใช่สำหรับคุณด้วยระบบจับคู่ทาสและแมวตามความเหมาะสมและตอบโจทย์ lifestyle",
+                  "ค้นหาน้องเหมียวที่ใช่สำหรับคุณด้วยระบบจับคู่ทาสและแมวตามความเหมาะสมและตอบโจทย์ทุก lifestyle",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14, // ปรับข้อความให้ใหญ่และอ่านง่ายขึ้น
@@ -253,7 +253,7 @@ class _LandingScreenState extends State<LandingScreen> {
                         Icon(Icons.search, color: Colors.grey[800], size: 22),
                         const SizedBox(width: 8),
                         const Text(
-                          "ค้นหาแมว/ชื่อแมว",
+                          "ค้นหาสายพันธุ์ หรือชื่อน้องแมว...",
                           style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w500),
                         ),
                       ],
@@ -269,7 +269,7 @@ class _LandingScreenState extends State<LandingScreen> {
                 child: Row(
                   children: [
                     const Text(
-                      "ขั้นตอนการรับเลี้ยง",
+                      "ขั้นตอนการเป็นทาสแมว",
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54),
                     ),
                     const SizedBox(width: 12),
@@ -283,13 +283,13 @@ class _LandingScreenState extends State<LandingScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
-                    _buildStepCard("1", "สร้างบัญชีผู้ใช้", "เข้าร่วมกับเรา", Icons.person_add_alt_1),
+                    _buildStepCard("1", "สร้างบัญชีผู้ใช้", "กรอกข้อมูลพื้นฐาน", Icons.person_add_alt_1),
                     _buildStepArrow(),
                     _buildStepCard("2", "ทำแบบประเมิน", "บอกไลฟ์สไตล์คุณ", Icons.assignment),
                     _buildStepArrow(),
-                    _buildStepCard("3", "ระบบจับคู่", "กับแมวที่ใช่", Icons.favorite),
+                    _buildStepCard("3", "ระบบจับคู่", "ค้นหาน้องแมวที่ใช่", Icons.favorite),
                     _buildStepArrow(),
-                    _buildStepCard("4", "รับเลี้ยงเลย", "เริ่มดูแลเพื่อนใหม่", Icons.home),
+                    _buildStepCard("4", "รับเลี้ยงเลย", "รับน้องกลับบ้าน", Icons.home),
                   ],
                 ),
               ),
@@ -299,7 +299,7 @@ class _LandingScreenState extends State<LandingScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
-                  "Featured Cats",
+                  "น้องแมวแนะนำ ",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54),
                 ),
               ),
@@ -331,7 +331,7 @@ class _LandingScreenState extends State<LandingScreen> {
                     Expanded(
                       flex: 4,
                       child: Image.network(
-                        'https://cdn-icons-png.flaticon.com/512/2664/2664746.png',
+                        'https://cdn-icons-png.flaticon.com/128/763/763773.png', // A cute cat
                         height: 120,
                         errorBuilder: (context, error, stackTrace) => const Icon(Icons.pets, size: 80, color: Colors.grey),
                       ),
@@ -353,13 +353,13 @@ class _LandingScreenState extends State<LandingScreen> {
                           child: Column(
                             children: [
                               Text(
-                                "พร้อมจะพบเพื่อนใหม่\nของคุณแล้วหรือยัง?",
+                                "พร้อมจะรับน้องไปดูแล\nแล้วหรือยัง?",
                                 textAlign: TextAlign.center,
                                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
                               ),
                               SizedBox(height: 12),
                               Text(
-                                "ค้นหาแมวที่ใช่เลย",
+                                "ค้นหาเจ้านายที่ใช่เลย 🐈",
                                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
                               ),
                             ],

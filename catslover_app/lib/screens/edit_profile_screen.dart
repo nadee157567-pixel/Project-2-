@@ -222,10 +222,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('ข้อมูลบัญชี', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text('ข้อมูลบัญชีผู้ใช้', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     _buildTextField('ชื่อผู้ใช้', _usernameController, isRequired: true, validator: (val) => val == null || val.isEmpty ? 'กรุณากรอกชื่อผู้ใช้' : null),
-                    _buildTextField('อีเมล', _emailController, isRequired: true, validator: (val) => val == null || val.isEmpty ? 'กรุณากรอกอีเมล' : null),
-                    _buildTextField('เบอร์โทร', _phoneController, isRequired: true, validator: (val) => val == null || val.isEmpty ? 'กรุณากรอกเบอร์โทร' : null),
+                    _buildTextField('อีเมล', _emailController, isRequired: true, validator: (val) => val == null || val.isEmpty ? 'กรุณากรอกอีเมลด้วยน้า' : null),
+                    _buildTextField('เบอร์โทร', _phoneController, isRequired: true, validator: (val) => val == null || val.isEmpty ? 'กรุณากรอกเบอร์โทรศัพท์ด้วยน้า' : null),
                     _buildTextField('ชื่อ-นามสกุล', _fullnameController, isRequired: true, validator: (val) => val == null || val.isEmpty ? 'กรุณากรอกชื่อ-นามสกุล' : null),
                     _buildTextField('Line ID', _lineIdController),
                     _buildTextField('รหัสผ่านเดิม (เว้นว่างหากไม่ต้องการเปลี่ยน)', _oldPasswordController, obscureText: true),
@@ -257,26 +257,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                     
                     const SizedBox(height: 24),
-                    const Text('ข้อมูลผู้รับเลี้ยง', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text('ข้อมูลสำหรับการรับเลี้ยงน้องแมว 🐾', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
-                    _buildDropdown('ที่พักอาศัย', _housingType, [
-                      {'value': 'บ้านเดี่ยว', 'label': 'บ้านเดี่ยว'},
-                      {'value': 'คอนโด', 'label': 'คอนโด'},
-                      {'value': 'หอพัก', 'label': 'หอพัก'}
+                    _buildDropdown('ลักษณะที่พักอาศัย', _housingType, [
+                      {'value': 'บ้านเดี่ยว', 'label': 'บ้านเดี่ยว / ทาวน์โฮม'},
+                      {'value': 'คอนโด', 'label': 'คอนโดมิเนียม'},
+                      {'value': 'หอพัก', 'label': 'หอพัก / อพาร์ตเมนต์'}
                     ], (val) {
                       setState(() => _housingType = val!);
                     }),
-                    _buildDropdown('ขนาดพื้นที่', _spaceSize, [
-                      {'value': 'กว้างขวาง', 'label': 'กว้างขวาง'},
-                      {'value': 'ปานกลาง', 'label': 'ปานกลาง'},
-                      {'value': 'คับแคบ', 'label': 'คับแคบ'}
+                    _buildDropdown('พื้นที่ใช้สอยโดยประมาณ', _spaceSize, [
+                      {'value': 'กว้างขวาง', 'label': 'กว้างขวาง (มีพื้นที่ให้น้องวิ่งเล่น)'},
+                      {'value': 'ปานกลาง', 'label': 'ปานกลาง (พอมีมุมส่วนตัวให้น้อง)'},
+                      {'value': 'คับแคบ', 'label': 'ค่อนข้างจำกัด / กะทัดรัด'}
                     ], (val) {
                       setState(() => _spaceSize = val!);
                     }),
-                    _buildDropdown('เวลาว่างต่อวัน', _freeTime, [
-                      {'value': 'น้อย', 'label': 'น้อย (น้อยกว่า 2 ชั่วโมง)'},
-                      {'value': 'ปานกลาง', 'label': 'ปานกลาง (2-4 ชั่วโมง)'},
-                      {'value': 'มาก', 'label': 'มาก (มากกว่า 4 ชั่วโมง)'}
+                    _buildDropdown('เวลาคลุกคลีกับน้องแมวต่อวัน', _freeTime, [
+                      {'value': 'น้อย', 'label': 'ค่อนข้างน้อย (น้อยกว่า 2 ชั่วโมง)'},
+                      {'value': 'ปานกลาง', 'label': 'พอมีเวลา (2-4 ชั่วโมง)'},
+                      {'value': 'มาก', 'label': 'มีเวลาเยอะ (มากกว่า 4 ชั่วโมง)'}
                     ], (val) {
                       setState(() => _freeTime = val!);
                     }),
@@ -284,7 +284,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
                       child: RichText(
                         text: const TextSpan(
-                          text: 'งบประมาณต่อเดือน (บาท)',
+                          text: 'งบประมาณสำหรับดูแลน้องแมวต่อเดือน (บาท)',
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
                           children: [
                             TextSpan(text: ' *', style: TextStyle(color: Colors.red)),
@@ -307,22 +307,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       },
                     ),
                     const SizedBox(height: 10),
-                    _buildDropdown('ประสบการณ์', _experience, [
-                      {'value': 'ไม่มี', 'label': 'ไม่มี/มือใหม่'},
-                      {'value': 'พื้นฐาน', 'label': 'พื้นฐาน (เคยเลี้ยง)'},
-                      {'value': 'ระดับสูง', 'label': 'ระดับสูง (มีประสบการณ์มาก)'}
+                    _buildDropdown('ประสบการณ์การเลี้ยงแมว', _experience, [
+                      {'value': 'ไม่มี', 'label': 'มือใหม่ (ยังไม่เคยเลี้ยงแมว)'},
+                      {'value': 'พื้นฐาน', 'label': 'ระดับพื้นฐาน (เคยเลี้ยงหรือดูแลบ้าง)'},
+                      {'value': 'ระดับสูง', 'label': 'เชี่ยวชาญ (เป็นทาสแมวตัวยง!)'}
                     ], (val) {
                       setState(() => _experience = val!);
                     }),
-                    _buildDropdown('เด็กเล็กในบ้าน', _hasChildren, [
-                      {'value': 'ไม่มี', 'label': 'ไม่มี'},
-                      {'value': 'มี', 'label': 'มี'}
+                    _buildDropdown('มีเด็กเล็กในบ้านหรือไม่?', _hasChildren, [
+                      {'value': 'ไม่มี', 'label': 'ไม่มีเด็กเล็ก'},
+                      {'value': 'มี', 'label': 'มีเด็กเล็ก'}
                     ], (val) {
                       setState(() => _hasChildren = val!);
                     }),
-                    _buildDropdown('สัตว์เลี้ยงอื่น', _hasPets, [
+                    _buildDropdown('ปัจจุบันมีสัตว์เลี้ยงอื่นหรือไม่?', _hasPets, [
                       {'value': 'ไม่มี', 'label': 'ไม่มี'},
-                      {'value': 'มี', 'label': 'มี'}
+                      {'value': 'มี', 'label': 'มีอยู่แล้ว'}
                     ], (val) {
                       setState(() => _hasPets = val!);
                     }),
@@ -331,11 +331,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: _buildNumberSpinner('จำนวนแมวที่มี', _catsCountController),
+                            child: _buildNumberSpinner('น้องแมวที่มีอยู่ (ตัว)', _catsCountController),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: _buildNumberSpinner('จำนวนสุนัขที่มี', _dogsCountController),
+                            child: _buildNumberSpinner('น้องหมาที่มีอยู่ (ตัว)', _dogsCountController),
                           ),
                         ],
                       ),
@@ -343,7 +343,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       const Padding(
                         padding: EdgeInsets.only(bottom: 8.0, left: 4.0),
                         child: Text(
-                          "สัตว์เลี้ยงอื่นๆ (ระบุ)",
+                          "สัตว์เลี้ยงชนิดอื่นๆ (ถ้ามี)",
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                       ),
@@ -359,9 +359,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                     ],
                     
-                    _buildDropdown('พร้อมดูแลแมวที่มีความต้องการพิเศษหรือไม่ (เช่น ป่วยเรื้อรัง/พิการ)', _acceptsSpecialNeeds, const [
-                      {'label': 'ไม่พร้อม', 'value': 'ไม่พร้อม'},
-                      {'label': 'พร้อม', 'value': 'พร้อม'}
+                    _buildDropdown('ยินดีรับดูแลน้องแมวที่ต้องการความใส่ใจเป็นพิเศษไหม? (เช่น น้องที่ป่วยเรื้อรัง หรือพิการ)', _acceptsSpecialNeeds, const [
+                      {'label': 'ยังไม่สะดวกในตอนนี้', 'value': 'ไม่พร้อม'},
+                      {'label': 'ยินดีและพร้อมดูแลอย่างเต็มที่!', 'value': 'พร้อม'}
                     ], (val) => setState(() => _acceptsSpecialNeeds = val!)),
 
                     const SizedBox(height: 30),
@@ -372,7 +372,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                       ),
-                      child: const Text('บันทึกข้อมูล', style: TextStyle(color: Colors.white, fontSize: 16)),
+                      child: const Text('บันทึกข้อมูลทาสแมว 🐾', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),

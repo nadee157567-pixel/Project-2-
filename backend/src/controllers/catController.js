@@ -243,9 +243,7 @@ async function uploadCatPhoto(req, res) {
         await pool.query('DELETE FROM catphotos WHERE cat_id = ?', [catId]);
 
         for (const file of files) {
-            const fullUrl = (file.path && file.path.startsWith('http'))
-                ? file.path
-                : `${req.protocol}://${req.get('host')}/upload/cats/${file.filename}`;
+            const fullUrl = file.path; // URL จาก Cloudinary
             await pool.query(
                 `INSERT INTO catphotos (cat_id, image_url) VALUES (?,?)`,
                 [catId, fullUrl]
@@ -266,7 +264,7 @@ async function uploadCatPhoto(req, res) {
     }
 }
 
-async function deleteCatPhoto(req, res) {
+async function deleteCatPhoto(params) {
     try {
         const { catId, photoId } = req.params;
         const [result] = await pool.query(`
@@ -318,9 +316,7 @@ async function updateCatPhoto(req, res) {
             });
         }
 
-        const fullUrl = (file.path && file.path.startsWith('http'))
-            ? file.path
-            : `${req.protocol}://${req.get('host')}/upload/cats/${file.filename}`;
+        const fullUrl = file.path; // URL จาก Cloudinary
 
         const [result] = await pool.query(`
             UPDATE catphotos 

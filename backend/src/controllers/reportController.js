@@ -90,7 +90,12 @@ exports.uploadReportPhotos = async (req, res) => {
             return res.status(400).json({ success: false, message: 'กรุณาอัปโหลดรูปภาพ' });
         }
 
-        const imageValues = files.map(file => [reportId, file.path]);
+        const imageValues = files.map(file => [
+            reportId,
+            (file.path && file.path.startsWith('http'))
+                ? file.path
+                : `${req.protocol}://${req.get('host')}/upload/cats/${file.filename}`
+        ]);
         
         await pool.query(`
             INSERT INTO report_images (report_id, image_url)

@@ -1,5 +1,3 @@
-const fs = require('fs');
-const path = require('path');
 const pool = require('../config/database');
 
 // get / api / cats - ดึงรายการของแมว
@@ -22,7 +20,7 @@ async function getAllCats(req, res) {
             
             JOIN users AS u
               ON c.poster_id = u.user_id
-            WHERE c.is_hidden = 0
+              
             ORDER BY c.created_at DESC`);
         return res.status(200).json({
             success: true,
@@ -245,7 +243,9 @@ async function uploadCatPhoto(req, res) {
         await pool.query('DELETE FROM catphotos WHERE cat_id = ?', [catId]);
 
         for (const file of files) {
-            const fullUrl = file.path; // URL จาก Cloudinary
+            const fullUrl = (file.path && file.path.startsWith('http'))
+                ? file.path
+                : `${req.protocol}://${req.get('host')}/upload/cats/${file.filename}`;
             await pool.query(
                 `INSERT INTO catphotos (cat_id, image_url) VALUES (?,?)`,
                 [catId, fullUrl]
@@ -269,38 +269,15 @@ async function uploadCatPhoto(req, res) {
 async function deleteCatPhoto(req, res) {
     try {
         const { catId, photoId } = req.params;
+        const [result] = await pool.query(`
+            DELETE FROM catphotos WHERE cat_id = ? AND photo_id = ?`,
+            [catId, photoId]);
 
-        // 1. ดึง image_url ก่อนลบ
-        const [rows] = await pool.query(
-            'SELECT image_url FROM catphotos WHERE cat_id = ? AND photo_id = ?',
-            [catId, photoId]
-        );
-
-        if (rows.length === 0) {
+        if (result.affectedRows === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'ไม่พบรูปภาพที่ต้องการลบ'
             });
-        }
-
-        // 2. ลบออกจาก Database
-        await pool.query(
-            'DELETE FROM catphotos WHERE cat_id = ? AND photo_id = ?',
-            [catId, photoId]
-        );
-
-        // 3. ลบไฟล์ภาพจริงออกจากเซิร์ฟเวอร์
-        const imageUrl = rows[0].image_url;
-        if (imageUrl) {
-            try {
-                const relativePath = imageUrl.replace(/^https?:\/\/[^\/]+\//, '');
-                const filePath = path.join(process.cwd(), relativePath);
-                if (fs.existsSync(filePath)) {
-                    fs.unlinkSync(filePath);
-                }
-            } catch (fileError) {
-                console.error('delete file error:', fileError);
-            }
         }
 
         return res.status(200).json({
@@ -341,26 +318,15 @@ async function updateCatPhoto(req, res) {
             });
         }
 
-        const fullUrl = file.path; // URL จาก Cloudinary
+        const fullUrl = (file.path && file.path.startsWith('http'))
+            ? file.path
+            : `${req.protocol}://${req.get('host')}/upload/cats/${file.filename}`;
 
         const [result] = await pool.query(`
             UPDATE catphotos 
             SET image_url = ? 
             WHERE cat_id = ? AND photo_id = ?
         `, [fullUrl, catId, photoId]);
-
-        try {
-            const oldPhoto = rows[0];
-            if (oldPhoto.image_url) {
-                const relativePath = oldPhoto.image_url.replace(/^https?:\/\/[^\/]+\//, '');
-                const filePath = path.join(process.cwd(), relativePath);
-                if (fs.existsSync(filePath)) {
-                    fs.unlinkSync(filePath);
-                }
-            }
-        } catch (fileError) {
-            console.error('delete old photo error:', fileError);
-        }
 
         return res.status(200).json({
             success: true,

@@ -222,7 +222,7 @@ const Pagination = ({ currentPage, totalItems, itemsPerPage, onPageChange, onIte
   );
 };
 
-const CatManagement = () => {
+const CatManagement = ({ initialStatusFilter = 'all' }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedBreeds, setSelectedBreeds] = useState([]);
@@ -231,6 +231,19 @@ const CatManagement = () => {
   const [appliedBreeds, setAppliedBreeds] = useState([]);
   const [appliedStatuses, setAppliedStatuses] = useState([]);
   const [appliedMonths, setAppliedMonths] = useState([]);
+
+  useEffect(() => {
+    if (initialStatusFilter === 'adopted') {
+      setSelectedStatuses(['Adopted']);
+      setAppliedStatuses(['Adopted']);
+    } else if (initialStatusFilter === 'available' || initialStatusFilter === 'active') {
+      setSelectedStatuses(['Active']);
+      setAppliedStatuses(['Active']);
+    } else if (initialStatusFilter === 'all') {
+      setSelectedStatuses([]);
+      setAppliedStatuses([]);
+    }
+  }, [initialStatusFilter]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
@@ -1519,7 +1532,16 @@ const EvaluationCriteria = () => {
   const handleEdit = (item) => {
     setEditingId(item.id);
     setTopic(item.field || item.topic);
-    setCondition(item.condition);
+    const condVal = item.condition || '';
+    if (condVal && !PRESET_CONDITIONS.includes(condVal)) {
+      setIsCustomCondition(true);
+      setCustomConditionInput(condVal);
+      setCondition(condVal);
+    } else {
+      setIsCustomCondition(false);
+      setCustomConditionInput('');
+      setCondition(condVal);
+    }
     setMaxScore(String(item.maxScore));
     setScoreRatio(String(item.scoreRatio));
     setIsBlocking(item.isBlocking);
@@ -1623,6 +1645,30 @@ const EvaluationCriteria = () => {
               <option value="ratio_lt_060">ratio_lt_060</option>
               <option value="other">อื่นๆ (ระบุเงื่อนไขเอง)</option>
             </select>
+            {isCustomCondition && (
+              <div style={{ marginTop: '0.65rem' }}>
+                <input
+                  type="text"
+                  placeholder="กรอกเงื่อนไขเพิ่มเติม..."
+                  value={customConditionInput}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomConditionInput(val);
+                    setCondition(val);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '12px',
+                    border: '1px solid #3b82f6',
+                    fontSize: '1rem',
+                    backgroundColor: '#ffffff',
+                    color: '#1f2937',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            )}
           </div>
           <div className="form-group">
             <label>คะแนนเต็ม (Max Score)</label>
@@ -1977,6 +2023,15 @@ const Dashboard = ({ onNavigate }) => {
     return item.status === pendingFilter;
   });
 
+  useEffect(() => {
+    setPendingCurrentPage(1);
+  }, [pendingFilter, localPendingActions]);
+
+  const paginatedPendingActions = filteredPendingActions.slice(
+    (pendingCurrentPage - 1) * pendingItemsPerPage,
+    pendingCurrentPage * pendingItemsPerPage
+  );
+
   // 1. Live Base Totals from backend API (fallback to mockData if loading/empty)
   const BASE_TOTAL_CATS = stats ? stats.totalCats : statsData.totalCats;
   const BASE_TOTAL_USERS = stats ? stats.totalUsers : statsData.totalUsers;
@@ -2163,39 +2218,6 @@ const Dashboard = ({ onNavigate }) => {
     adoptedCats: dynamicAdopted.toLocaleString(),
     findingHomeCats: dynamicPending.toLocaleString()
   };
-
-  // 4. Monthly Chart Data (using real backend data)
-  let filteredMonthlyData = rawMonthlyData.map(item => ({
-    name: item.name,
-    added: item.added,
-    adopted: statusFilter === 'Active' ? 0 : item.adopted,
-    pending: statusFilter === 'Adopted' ? 0 : (item.pending !== undefined ? item.pending : Math.max(0, item.added - item.adopted))
-  }));
-
-  const monthNameMap = {
-    '/01/': 'มกราคม', '/02/': 'กุมภาพันธ์', '/03/': 'มีนาคม', '/04/': 'เมษายน',
-    '/05/': 'พฤษภาคม', '/06/': 'มิถุนายน', '/07/': 'กรกฎาคม', '/08/': 'สิงหาคม',
-    '/09/': 'กันยายน', '/10/': 'ตุลาคม', '/11/': 'พฤศจิกายน', '/12/': 'ธันวาคม'
-  };
-  const activeShortMonth = monthFilter !== 'ทั้งหมด' ? (monthNameMap[monthFilter] || monthFilter) : 'ทั้งหมด';
-  const targetMonthName = monthNameMap[monthFilter];
-  if (monthFilter !== 'ทั้งหมด' && targetMonthName) {
-    filteredMonthlyData = filteredMonthlyData.filter(item => item.name === targetMonthName || item.short === targetMonthName);
-  }
-
-  // 5. Donut Chart Data (User Types)
-  let activeUserTypesData = rawUserTypesData;
-  if (filter !== 'All') {
-    activeUserTypesData = activeUserTypesData.map(u =>
-      u.name === filter ? u : { ...u, value: 0 }
-    );
-  }
-
-  // 6. Bar Chart Data (Cat Breeds)
-  let activeCatBreedsData = rawCatBreedsData.map(item => ({
-    name: item.name,
-    value: statusFilter === 'Adopted' ? (item.adopted !== undefined ? item.adopted : item.value) : statusFilter === 'Active' ? (item.available !== undefined ? item.available : item.value) : item.value
-  }));
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
@@ -2403,6 +2425,118 @@ const Dashboard = ({ onNavigate }) => {
         </div>
       </div>
 
+      {/* Active Cross-Filter Indicator Banner */}
+      {(monthFilter !== 'ทั้งหมด' || filter !== 'All' || breedFilter !== 'ทั้งหมด' || statusFilter !== 'ทั้งหมด') && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          marginBottom: '1.25rem',
+          padding: '0.65rem 1rem',
+          backgroundColor: '#fff1f2',
+          border: '1px solid #fecdd3',
+          borderRadius: '12px',
+          flexWrap: 'wrap',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+        }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#be123c', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Filter size={15} /> กำลังกรองข้อมูลกราฟ:
+          </span>
+
+          {monthFilter !== 'ทั้งหมด' && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 10px',
+              borderRadius: '20px',
+              backgroundColor: '#ffe4e6',
+              color: '#e11d48',
+              fontSize: '0.8rem',
+              fontWeight: '600'
+            }}>
+              📅 เดือน: {monthNameMap[monthFilter] || monthFilter}
+              <X size={14} style={{ cursor: 'pointer' }} onClick={() => setMonthFilter('ทั้งหมด')} />
+            </span>
+          )}
+
+          {filter !== 'All' && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 10px',
+              borderRadius: '20px',
+              backgroundColor: '#e0e7ff',
+              color: '#4338ca',
+              fontSize: '0.8rem',
+              fontWeight: '600'
+            }}>
+              👤 ประเภท: {filter}
+              <X size={14} style={{ cursor: 'pointer' }} onClick={() => setFilter('All')} />
+            </span>
+          )}
+
+          {breedFilter !== 'ทั้งหมด' && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 10px',
+              borderRadius: '20px',
+              backgroundColor: '#f3e8ff',
+              color: '#7e22ce',
+              fontSize: '0.8rem',
+              fontWeight: '600'
+            }}>
+              🐱 สายพันธุ์: {breedFilter}
+              <X size={14} style={{ cursor: 'pointer' }} onClick={() => setBreedFilter('ทั้งหมด')} />
+            </span>
+          )}
+
+          {statusFilter !== 'ทั้งหมด' && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 10px',
+              borderRadius: '20px',
+              backgroundColor: '#dcfce7',
+              color: '#15803d',
+              fontSize: '0.8rem',
+              fontWeight: '600'
+            }}>
+              🏷️ สถานะ: {statusFilter}
+              <X size={14} style={{ cursor: 'pointer' }} onClick={() => setStatusFilter('ทั้งหมด')} />
+            </span>
+          )}
+
+          <button
+            onClick={() => {
+              setMonthFilter('ทั้งหมด');
+              setFilter('All');
+              setBreedFilter('ทั้งหมด');
+              setStatusFilter('ทั้งหมด');
+            }}
+            style={{
+              marginLeft: 'auto',
+              background: 'none',
+              border: 'none',
+              color: '#be123c',
+              fontSize: '0.8rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            <RotateCcw size={13} /> ล้างตัวกรองทั้งหมด
+          </button>
+        </div>
+      )}
+
       <div className="charts-layout" id="charts-layout-container">
 
         {/* Main Composed Chart */}
@@ -2484,7 +2618,7 @@ const Dashboard = ({ onNavigate }) => {
                 <Camera size={14} color="#3b82f6" /> บันทึกรูป
               </button>
             </div>
-            <div style={{ width: '100%', height: 280 }}>
+            <div style={{ width: '100%', height: 310 }}>
               <ResponsiveContainer>
                 <PieChart>
                   <Pie
@@ -2548,7 +2682,7 @@ const Dashboard = ({ onNavigate }) => {
                 <Camera size={14} color="#3b82f6" /> บันทึกรูป
               </button>
             </div>
-            <div style={{ width: '100%', height: 280 }}>
+            <div style={{ width: '100%', height: 310 }}>
               <ResponsiveContainer>
                 <BarChart data={activeCatBreedsData} margin={{ top: 20, bottom: 25, left: 0, right: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
@@ -2625,7 +2759,7 @@ const Dashboard = ({ onNavigate }) => {
             </tr>
           </thead>
           <tbody>
-            {filteredPendingActions.map((item) => (
+            {paginatedPendingActions.map((item) => (
               <tr key={item.id}>
                 <td>{item.username}</td>
                 <td>{item.date}</td>
@@ -4660,7 +4794,7 @@ function App() {
         ) : activeTab === 'users' ? (
           <UserManagement initialRoleFilter={userRoleFilter} />
         ) : activeTab === 'cats' ? (
-          <CatManagement />
+          <CatManagement initialStatusFilter={catStatusFilter} />
         ) : (
           <Dashboard onNavigate={handleDashboardNavigate} />
         )}

@@ -256,6 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _showRecommended = false;
   List<dynamic> recommendedCats = [];
+  List<dynamic> filteredRecommendedCats = [];
   bool isLoadingRecommended = false;
 
   Future<void> fetchRecommendedCats() async {
@@ -284,6 +285,7 @@ class _HomeScreenState extends State<HomeScreen> {
             return true;
           }).toList();
           recommendedCats = recs;
+          _applyFilters();
           isLoadingRecommended = false;
         });
       } else {
@@ -348,10 +350,51 @@ class _HomeScreenState extends State<HomeScreen> {
       }).toList();
 
       if (recommendedCats.isNotEmpty) {
-        recommendedCats = recommendedCats.where((cat) {
+        filteredRecommendedCats = recommendedCats.where((cat) {
           if (_requestedCatIds.contains(cat['cat_id'])) return false;
-          return true;
+          
+          // Search Query
+          bool matchesSearch = true;
+          if (searchQuery.isNotEmpty) {
+            final query = searchQuery.toLowerCase().trim();
+            final name = (cat['pet_name'] ?? '').toString().toLowerCase();
+            final breed = (cat['pet_breed'] ?? '').toString().toLowerCase();
+            matchesSearch = name.contains(query) || breed.contains(query);
+          }
+
+          // Breed Filter
+          bool matchesBreed = true;
+          if (selectedBreeds.isNotEmpty) {
+            final breed = (cat['pet_breed'] ?? 'ไม่ทราบสายพันธุ์').toString().trim().toLowerCase();
+            matchesBreed = selectedBreeds.any((selected) {
+              final sel = selected.toLowerCase().replaceAll('แมว', '').trim();
+              return breed.contains(sel) || sel.contains(breed);
+            });
+          }
+
+          // Age Filter
+          bool matchesAge = true;
+          if (selectedAgeRanges.isNotEmpty) {
+            final rawAge = cat['age_months'];
+            double ageMonths = 0;
+            if (rawAge is num) {
+              ageMonths = rawAge.toDouble();
+            } else if (rawAge != null) {
+              ageMonths = double.tryParse(rawAge.toString()) ?? 0;
+            }
+
+            matchesAge = false;
+            if (selectedAgeRanges.contains('ต่ำกว่า 2 เดือน (ยังไม่หย่านม)') && ageMonths < 2) matchesAge = true;
+            if (selectedAgeRanges.contains('2 - 6 เดือน (ลูกแมว)') && ageMonths >= 2 && ageMonths <= 6) matchesAge = true;
+            if (selectedAgeRanges.contains('มากกว่า 6 เดือน - 1 ปี (แมววัยรุ่น)') && ageMonths > 6 && ageMonths <= 12) matchesAge = true;
+            if (selectedAgeRanges.contains('มากกว่า 1 ปี - 7 ปี (แมวโตเต็มวัย)') && ageMonths > 12 && ageMonths <= 84) matchesAge = true;
+            if (selectedAgeRanges.contains('มากกว่า 7 ปี (แมวสูงวัย)') && ageMonths > 84) matchesAge = true;
+          }
+
+          return matchesSearch && matchesBreed && matchesAge;
         }).toList();
+      } else {
+        filteredRecommendedCats = [];
       }
     });
   }
@@ -752,9 +795,78 @@ class _HomeScreenState extends State<HomeScreen> {
                     _applyFilters();
                   },
                   decoration: InputDecoration(
-                    hintText: "ค้นหาเจ้าเหมียว",
+                    hintText: (selectedBreeds.isEmpty && selectedAgeRanges.isEmpty) ? "ค้นหาเจ้าเหมียว" : "",
                     hintStyle: TextStyle(color: Colors.grey[400]),
                     prefixIcon: const Icon(Icons.search, color: Colors.black54),
+                    prefix: (selectedBreeds.isNotEmpty || selectedAgeRanges.isNotEmpty)
+                        ? ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.55,
+                            ),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ...selectedBreeds.map((breed) => Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.pink[50],
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(color: Colors.pink[200]!, width: 0.5),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(breed, style: TextStyle(fontSize: 12, color: Colors.pink[700], fontWeight: FontWeight.w500)),
+                                          const SizedBox(width: 4),
+                                          GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                selectedBreeds.remove(breed);
+                                                _applyFilters();
+                                              });
+                                            },
+                                            child: Icon(Icons.close, size: 14, color: Colors.pink[700]),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )),
+                                  ...selectedAgeRanges.map((age) => Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.pink[50],
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(color: Colors.pink[200]!, width: 0.5),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(age, style: TextStyle(fontSize: 12, color: Colors.pink[700], fontWeight: FontWeight.w500)),
+                                          const SizedBox(width: 4),
+                                          GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                selectedAgeRanges.remove(age);
+                                                _applyFilters();
+                                              });
+                                            },
+                                            child: Icon(Icons.close, size: 14, color: Colors.pink[700]),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )),
+                                ],
+                              ),
+                            ),
+                          )
+                        : null,
                     suffixIcon: IconButton(
                       icon: const Icon(Icons.tune, color: Colors.black54),
                       onPressed: _showFilterDialog,
@@ -766,8 +878,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             
-            const SizedBox(height: 20),
-
+            const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
@@ -824,7 +935,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: (_showRecommended ? isLoadingRecommended : isLoading)
                   ? Center(child: CircularProgressIndicator(color: Colors.pink[300]))
-                  : (_showRecommended ? recommendedCats : filteredCats).isEmpty
+                  : (_showRecommended ? filteredRecommendedCats : filteredCats).isEmpty
                       ? const Center(child: Text('ยังไม่มีข้อมูลน้องแมวที่ตรงกับเงื่อนไข'))
                       : GridView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -834,9 +945,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             mainAxisSpacing: 16,
                             childAspectRatio: 0.75, // Adjust based on image vs text height
                           ),
-                          itemCount: (_showRecommended ? recommendedCats : filteredCats).length,
+                          itemCount: (_showRecommended ? filteredRecommendedCats : filteredCats).length,
                           itemBuilder: (context, index) {
-                            final cat = (_showRecommended ? recommendedCats : filteredCats)[index];
+                            final cat = (_showRecommended ? filteredRecommendedCats : filteredCats)[index];
                             return GestureDetector(
                               onTap: () => _onCatCardTapped(cat),
                               child: Container(

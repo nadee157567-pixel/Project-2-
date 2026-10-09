@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'user_profile_screen.dart';
+import 'cat_detail_screen.dart';
 import '../config/api_config.dart';
 
 class AdopterProfileScreen extends StatefulWidget {
@@ -17,6 +18,9 @@ class AdopterProfileScreen extends StatefulWidget {
 class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
   final PageController _pageController = PageController();
   final TextEditingController _budgetController = TextEditingController();
+  final TextEditingController _catsCountController = TextEditingController(text: '0');
+  final TextEditingController _dogsCountController = TextEditingController(text: '0');
+  final TextEditingController _otherPetsController = TextEditingController();
   int _currentStep = 0;
 
   String? housingType;
@@ -25,11 +29,15 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
   String? freeTime;
   String? experience;
   String? hasChildren;
+  String? acceptsSpecialNeeds;
 
   @override
   void dispose() {
     _pageController.dispose();
     _budgetController.dispose();
+    _catsCountController.dispose();
+    _dogsCountController.dispose();
+    _otherPetsController.dispose();
     super.dispose();
   }
 
@@ -75,6 +83,9 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
 
             int hasOtherPets = profile['has_other_pets'] is int ? profile['has_other_pets'] : int.tryParse(profile['has_other_pets']?.toString() ?? '0') ?? 0;
             hasPets = hasOtherPets == 1 ? 'มี' : 'ไม่มี';
+            _catsCountController.text = profile['existing_cats_count']?.toString() ?? '0';
+            _dogsCountController.text = profile['existing_dogs_count']?.toString() ?? '0';
+            _otherPetsController.text = profile['other_pets_details']?.toString() ?? '';
 
             String freeTimeStr = profile['daily_free_hours']?.toString() ?? 'medium';
             if (freeTimeStr == 'low' || freeTimeStr == 'medium' || freeTimeStr == 'high') {
@@ -96,6 +107,9 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
 
             int hasChild = profile['has_children'] is int ? profile['has_children'] : int.tryParse(profile['has_children']?.toString() ?? '0') ?? 0;
             hasChildren = hasChild == 1 ? 'มี' : 'ไม่มี';
+
+            int acceptsSpecial = profile['accepts_special_needs'] is int ? profile['accepts_special_needs'] : int.tryParse(profile['accepts_special_needs']?.toString() ?? '0') ?? 0;
+            acceptsSpecialNeeds = acceptsSpecial == 1 ? 'พร้อม' : 'ไม่พร้อม';
 
             double budgetNum = double.tryParse(profile['max_monthly_budget']?.toString() ?? '') ?? 0.0;
             _budgetController.text = budgetNum > 0 ? budgetNum.round().toString() : '';
@@ -122,6 +136,15 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
       if (hasPets == null) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกว่ามีสัตว์เลี้ยงอื่นหรือไม่")));
         return;
+      }
+      if (hasPets == 'มี') {
+        int cats = int.tryParse(_catsCountController.text.trim()) ?? 0;
+        int dogs = int.tryParse(_dogsCountController.text.trim()) ?? 0;
+        String otherPets = _otherPetsController.text.trim();
+        if (cats == 0 && dogs == 0 && otherPets.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาระบุจำนวนแมว สุนัข หรือสัตว์เลี้ยงอื่นๆ")));
+          return;
+        }
       }
     } else if (_currentStep == 1) {
       if (freeTime == null) {
@@ -151,6 +174,10 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกว่ามีเด็กเล็กในบ้านหรือไม่")));
       return;
     }
+    if (acceptsSpecialNeeds == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกว่าพร้อมดูแลแมวต้องการการดูแลพิเศษหรือไม่")));
+      return;
+    }
     if (_budgetController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอกงบประมาณการเลี้ยงแมว")));
       return;
@@ -172,6 +199,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
 
     int hasOtherPets = (hasPets == 'มี') ? 1 : 0;
     int hasChildrenMapped = (hasChildren == 'มี') ? 1 : 0;
+    int acceptsSpecialMapped = (acceptsSpecialNeeds == 'พร้อม') ? 1 : 0;
 
     String expMapped = 'none';
     if (experience == 'พื้นฐาน') expMapped = 'beginner';
@@ -184,10 +212,14 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
       "living_space_type": livingSpaceType,
       "space_size": spaceSizeMapped,
       "has_other_pets": hasOtherPets,
+      "existing_cats_count": hasOtherPets == 1 ? (int.tryParse(_catsCountController.text.trim()) ?? 0) : 0,
+      "existing_dogs_count": hasOtherPets == 1 ? (int.tryParse(_dogsCountController.text.trim()) ?? 0) : 0,
+      "other_pets_details": hasOtherPets == 1 ? _otherPetsController.text.trim() : null,
       "daily_free_hours": freeTime ?? 'medium',
       "experience": expMapped,
       "has_children": hasChildrenMapped,
       "max_monthly_budget": maxMonthlyBudget,
+      "accepts_special_needs": acceptsSpecialMapped,
     };
 
     try {
@@ -235,7 +267,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
                           color: Colors.orange[100],
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.pets, size: 80, color: Colors.orange),
+                        child: const Icon(Icons.favorite, size: 80, color: Colors.orange),
                       ),
                       const SizedBox(height: 30),
                       SizedBox(
@@ -244,8 +276,22 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
                           onPressed: () {
                             // ปิด Dialog
                             Navigator.pop(context);
-                            // กลับไปหน้าค้นหาแมว (HomeScreen)
-                            Navigator.pop(context);
+                            
+                            if (widget.catId > 0) {
+                              // ถ้ามี catId นำทางไปยัง CatDetailScreen ทันที
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => CatDetailScreen(
+                                    userId: widget.userId,
+                                    catData: {'cat_id': widget.catId}, // Passing minimal catData to let it fetch
+                                  ),
+                                ),
+                              );
+                            } else {
+                              // กลับไปหน้าค้นหาแมว (HomeScreen)
+                              Navigator.pop(context);
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.grey[300],
@@ -305,7 +351,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
               children: [
                 const Expanded(
                   child: Text(
-                    "มาสร้างโปรไฟล์ในการค้นหาเพื่อนใหม่กัน",
+                    "มาสร้างโปรไฟล์ทาสแมวกันเถอะ! 🐾",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -391,8 +437,8 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
       child: Column(
         children: [
           _buildQuestionContainer(
-            question: "ที่พักอาศัยของคุณเป็นแบบไหน ?",
-            subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
+            question: "ลักษณะที่พักอาศัยของคุณเป็นแบบไหน?",
+            subtitle: "เพื่อให้เราช่วยหาน้องแมวที่เข้ากับไลฟ์สไตล์ของคุณที่สุด",
             content: Row(
               children: [
                 Expanded(child: _buildImageChoice(label: "บ้านเดี่ยว", icon: Icons.house, isSelected: housingType == "บ้านเดี่ยว", onTap: () => setState(() => housingType = "บ้านเดี่ยว"))),
@@ -406,21 +452,21 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
           const SizedBox(height: 20),
           _buildQuestionContainer(
             question: "ขนาดพื้นที่พักอาศัยของคุณเป็นอย่างไร ?",
-            subtitle: "เพื่อประเมินความเหมาะสมกับแมวที่ต้องการพื้นที่",
+            subtitle: "น้องแมวบางตัวชอบวิ่งเล่น พื้นที่นี้จะช่วยให้เราจับคู่ได้ดียิ่งขึ้น",
             content: Row(
               children: [
-                Expanded(child: _buildImageChoice(label: "กว้างขวาง", icon: Icons.landscape, isSelected: spaceSize == "กว้างขวาง", onTap: () => setState(() => spaceSize = "กว้างขวาง"))),
+                Expanded(child: _buildImageChoice(label: "กว้างขวาง", icon: Icons.sentiment_satisfied, isSelected: spaceSize == "กว้างขวาง", onTap: () => setState(() => spaceSize = "กว้างขวาง"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "ปานกลาง", icon: Icons.crop_square, isSelected: spaceSize == "ปานกลาง", onTap: () => setState(() => spaceSize = "ปานกลาง"))),
+                Expanded(child: _buildImageChoice(label: "ปานกลาง", icon: Icons.sentiment_satisfied_alt, isSelected: spaceSize == "ปานกลาง", onTap: () => setState(() => spaceSize = "ปานกลาง"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "คับแคบ", icon: Icons.view_compact, isSelected: spaceSize == "คับแคบ", onTap: () => setState(() => spaceSize = "คับแคบ"))),
+                Expanded(child: _buildImageChoice(label: "คับแคบ", icon: Icons.sentiment_very_satisfied, isSelected: spaceSize == "คับแคบ", onTap: () => setState(() => spaceSize = "คับแคบ"))),
               ],
             ),
           ),
           const SizedBox(height: 20),
           _buildQuestionContainer(
-            question: "ปัจจุบันมีสัตว์เลี้ยงอื่นอยู่แล้วหรือไม่ ?",
-            subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
+            question: "ปัจจุบันมีสัตว์เลี้ยงอื่นอยู่แล้วหรือไม่?",
+            subtitle: "เพื่อให้เราช่วยหาน้องแมวที่เข้ากับไลฟ์สไตล์ของคุณที่สุด",
             content: Row(
               children: [
                 Expanded(child: _buildImageChoice(label: "มี", icon: Icons.pets, isSelected: hasPets == "มี", onTap: () => setState(() => hasPets = "มี"))),
@@ -429,6 +475,47 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
               ],
             ),
           ),
+          if (hasPets == "มี") ...[
+            const SizedBox(height: 20),
+            _buildQuestionContainer(
+              question: "ระบุจำนวนสัตว์เลี้ยงที่มีอยู่",
+              subtitle: "เพื่อดูว่าน้องแมวตัวใหม่จะไปวิ่งเล่นกับเพื่อนๆ ได้รึเปล่า",
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildNumberSpinner('จำนวนแมว', _catsCountController),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildNumberSpinner('จำนวนสุนัข', _dogsCountController),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8.0, left: 4.0),
+                    child: Text(
+                      "สัตว์เลี้ยงอื่นๆ (ระบุ)",
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                    ),
+                  ),
+                  TextFormField(
+                    controller: _otherPetsController,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      hintText: "เช่น นก 1 ตัว, กระต่าย 2 ตัว",
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 30),
           _buildNextBtn(),
         ],
@@ -446,28 +533,28 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
         children: [
           _buildQuestionContainer(
             question: "คุณมีเวลาว่างให้สัตว์เลี้ยงมากแค่ไหน ?",
-            subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
+            subtitle: "เพื่อให้เราช่วยหาน้องแมวที่เข้ากับไลฟ์สไตล์ของคุณที่สุด",
             content: Row(
               children: [
-                Expanded(child: _buildImageChoice(label: "น้อย\n(1-2 ชม.)", icon: Icons.computer, isSelected: freeTime == "low", onTap: () => setState(() => freeTime = "low"))),
+                Expanded(child: _buildImageChoice(label: "น้อย\n(1-2 ชม.)", icon: Icons.sentiment_satisfied, isSelected: freeTime == "low", onTap: () => setState(() => freeTime = "low"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "ปานกลาง\n(3-5 ชม.)", icon: Icons.access_time, isSelected: freeTime == "medium", onTap: () => setState(() => freeTime = "medium"))),
+                Expanded(child: _buildImageChoice(label: "ปานกลาง\n(3-5 ชม.)", icon: Icons.sentiment_satisfied_alt, isSelected: freeTime == "medium", onTap: () => setState(() => freeTime = "medium"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "มาก\n(> 5 ชม.)", icon: Icons.home_work, isSelected: freeTime == "high", onTap: () => setState(() => freeTime = "high"))),
+                Expanded(child: _buildImageChoice(label: "มาก\n(> 5 ชม.)", icon: Icons.sentiment_very_satisfied, isSelected: freeTime == "high", onTap: () => setState(() => freeTime = "high"))),
               ],
             ),
           ),
           const SizedBox(height: 20),
           _buildQuestionContainer(
             question: "คุณมีประสบการณ์การเลี้ยงแมวหรือไม่ ?",
-            subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
+            subtitle: "เพื่อให้เราช่วยหาน้องแมวที่เข้ากับไลฟ์สไตล์ของคุณที่สุด",
             content: Row(
               children: [
-                Expanded(child: _buildImageChoice(label: "มือใหม่", icon: Icons.face, isSelected: experience == "มือใหม่", onTap: () => setState(() => experience = "มือใหม่"))),
+                Expanded(child: _buildImageChoice(label: "มือใหม่", icon: Icons.sentiment_satisfied, isSelected: experience == "มือใหม่", onTap: () => setState(() => experience = "มือใหม่"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "พื้นฐาน", icon: Icons.pets, isSelected: experience == "พื้นฐาน", onTap: () => setState(() => experience = "พื้นฐาน"))),
+                Expanded(child: _buildImageChoice(label: "พื้นฐาน", icon: Icons.sentiment_satisfied_alt, isSelected: experience == "พื้นฐาน", onTap: () => setState(() => experience = "พื้นฐาน"))),
                 const SizedBox(width: 10),
-                Expanded(child: _buildImageChoice(label: "ระดับสูง", icon: Icons.health_and_safety, isSelected: experience == "ระดับสูง", onTap: () => setState(() => experience = "ระดับสูง"))),
+                Expanded(child: _buildImageChoice(label: "ระดับสูง", icon: Icons. sentiment_very_satisfied, isSelected: experience == "ระดับสูง", onTap: () => setState(() => experience = "ระดับสูง"))),
               ],
             ),
           ),
@@ -494,7 +581,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
         children: [
           _buildQuestionContainer(
             question: "ในบ้านมีเด็กเล็กหรือไม่ ?",
-            subtitle: "ตอบคำถามนี้เพื่อวิเคราะห์ความเหมาะสมในการรับเลี้ยงแมว",
+            subtitle: "เพื่อให้เราช่วยหาน้องแมวที่เข้ากับไลฟ์สไตล์ของคุณที่สุด",
             content: Row(
               children: [
                 Expanded(child: _buildImageChoice(label: "มี", icon: Icons.child_care, isSelected: hasChildren == "มี", onTap: () => setState(() => hasChildren = "มี"))),
@@ -523,6 +610,18 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
                 ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildQuestionContainer(
+            question: "คุณพร้อมดูแลแมวที่มีความต้องการพิเศษหรือไม่ ?",
+            subtitle: "เช่น แมวที่ป่วยเรื้อรัง หรือพิการ",
+            content: Row(
+              children: [
+                Expanded(child: _buildImageChoice(label: "พร้อม", icon: Icons.volunteer_activism, isSelected: acceptsSpecialNeeds == "พร้อม", onTap: () => setState(() => acceptsSpecialNeeds = "พร้อม"))),
+                const SizedBox(width: 10),
+                Expanded(child: _buildImageChoice(label: "ไม่พร้อม", icon: Icons.cancel, isSelected: acceptsSpecialNeeds == "ไม่พร้อม", onTap: () => setState(() => acceptsSpecialNeeds = "ไม่พร้อม"))),
+              ],
             ),
           ),
           const SizedBox(height: 30),
@@ -620,6 +719,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
+        minimumSize: const Size(160, 50),
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30), side: BorderSide(color: Colors.redAccent.withOpacity(0.5))),
         elevation: 0,
@@ -634,6 +734,7 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFFFFF0F0),
         foregroundColor: Colors.black87,
+        minimumSize: const Size(160, 50),
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30), side: const BorderSide(color: Colors.redAccent)),
         elevation: 0,
@@ -648,14 +749,70 @@ class _AdopterProfileScreenState extends State<AdopterProfileScreen> {
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFFFFF0F0),
         foregroundColor: Colors.black87,
+        minimumSize: const Size(160, 50),
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30), side: const BorderSide(color: Colors.redAccent)),
-        elevation: 0,
       ),
       onPressed: _isLoading ? null : _saveProfile,
       child: _isLoading
           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator())
           : const Text("บันทึก", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildNumberSpinner(String label, TextEditingController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        TextFormField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            suffixIcon: Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  InkWell(
+                    onTap: () {
+                      int val = int.tryParse(controller.text) ?? 0;
+                      controller.text = (val + 1).toString();
+                    },
+                    child: const Icon(Icons.keyboard_arrow_up, size: 24, color: Colors.grey),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      int val = int.tryParse(controller.text) ?? 0;
+                      if (val > 0) {
+                        controller.text = (val - 1).toString();
+                      }
+                    },
+                    child: const Icon(Icons.keyboard_arrow_down, size: 24, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

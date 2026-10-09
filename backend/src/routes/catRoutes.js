@@ -4,35 +4,13 @@ const path = require('path');
 const verifyToken = require('../middleware/authMiddleware');
 const { validateCatPost } = require('../middleware/validationMiddleware');
 
-// ตั้งค่า Multer สำหรับเก็บไฟล์ไว้ในโฟลเดอร์ 'upload/' ของ Server
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'upload/cats/');
-    },
-    filename: function (req, file, cb) {
-        // ตั้งชื่อไฟล์
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'cat-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
-
-// กรองชนิดของไฟล์ (รับเฉพาะรูปภาพ)
-const fileFilter = (req, file, cb) => {
-    console.log('Receiving file with mimetype:', file.mimetype, 'Original name:', file.originalname);
-    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/octet-stream'];
-    if (allowedMimeTypes.includes(file.mimetype)) {
-        cb(null, true);
-    } else {
-        cb(new Error('รองรับเฉพาะไฟล์รูปภาพ (JPEG, PNG, WEBP) เท่านั้น!'), false);
-    }
-};
+const { storage } = require('../config/cloudinary');
 
 const upload = multer({ 
     storage: storage,
     limits: {
         fileSize: 5 * 1024 * 1024 // จำกัดขนาดไฟล์ที่ 5MB
-    },
-    fileFilter: fileFilter
+    }
 });
 
 const {

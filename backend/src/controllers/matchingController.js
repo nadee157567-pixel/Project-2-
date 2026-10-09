@@ -356,10 +356,6 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
     //     disqualifications.push('สมาชิกในบ้านยังไม่ยินยอมให้รับเลี้ยงแมว');
     // }
 
-    if (profile.has_severe_allergy === true) {
-        disqualifications.push('มีสมาชิกในบ้านแพ้ขนแมวรุนแรง');
-    }
-
     let bonusScore = 0;
 
     if (profile.has_children === true) {
@@ -395,13 +391,12 @@ const evaluateCat = (profile, cat, criteriaByCode) => {
         }
     }
 
-    if (
-        mysqlBoolean(cat.has_special_needs) &&
-        profile.accepts_special_needs === false
-    ) {
-        disqualifications.push(
-            'ผู้ขอรับเลี้ยงยังไม่พร้อมดูแลแมวที่ต้องการการดูแลพิเศษ'
-        );
+    if (mysqlBoolean(cat.has_special_needs)) {
+        if (profile.accepts_special_needs === false) {
+            disqualifications.push('ผู้ขอรับเลี้ยงยังไม่พร้อมดูแลแมวที่ต้องการการดูแลพิเศษ');
+        } else {
+            reasons.push('* แมวตัวนี้เป็นแมวต้องการการดูแลพิเศษ');
+        }
     }
 
 
@@ -679,7 +674,6 @@ const validateProfile = (body) => {
         has_children: 'กรุณาระบุว่าในบ้านมีเด็กเล็กหรือไม่',
         has_cats: 'กรุณาระบุว่าในบ้านมีแมวตัวอื่นหรือไม่',
         has_dogs: 'กรุณาระบุว่าในบ้านมีสุนัขหรือไม่',
-        has_severe_allergy: 'กรุณาระบุว่ามีสมาชิกแพ้ขนแมวรุนแรงหรือไม่',
         accepts_special_needs: 'กรุณาระบุว่าพร้อมดูแลแมวที่ต้องการการดูแลพิเศษหรือไม่',
     };
 
@@ -753,10 +747,9 @@ const matchSelectedCat = async (req, res) => {
                     experience_level: p.experience, // stored as low/medium/high
                     pets_allowed: true, // ค่า default
                     has_children: p.has_children === 1,
-                    has_cats: p.has_other_pets === 1,
-                    has_dogs: false,
-                    has_severe_allergy: false,
-                    accepts_special_needs: true  // อนุญาตให้แมวพิเศษผ่านการประเมินได้
+                    has_cats: (p.existing_cats_count != null && p.existing_cats_count > 0),
+                    has_dogs: (p.existing_dogs_count != null && p.existing_dogs_count > 0),
+                    accepts_special_needs: p.accepts_special_needs === 1
                 };
             }
         }
@@ -826,6 +819,13 @@ const matchSelectedCat = async (req, res) => {
                 message: 'เจ้าของแมวไม่สามารถทำแบบประเมินแมวของตนเองได้',
             });
         }
+
+        const [existingReq] = await pool.query(
+            "SELECT match_id FROM adoptionapplications WHERE applicant_id = ? AND cat_id = ?",
+            [applicantId, catId]
+        );
+        result.is_requested = existingReq.length > 0;
+
 
         const [assessmentResult] = await pool.query
             (
@@ -993,10 +993,9 @@ const matchAllCats = async (req, res) => {
                     experience_level: p.experience,
                     pets_allowed: true, // ค่า default
                     has_children: p.has_children === 1,
-                    has_cats: p.has_other_pets === 1,
-                    has_dogs: false,
-                    has_severe_allergy: false,
-                    accepts_special_needs: true
+                    has_cats: (p.existing_cats_count != null && p.existing_cats_count > 0),
+                    has_dogs: (p.existing_dogs_count != null && p.existing_dogs_count > 0),
+                    accepts_special_needs: p.accepts_special_needs === 1
                 };
             }
         }

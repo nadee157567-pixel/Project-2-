@@ -25,10 +25,16 @@ class CatAdoptersListScreen extends StatefulWidget {
 class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
   bool _isLoading = true;
   List<dynamic> _adopters = [];
+  int _selectedFilter = 1; // 1 = รอดำเนินการ (Default)
+  int _currentPage = 1;
+  final int _itemsPerPage = 5;
 
   @override
   void initState() {
     super.initState();
+    if (widget.isAdopted) {
+      _selectedFilter = 2; // Default to Approved if already adopted
+    }
     _fetchAdopters();
   }
 
@@ -54,7 +60,9 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
                   builder: (context) => ChatMessageScreen(
                     roomId: int.parse(chat['room_id'].toString()),
                     userId: widget.posterId,
+                    partnerId: int.parse(adopter['applicant_id'].toString()),
                     partnerName: adopter['fullname'] ?? 'ผู้ขอรับเลี้ยง',
+                    catId: widget.catId,
                   ),
                 ),
               );
@@ -76,7 +84,9 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
                     builder: (context) => ChatMessageScreen(
                       roomId: int.parse(createData['roomId'].toString()),
                       userId: widget.posterId,
+                      partnerId: int.parse(adopter['applicant_id'].toString()),
                       partnerName: adopter['fullname'] ?? 'ผู้ขอรับเลี้ยง',
+                      catId: widget.catId,
                     ),
                   ),
                 );
@@ -153,110 +163,238 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.pink))
-          : _adopters.isEmpty
-              ? const Center(child: Text("ยังไม่มีผู้ขอรับเลี้ยง", style: TextStyle(color: Colors.grey, fontSize: 16)))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _adopters.length,
-                  itemBuilder: (context, index) {
-                    final adopter = _adopters[index];
-                    if (widget.isAdopted && adopter['status'] != 'approved') {
-                      return const SizedBox.shrink();
-                    }
-                    
-                    String status = adopter['status'] ?? 'pending';
-                    Color btnColor = status == 'approved' ? Colors.green : (status == 'rejected' ? Colors.red : const Color(0xFFFFA0A0));
-                    String btnText = status == 'approved' ? 'อนุมัติ' : (status == 'rejected' ? 'ไม่อนุมัติ' : 'พิจารณาอนุมัติ');
-                    return Card(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                      elevation: 2,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  adopter['fullname'] ?? 'ไม่ทราบชื่อ',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.pink[100],
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    "คะแนน ${double.parse(adopter['matchscore'].toString()).toInt()}%",
-                                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.pink[800]),
-                                  ),
-                                ),
-                              ],
+          : Column(
+              children: [
+                _buildFilterChips(),
+                Expanded(child: _buildListContent()),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          _buildChip(1, 'รอดำเนินการ'),
+          const SizedBox(width: 8),
+          _buildChip(2, 'อนุมัติแล้ว'),
+          const SizedBox(width: 8),
+          _buildChip(3, 'ถูกปฏิเสธ'),
+          const SizedBox(width: 8),
+          _buildChip(0, 'ทั้งหมด'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChip(int value, String label) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: _selectedFilter == value,
+      selectedColor: Colors.pink[200],
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: _selectedFilter == value ? Colors.pink : Colors.grey[300]!),
+      ),
+      labelStyle: TextStyle(
+        color: _selectedFilter == value ? Colors.pink[900] : Colors.black87,
+        fontWeight: _selectedFilter == value ? FontWeight.bold : FontWeight.normal,
+      ),
+      onSelected: (bool selected) {
+        if (selected) {
+          setState(() {
+            _selectedFilter = value;
+            _currentPage = 1;
+          });
+        }
+      },
+    );
+  }
+
+  Widget _buildListContent() {
+    List<dynamic> filtered = _adopters.where((a) {
+      String status = a['status'] ?? 'pending';
+      if (_selectedFilter == 1) return status == 'pending' || status == 'interview';
+      if (_selectedFilter == 2) return status == 'approved';
+      if (_selectedFilter == 3) return status == 'rejected';
+      return true; // tab 0: All
+    }).toList();
+
+    if (filtered.isEmpty) {
+      return const Center(child: Text("ยังไม่มีข้อมูลในหมวดหมู่นี้", style: TextStyle(color: Colors.grey, fontSize: 16)));
+    }
+
+    int totalPages = (filtered.length / _itemsPerPage).ceil();
+    if (_currentPage > totalPages) _currentPage = totalPages;
+
+    int startIndex = (_currentPage - 1) * _itemsPerPage;
+    int endIndex = startIndex + _itemsPerPage;
+    if (endIndex > filtered.length) endIndex = filtered.length;
+
+    List<dynamic> pageItems = filtered.sublist(startIndex, endIndex);
+
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: pageItems.length,
+            itemBuilder: (context, index) {
+              final adopter = pageItems[index];
+              String status = adopter['status'] ?? 'pending';
+              Color btnColor = status == 'approved' ? Colors.green : (status == 'rejected' ? Colors.red : const Color(0xFFFFA0A0));
+              String btnText = status == 'approved' ? 'อนุมัติ' : (status == 'rejected' ? 'ไม่อนุมัติ' : 'พิจารณาอนุมัติ');
+              return Card(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            adopter['fullname'] ?? 'ไม่ทราบชื่อ',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.pink[100],
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            const Divider(height: 24),
-                            _buildInfoRow(Icons.home, "ที่พัก", _translateSpace(adopter['living_space_type'])),
-                            _buildInfoRow(Icons.pets, "ประสบการณ์", _translateExperience(adopter['experience'])),
-                            if (adopter['upload_remark'] != null && adopter['upload_remark'].toString().isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 12.0),
-                                child: Text("หมายเหตุ: ${adopter['upload_remark']}", style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
-                              ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                if (status != 'rejected') ...[
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => _navigateToChat(context, adopter),
-                                      icon: const Icon(Icons.message, size: 18),
-                                      label: const Text("ติดต่อ", style: TextStyle(fontSize: 12)),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        foregroundColor: Colors.pink,
-                                        side: const BorderSide(color: Colors.pink),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                        padding: const EdgeInsets.symmetric(vertical: 8),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                ],
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: widget.isAdopted ? null : () async {
-                                      // ไปหน้า พิจารณาอนุมัติ
-                                      await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ConsiderApprovalScreen(
-                                            catId: widget.catId,
-                                            catName: widget.catName,
-                                            adopter: adopter,
-                                          ),
-                                        ),
-                                      );
-                                      _fetchAdopters(); // โหลดข้อมูลใหม่เมื่อกลับมา
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: btnColor,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                    ),
-                                    child: Text(btnText, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              "คะแนน ${double.parse(adopter['matchscore'].toString()).round()}%",
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.pink[800]),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    );
-                  },
+                      const Divider(height: 24),
+                      _buildInfoRow(Icons.home, "ที่พัก", _translateSpace(adopter['living_space_type'])),
+                      _buildInfoRow(Icons.pets, "ประสบการณ์", _translateExperience(adopter['experience'])),
+                      if (adopter['upload_remark'] != null && adopter['upload_remark'].toString().isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(top: 12.0),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: const Border(
+                              left: BorderSide(color: Colors.pink, width: 4),
+                              top: BorderSide(color: Color(0xFFE0E0E0)),
+                              right: BorderSide(color: Color(0xFFE0E0E0)),
+                              bottom: BorderSide(color: Color(0xFFE0E0E0)),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.format_quote, size: 18, color: Colors.pink[300]),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "${adopter['upload_remark']}",
+                                  style: TextStyle(color: Colors.grey[800], fontSize: 13, fontStyle: FontStyle.italic),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          if (status != 'rejected') ...[
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _navigateToChat(context, adopter),
+                                icon: const Icon(Icons.message, size: 18),
+                                label: const Text("ติดต่อ", style: TextStyle(fontSize: 12)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: Colors.pink,
+                                  side: const BorderSide(color: Colors.pink),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ConsiderApprovalScreen(
+                                      catId: widget.catId,
+                                      catName: widget.catName,
+                                      adopter: adopter,
+                                    ),
+                                  ),
+                                );
+                                _fetchAdopters();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: btnColor,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                              child: Text(btnText, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+              );
+            },
+          ),
+        ),
+        if (totalPages > 1)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            color: Colors.white,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton(
+                  onPressed: _currentPage > 1
+                      ? () {
+                          setState(() {
+                            _currentPage--;
+                          });
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.pink[100], foregroundColor: Colors.pink[900]),
+                  child: const Text('ก่อนหน้า'),
+                ),
+                Text('หน้า $_currentPage / $totalPages', style: const TextStyle(fontWeight: FontWeight.bold)),
+                ElevatedButton(
+                  onPressed: _currentPage < totalPages
+                      ? () {
+                          setState(() {
+                            _currentPage++;
+                          });
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.pink[100], foregroundColor: Colors.pink[900]),
+                  child: const Text('ถัดไป'),
+                ),
+              ],
+            ),
+          )
+      ],
     );
   }
 

@@ -10,6 +10,9 @@ const evaluateRoute = require('./routes/evaluate');
 const adopterRouter = require('./routes/adopterRoutes');
 const chatRouter = require('./routes/chatRoutes');
 const adoptionRoutes = require('./routes/adoptionRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const reportRoutes = require('./routes/reportRoutes');
+const blockRoutes = require('./routes/blockRoutes');
 
 // --- Admin Routes (Admin Web Portal) ---
 const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
@@ -48,6 +51,10 @@ app.use('/api/evaluate', evaluateRoute);
 app.use('/api/adopters', adopterRouter);
 app.use('/api/chats', chatRouter);
 app.use('/api/adoption', adoptionRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/blocks', blockRoutes);
+
 
 
 // --- Admin Routes ---

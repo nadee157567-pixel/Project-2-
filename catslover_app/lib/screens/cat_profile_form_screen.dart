@@ -297,6 +297,11 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       return;
     }
 
+    if (hasSpecialNeeds && _healthDetailsController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาระบุรายละเอียดการดูแลพิเศษหรือโรคประจำตัว")));
+      return;
+    }
+
     if (_isSaving) return;
     setState(() => _isSaving = true);
 
@@ -519,7 +524,13 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
                             children: [
                               Icon(Icons.camera_alt, color: Colors.grey, size: 40),
                               SizedBox(height: 8),
-                              Text("เพิ่มรูปภาพน้องแมว (สูงสุด 5 รูป)", style: TextStyle(fontSize: 14, color: Colors.grey)),
+                              Text.rich(
+                                TextSpan(
+                                  text: "เพิ่มรูปภาพน้องแมว (สูงสุด 5 รูป)",
+                                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                                  children: [TextSpan(text: ' *', style: TextStyle(color: Colors.red))]
+                                )
+                              ),
                             ],
                           ),
                         )
@@ -559,7 +570,13 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
                 ),
                 const SizedBox(height: 16),
                 
-                const Text("ชื่อน้องแมว (ถ้ามี)", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Text.rich(
+                  TextSpan(
+                    text: "ชื่อน้องแมว", 
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    children: [TextSpan(text: ' *', style: TextStyle(color: Colors.red))]
+                  )
+                ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _catNameController,
@@ -585,7 +602,13 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text("สายพันธุ์", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          const Text.rich(
+                            TextSpan(
+                              text: "สายพันธุ์", 
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                              children: [TextSpan(text: ' *', style: TextStyle(color: Colors.red))]
+                            )
+                          ),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
                             value: selectedBreed,
@@ -610,7 +633,13 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text("เพศ", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          const Text.rich(
+                            TextSpan(
+                              text: "เพศ", 
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                              children: [TextSpan(text: ' *', style: TextStyle(color: Colors.red))]
+                            )
+                          ),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
                             value: selectedGender,
@@ -633,7 +662,13 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
                 const SizedBox(height: 16),
                 
                 // ช่วงอายุ
-                const Text("ช่วงอายุ", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Text.rich(
+                  TextSpan(
+                    text: "ช่วงอายุ", 
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    children: [TextSpan(text: ' *', style: TextStyle(color: Colors.red))]
+                  )
+                ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: selectedAge,
@@ -671,7 +706,13 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
                 const SizedBox(height: 16),
                 
                 // การทำหมัน
-                const Text("การทำหมัน", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Text.rich(
+                  TextSpan(
+                    text: "การทำหมัน", 
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    children: [TextSpan(text: ' *', style: TextStyle(color: Colors.red))]
+                  )
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -683,7 +724,13 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
                 const SizedBox(height: 16),
                 
                 // วัคซีนพื้นฐาน
-                const Text("วัคซีนพื้นฐาน", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Text.rich(
+                  TextSpan(
+                    text: "วัคซีนพื้นฐาน", 
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    children: [TextSpan(text: ' *', style: TextStyle(color: Colors.red))]
+                  )
+                ),
                 const SizedBox(height: 8),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -700,26 +747,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
                   ],
                 ),
                 
-                const SizedBox(height: 16),
-                
-                // โรคประจำตัว
-                const Text("โรคประจำตัว และข้อมูลเพิ่มเติมด้านสุขภาพ", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _healthDetailsController,
-                  keyboardType: TextInputType.text, 
-                  maxLines: 2, 
-                  style: const TextStyle(fontSize: 15),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    filled: true,
-                    fillColor: Colors.white,
-                    hintText: "เช่น ไม่มีโรคประจำตัว หรือ เป็นหวัดแมว",
-                    hintStyle: TextStyle(fontSize: 14, color: Colors.grey[400]),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  ),
-                ),
+                // Removed health details field from here
                 
                 const SizedBox(height: 30),
                 
@@ -796,6 +824,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
             _buildRequirementCard(
               title: "พื้นที่อยู่อาศัย / บ้าน",
               icon: Icons.house_rounded, 
+              isRequired: true,
               content: Column(
                 children: [
                   _buildSquareCheckbox("พื้นที่โล่งกว้างๆ", requiredHousing == "พื้นที่โล่งกว้างๆ", (val) => setState(() => requiredHousing = "พื้นที่โล่งกว้างๆ")),
@@ -810,6 +839,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
             _buildRequirementCard(
               title: "เวลาและการดูแล",
               icon: Icons.face_retouching_natural, 
+              isRequired: true,
               content: Column(
                 children: [
                   _buildSquareCheckbox("น้อย : ดูแลตัวเองได้ดี\nไม่ซนไม่ค่อยชอบเล่นกับคน", requiredTime == "น้อย", (val) => setState(() => requiredTime = "น้อย")),
@@ -824,6 +854,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
             _buildRequirementCard(
               title: "งบประมาณในการดูแล",
               icon: Icons.account_balance_wallet, 
+              isRequired: true,
               content: Column(
                 children: [
                   _buildSquareCheckbox("น้อย : แมวโต แข็งแรง กินง่าย", requiredBudget == "น้อย", (val) => setState(() => requiredBudget = "น้อย")),
@@ -838,6 +869,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
             _buildRequirementCard(
               title: "ความเข้ากับสัตว์เลี้ยงตัวอื่น",
               icon: Icons.pets, 
+              isRequired: true,
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -898,6 +930,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
             _buildRequirementCard(
               title: "ประสบการณ์ของผู้เลี้ยงที่ต้องการ",
               icon: Icons.star_border_purple500, 
+              isRequired: true,
               content: Column(
                 children: [
                   _buildSquareCheckbox("ไม่จำเป็นต้องมีประสบการณ์", requiredExperience == "ไม่จำเป็น", (val) => setState(() => requiredExperience = "ไม่จำเป็น")),
@@ -915,7 +948,47 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
               content: Column(
                 children: [
                   _buildSquareCheckbox("เป็นมิตรกับเด็กเล็ก / สามารถอยู่ร่วมกับเด็กได้", goodWithChildren, (val) => setState(() => goodWithChildren = val ?? false)),
-                  _buildSquareCheckbox("เป็นแมวที่ต้องการการดูแลพิเศษ (เช่น ป่วยเรื้อรัง, พิการ)", hasSpecialNeeds, (val) => setState(() => hasSpecialNeeds = val ?? false)),
+                  _buildSquareCheckbox("เป็นแมวที่ต้องการการดูแลพิเศษ (เช่น ป่วยเรื้อรัง, พิการ)", hasSpecialNeeds, (val) {
+                    setState(() {
+                      hasSpecialNeeds = val ?? false;
+                      if (!hasSpecialNeeds) {
+                        _healthDetailsController.clear();
+                      }
+                    });
+                  }),
+                  if (hasSpecialNeeds)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 34.0, bottom: 12.0, right: 8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text.rich(
+                            TextSpan(
+                              text: "โปรดระบุรายละเอียดการดูแลพิเศษ/โรคประจำตัว", 
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                              children: [TextSpan(text: ' *', style: TextStyle(color: Colors.red))]
+                            )
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _healthDetailsController,
+                            keyboardType: TextInputType.text,
+                            maxLines: 2,
+                            style: const TextStyle(fontSize: 14),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                              hintText: "เช่น ต้องป้อนยาเป็นประจำ, พิการขาหลัง...",
+                              hintStyle: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey[300]!)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey[300]!)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -988,7 +1061,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
     );
   }
 
-  Widget _buildRequirementCard({required String title, required IconData icon, required Widget content}) {
+  Widget _buildRequirementCard({required String title, required IconData icon, required Widget content, bool isRequired = false}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1013,7 +1086,13 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text.rich(
+                  TextSpan(
+                    text: title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                    children: isRequired ? const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))] : [],
+                  ),
+                ),
                 const SizedBox(height: 12),
                 content,
               ],

@@ -5,6 +5,7 @@ import 'cat_detail_screen.dart';
 import '../config/api_config.dart';
 import 'cat_adopters_list_screen.dart';
 import 'cat_profile_form_screen.dart';
+import '../utils/report_utils.dart';
 
 class PosterProfileScreen extends StatefulWidget {
   final int posterId;
@@ -238,8 +239,15 @@ class _PosterProfileScreenState extends State<PosterProfileScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-            onPressed: () {},
+            icon: const Icon(Icons.report_problem_outlined, color: Colors.white),
+            onPressed: () {
+              ReportUtils.showReportDialog(
+                context,
+                reporterId: widget.currentUserId,
+                reportedUserId: widget.posterId,
+              );
+            },
+            tooltip: 'รายงานผู้ใช้',
           )
         ],
         flexibleSpace: Container(

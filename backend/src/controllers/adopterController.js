@@ -10,7 +10,11 @@ async function createAdopterProfile(req, res) {
             daily_free_hours,
             experience,
             has_children,
-            max_monthly_budget
+            max_monthly_budget,
+            existing_cats_count,
+            existing_dogs_count,
+            other_pets_details,
+            accepts_special_needs
         } = req.body;
 
         if (!userId) {
@@ -27,16 +31,16 @@ async function createAdopterProfile(req, res) {
             profileId = existing[0].profile_id;
             await pool.query(`
                 UPDATE user_profiles 
-                SET living_space_type = ?, space_size = ?, max_monthly_budget = ?, daily_free_hours = ?, has_other_pets = ?, has_children = ?, experience = ?
+                SET living_space_type = ?, space_size = ?, max_monthly_budget = ?, daily_free_hours = ?, has_other_pets = ?, has_children = ?, experience = ?, existing_cats_count = ?, existing_dogs_count = ?, other_pets_details = ?, accepts_special_needs = ?
                 WHERE user_id = ?
-            `, [living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children, experience, userId]);
+            `, [living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children, experience, existing_cats_count || 0, existing_dogs_count || 0, other_pets_details || null, accepts_special_needs ? 1 : 0, userId]);
         } else {
             // Insert new
             const [result] = await pool.query(`
                 INSERT INTO user_profiles 
-                (user_id, living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children, experience)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `, [userId, living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children, experience]);
+                (user_id, living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children, experience, existing_cats_count, existing_dogs_count, other_pets_details, accepts_special_needs)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [userId, living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children, experience, existing_cats_count || 0, existing_dogs_count || 0, other_pets_details || null, accepts_special_needs ? 1 : 0]);
             profileId = result.insertId;
         }
 
@@ -116,14 +120,15 @@ async function updateAdopterProfile(req, res) {
             daily_free_hours,
             has_other_pets,
             has_children,
-            experience
+            experience,
+            accepts_special_needs
         } = req.body;
 
         const [result] = await pool.query(`
             UPDATE user_profiles 
-            SET living_space_type = ?, space_size = ?, max_monthly_budget = ?, daily_free_hours = ?, has_other_pets = ?, has_children = ?, experience = ?
+            SET living_space_type = ?, space_size = ?, max_monthly_budget = ?, daily_free_hours = ?, has_other_pets = ?, has_children = ?, experience = ?, accepts_special_needs = ?
             WHERE user_id = ?
-        `, [living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children, experience, userId]);
+        `, [living_space_type, space_size, max_monthly_budget, daily_free_hours, has_other_pets, has_children, experience, accepts_special_needs ? 1 : 0, userId]);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, message: 'ไม่พบโปรไฟล์ผู้รับเลี้ยง' });

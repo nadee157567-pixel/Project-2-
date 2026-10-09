@@ -102,6 +102,12 @@ const createApplication = async (req, res) => {
         );
         const matchId = result.insertId;
 
+        // แจ้งเตือนเจ้าของแมว
+        await connection.query(`
+            INSERT INTO notifications (user_id, title, message, type, related_id)
+            VALUES (?, ?, ?, ?, ?)
+        `, [cat.poster_id, 'มีผู้ขอรับเลี้ยงใหม่', `มีผู้สนใจขอรับเลี้ยง ${cat.pet_name}`, 'adoption_request', matchId]);
+
 
         // 6. อัปเดตสถานะแมวเป็น "มีผู้ขอรับเลี้ยง"
         await connection.query(
@@ -166,6 +172,15 @@ const createAdoptionRequest = async (req, res) => {
             [catId, applicantId, matchscore || 0, uploadRemark || '']
         );
 
+        // หา poster_id และชื่อแมว
+        const [catData] = await pool.query("SELECT poster_id, pet_name FROM cats WHERE cat_id = ?", [catId]);
+        if (catData.length > 0) {
+            await pool.query(`
+                INSERT INTO notifications (user_id, title, message, type, related_id)
+                VALUES (?, ?, ?, ?, ?)
+            `, [catData[0].poster_id, 'มีผู้ขอรับเลี้ยงใหม่', `มีผู้สนใจขอรับเลี้ยง ${catData[0].pet_name}`, 'adoption_request', result.insertId]);
+        }
+
 
 
         await pool.query("INSERT INTO conversations (match_id) VALUES (?)", [result.insertId]);
@@ -209,6 +224,7 @@ const getRequestsByCat = async (req, res) => {
             JOIN users u ON a.applicant_id = u.user_id
             LEFT JOIN user_profiles p ON a.applicant_id = p.user_id
             WHERE a.cat_id = ?
+            ORDER BY a.matchscore DESC, a.applied_at ASC
         `, [catId]);
         return res.status(200).json({ success: true, data: rows });
     } catch (error) {
@@ -219,26 +235,54 @@ const getRequestsByCat = async (req, res) => {
 const updateRequestStatus = async (req, res) => {
     try {
         const matchId = req.params.matchId;
-        const { status } = req.body;
-        await pool.query("UPDATE adoptionapplications SET status = ? WHERE match_id = ?", [status, matchId]);
+        const { status, rejection_reason } = req.body;
         
         if (status === 'rejected') {
+            await pool.query("UPDATE adoptionapplications SET status = ?, rejection_reason = ? WHERE match_id = ?", [status, rejection_reason || null, matchId]);
             // Delete the conversation room when a request is rejected
             await pool.query("DELETE FROM conversations WHERE match_id = ?", [matchId]);
         } else if (status === 'approved') {
+            await pool.query("UPDATE adoptionapplications SET status = ?, rejection_reason = ? WHERE match_id = ?", [status, rejection_reason || null, matchId]);
             const [app] = await pool.query("SELECT cat_id FROM adoptionapplications WHERE match_id = ?", [matchId]);
             if (app.length > 0) {
                 await pool.query("UPDATE cats SET status = 'adopted' WHERE cat_id = ?", [app[0].cat_id]);
                 
                 // Get other match_ids for this cat to delete their conversation rooms
-                const [otherApps] = await pool.query("SELECT match_id FROM adoptionapplications WHERE cat_id = ? AND match_id != ?", [app[0].cat_id, matchId]);
+                const [otherApps] = await pool.query("SELECT match_id FROM adoptionapplications WHERE cat_id = ? AND match_id != ? AND status != 'rejected'", [app[0].cat_id, matchId]);
                 
-                await pool.query("UPDATE adoptionapplications SET status = 'rejected' WHERE cat_id = ? AND match_id != ?", [app[0].cat_id, matchId]);
+                await pool.query("UPDATE adoptionapplications SET status = 'rejected', rejection_reason = 'adopted_by_other' WHERE cat_id = ? AND match_id != ? AND status != 'rejected'", [app[0].cat_id, matchId]);
                 
                 if (otherApps.length > 0) {
                     const otherMatchIds = otherApps.map(oa => oa.match_id);
                     await pool.query("DELETE FROM conversations WHERE match_id IN (?)", [otherMatchIds]);
                 }
+            }
+        } else {
+            await pool.query("UPDATE adoptionapplications SET status = ? WHERE match_id = ?", [status, matchId]);
+        }
+        
+        // ส่งการแจ้งเตือนกลับไปยังผู้ขอรับเลี้ยง
+        const [appData] = await pool.query(`
+            SELECT a.applicant_id, c.pet_name 
+            FROM adoptionapplications a 
+            JOIN cats c ON a.cat_id = c.cat_id 
+            WHERE a.match_id = ?
+        `, [matchId]);
+        
+        if (appData.length > 0) {
+            const petName = appData[0].pet_name;
+            const applicantId = appData[0].applicant_id;
+            let title = '';
+            let msg = '';
+            if (status === 'rejected') { title = 'คำขอถูกปฏิเสธ'; msg = `คำขอรับเลี้ยง ${petName} ถูกปฏิเสธ`; }
+            else if (status === 'approved') { title = 'คำขอได้รับการอนุมัติ'; msg = `ยินดีด้วย! คำขอรับเลี้ยง ${petName} ได้รับการอนุมัติแล้ว`; }
+            else if (status === 'interview') { title = 'อัปเดตสถานะคำขอ'; msg = `เจ้าของแมว ${petName} ต้องการนัดสัมภาษณ์เพิ่มเติม`; }
+
+            if (title) {
+                await pool.query(
+                    `INSERT INTO notifications (user_id, title, message, type, related_id) VALUES (?, ?, ?, ?, ?)`,
+                    [applicantId, title, msg, 'adoption_status', matchId]
+                );
             }
         }
         

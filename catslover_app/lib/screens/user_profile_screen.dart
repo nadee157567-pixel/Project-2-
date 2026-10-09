@@ -200,6 +200,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         _buildAdopterRow('🎓', 'ประสบการณ์', displayExp(adopterData?['experience'])),
                         _buildAdopterRow('👶', 'เด็กเล็กในบ้าน', (adopterData?['has_children']?.toString() == '1') ? 'มี' : 'ไม่มี'),
                         _buildAdopterRow('🐶', 'สัตว์เลี้ยงอื่น', (adopterData?['has_other_pets']?.toString() == '1') ? 'มี' : 'ไม่มี'),
+                        _buildAdopterRow('🏥', 'พร้อมดูแลแมวพิเศษ', (adopterData?['accepts_special_needs']?.toString() == '1') ? 'พร้อม' : 'ไม่พร้อม'),
                         const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -250,6 +251,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 16),
+                        Center(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showBlockedUsers(context),
+                            icon: const Icon(Icons.block, size: 18),
+                            label: const Text('บัญชีที่บล็อก'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.grey[700],
+                              side: BorderSide(color: Colors.grey[400]!),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -327,4 +344,88 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ),
     );
   }
+  void _showBlockedUsers(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return FutureBuilder(
+          future: http.get(Uri.parse('${ApiConfig.baseUrl}/blocks/${widget.userId}')),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(height: 300, child: Center(child: CircularProgressIndicator()));
+            }
+            if (!snapshot.hasData || snapshot.hasError) {
+              return const SizedBox(height: 300, child: Center(child: Text("ไม่สามารถโหลดข้อมูลได้")));
+            }
+            final data = json.decode((snapshot.data as http.Response).body);
+            List blockedUsers = data['data'] ?? [];
+
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("บัญชีที่บล็อก", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Divider(),
+                  if (blockedUsers.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Text("ไม่มีบัญชีที่บล็อก", style: TextStyle(color: Colors.grey)),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: blockedUsers.length,
+                        itemBuilder: (context, index) {
+                          final user = blockedUsers[index];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.grey[300],
+                              child: const Icon(Icons.person, color: Colors.white),
+                            ),
+                            title: Text(user['fullname'] ?? user['username'] ?? 'User'),
+                            trailing: TextButton(
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('ปลดบล็อก'),
+                                    content: Text('ต้องการปลดบล็อก ${user['fullname']} หรือไม่?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context, false),
+                                        child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey)),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context, true),
+                                        child: const Text('ปลดบล็อก', style: TextStyle(color: Colors.green)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (confirm == true) {
+                                  await http.delete(Uri.parse('${ApiConfig.baseUrl}/blocks/${widget.userId}/${user['blocked_id']}'));
+                                  Navigator.pop(context); // Close modal
+                                  _showBlockedUsers(this.context); // Re-open to refresh
+                                }
+                              },
+                              child: const Text('ปลดบล็อก', style: TextStyle(color: Colors.red)),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 }
+

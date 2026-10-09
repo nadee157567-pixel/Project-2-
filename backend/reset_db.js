@@ -11,6 +11,7 @@ async function resetDatabase() {
             port: process.env.DB_PORT || 3306,
             user: process.env.DB_USER || 'root',
             password: process.env.DB_PASSWORD || '151617',
+            ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
             multipleStatements: true
         });
 

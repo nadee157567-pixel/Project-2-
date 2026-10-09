@@ -5,11 +5,13 @@ async function getAllUsers(req, res) {
     try {
         const [users] = await pool.query(`
             SELECT 
-                user_id, email, fullname, username, phonenumber, line_id,
-                role, is_banned, ban_reason, created_at, updated_at
-            FROM users 
-            WHERE role = 'user'
-            ORDER BY created_at DESC
+                u.user_id, u.email, u.fullname, u.username, u.phonenumber, u.line_id,
+                u.role, u.is_banned, u.ban_reason, u.created_at, u.updated_at,
+                (SELECT COUNT(*) FROM cats c WHERE c.poster_id = u.user_id) AS posted_count,
+                (SELECT COUNT(*) FROM adoptionapplications a WHERE a.applicant_id = u.user_id) AS app_count
+            FROM users u
+            WHERE u.role = 'user'
+            ORDER BY u.created_at DESC
         `);
         return res.status(200).json({ success: true, count: users.length, data: users });
     } catch (error) {

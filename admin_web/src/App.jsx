@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, UserPlus, FileText, Cat, Home, Heart,
-  MoreVertical, Menu, LayoutGrid, FileSpreadsheet, Download, Filter, ClipboardList, Trash2, Edit, Plus, User, Search, Settings2, X, AlertCircle, Ban, XCircle, CheckCircle, ExternalLink, Eye, EyeOff, LogOut, Loader2, RefreshCw, MessageSquare, Camera, Image, ChevronDown, Bell, AlertTriangle, ShieldAlert, Check, RotateCcw
+  MoreVertical, Menu, LayoutGrid, FileSpreadsheet, Download, Filter, ClipboardList, Trash2, Edit, Plus, User, Search, Settings2, X, AlertCircle, Ban, XCircle, CheckCircle, ExternalLink, Eye, EyeOff, LogOut, Loader2, RefreshCw, MessageSquare, Camera, Image, ChevronDown, Bell, AlertTriangle, ShieldAlert, Check, RotateCcw, Lock
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import html2canvas from 'html2canvas';
@@ -43,8 +43,16 @@ const playNotificationChime = () => {
 
 // --- Components ---
 
-const StatCard = ({ icon: Icon, title, value, unit, color }) => (
-  <div className="stat-card">
+const StatCard = ({ icon: Icon, title, value, unit, color, onClick }) => (
+  <div
+    className="stat-card"
+    onClick={onClick}
+    style={{
+      cursor: onClick ? 'pointer' : 'default',
+      transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+    }}
+    title={onClick ? `คลิกเพื่อดูรายละเอียดในหน้าจัดการ: ${title}` : undefined}
+  >
     <div className="stat-header">
       <Icon size={20} style={{ color: color || 'var(--primary-dark)' }} />
       <span>{title}</span>
@@ -89,6 +97,16 @@ const getFallbackCatImage = (idKey) => {
     }
   }
   return CAT_PLACEHOLDER_IMAGES[Math.abs(num) % CAT_PLACEHOLDER_IMAGES.length];
+};
+
+const getScoreColor = (scoreReceived, maxScoreVal = 25, isBlocking = false) => {
+  if (isBlocking) return '#ef4444';
+  const score = Number(scoreReceived || 0);
+  const max = Number(maxScoreVal || 25);
+  const ratio = max > 0 ? score / max : 0;
+  if (score === 0 || ratio < 0.4) return '#ef4444'; // Red for low or 0
+  if (ratio < 0.8) return '#d97706'; // Yellow/Orange for medium
+  return '#059669'; // Green for high/full
 };
 
 const Pagination = ({ currentPage, totalItems, itemsPerPage, onPageChange, onItemsPerPageChange }) => {
@@ -204,7 +222,7 @@ const Pagination = ({ currentPage, totalItems, itemsPerPage, onPageChange, onIte
   );
 };
 
-const CatManagement = () => {
+const CatManagement = ({ initialStatusFilter = 'all' }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedBreeds, setSelectedBreeds] = useState([]);
@@ -213,6 +231,19 @@ const CatManagement = () => {
   const [appliedBreeds, setAppliedBreeds] = useState([]);
   const [appliedStatuses, setAppliedStatuses] = useState([]);
   const [appliedMonths, setAppliedMonths] = useState([]);
+
+  useEffect(() => {
+    if (initialStatusFilter === 'adopted') {
+      setSelectedStatuses(['Adopted']);
+      setAppliedStatuses(['Adopted']);
+    } else if (initialStatusFilter === 'available' || initialStatusFilter === 'active') {
+      setSelectedStatuses(['Active']);
+      setAppliedStatuses(['Active']);
+    } else if (initialStatusFilter === 'all') {
+      setSelectedStatuses([]);
+      setAppliedStatuses([]);
+    }
+  }, [initialStatusFilter]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
@@ -901,8 +932,11 @@ const CatManagement = () => {
   );
 };
 
-const UserManagement = () => {
+const UserManagement = ({ initialRoleFilter = 'all' }) => {
   const [statusFilter, setStatusFilter] = useState('All');
+  const [userTypeFilter, setUserTypeFilter] = useState(
+    initialRoleFilter === 'poster' ? 'Poster' : initialRoleFilter === 'adopter' ? 'Adopter' : 'All'
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('All');
   const [localUsersList, setLocalUsersList] = useState([]);
@@ -916,6 +950,12 @@ const UserManagement = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
+
+  useEffect(() => {
+    if (initialRoleFilter === 'poster') setUserTypeFilter('Poster');
+    else if (initialRoleFilter === 'adopter') setUserTypeFilter('Adopter');
+    else if (initialRoleFilter === 'all') setUserTypeFilter('All');
+  }, [initialRoleFilter]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -934,6 +974,8 @@ const UserManagement = () => {
             status: u.is_banned ? 'Inactive' : 'Active',
             role: u.role,
             ban_reason: u.ban_reason,
+            posted_count: u.posted_count || 0,
+            app_count: u.app_count || 0,
             raw: u
           }));
         setLocalUsersList(mapped);
@@ -1009,6 +1051,9 @@ const UserManagement = () => {
   const filteredUsers = localUsersList.filter(user => {
     const isUserRole = user.role === 'user';
     const matchStatus = statusFilter === 'All' || user.status === statusFilter;
+    const matchUserType = userTypeFilter === 'All' ||
+      (userTypeFilter === 'Poster' && user.posted_count > 0) ||
+      (userTypeFilter === 'Adopter' && user.app_count > 0);
     const matchSearch = user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (user.fullname && user.fullname.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (user.email && user.email.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -1023,12 +1068,12 @@ const UserManagement = () => {
       const filterNum = parseInt(dateFilter.replace(/\//g, ''), 10);
       return mNum !== null && mNum === filterNum;
     })();
-    return isUserRole && matchStatus && matchSearch && matchDate;
+    return isUserRole && matchStatus && matchUserType && matchSearch && matchDate;
   });
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, dateFilter]);
+  }, [searchQuery, statusFilter, userTypeFilter, dateFilter]);
 
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -1053,6 +1098,14 @@ const UserManagement = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ width: '200px' }}
           />
+        </div>
+        <div className="filter-group">
+          <label>ประเภทผู้ใช้:</label>
+          <select className="filter-select" value={userTypeFilter} onChange={(e) => setUserTypeFilter(e.target.value)}>
+            <option value="All">ทั้งหมด</option>
+            <option value="Poster">ผู้ประกาศ (Poster)</option>
+            <option value="Adopter">ผู้ขอรับเลี้ยง (Adopter)</option>
+          </select>
         </div>
         <div className="filter-group">
           <label>สถานะ:</label>
@@ -1391,8 +1444,20 @@ const EvaluationCriteria = () => {
   const [criteriaList, setCriteriaList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isFormView, setIsFormView] = useState(false);
+  const PRESET_CONDITIONS = [
+    'equal_or_higher',
+    'lower_one_level',
+    'lower_two_levels',
+    'ratio_gte_1',
+    'ratio_080_099',
+    'ratio_060_079',
+    'ratio_lt_060'
+  ];
+
   const [topic, setTopic] = useState('');
   const [condition, setCondition] = useState('');
+  const [isCustomCondition, setIsCustomCondition] = useState(false);
+  const [customConditionInput, setCustomConditionInput] = useState('');
   const [maxScore, setMaxScore] = useState('');
   const [scoreRatio, setScoreRatio] = useState('');
   const [isBlocking, setIsBlocking] = useState(false);
@@ -1434,6 +1499,8 @@ const EvaluationCriteria = () => {
     setEditingId(null);
     setTopic('');
     setCondition('');
+    setIsCustomCondition(false);
+    setCustomConditionInput('');
     setMaxScore('');
     setScoreRatio('');
     setIsBlocking(false);
@@ -1465,7 +1532,16 @@ const EvaluationCriteria = () => {
   const handleEdit = (item) => {
     setEditingId(item.id);
     setTopic(item.field || item.topic);
-    setCondition(item.condition);
+    const condVal = item.condition || '';
+    if (condVal && !PRESET_CONDITIONS.includes(condVal)) {
+      setIsCustomCondition(true);
+      setCustomConditionInput(condVal);
+      setCondition(condVal);
+    } else {
+      setIsCustomCondition(false);
+      setCustomConditionInput('');
+      setCondition(condVal);
+    }
     setMaxScore(String(item.maxScore));
     setScoreRatio(String(item.scoreRatio));
     setIsBlocking(item.isBlocking);
@@ -1536,8 +1612,17 @@ const EvaluationCriteria = () => {
           <div className="form-group">
             <label>เงื่อนไข</label>
             <select
-              value={condition}
-              onChange={(e) => setCondition(e.target.value)}
+              value={isCustomCondition ? 'other' : condition}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'other') {
+                  setIsCustomCondition(true);
+                  setCondition(customConditionInput);
+                } else {
+                  setIsCustomCondition(false);
+                  setCondition(val);
+                }
+              }}
               style={{
                 width: '100%',
                 padding: '0.85rem 1rem',
@@ -1558,7 +1643,32 @@ const EvaluationCriteria = () => {
               <option value="ratio_080_099">ratio_080_099</option>
               <option value="ratio_060_079">ratio_060_079</option>
               <option value="ratio_lt_060">ratio_lt_060</option>
+              <option value="other">อื่นๆ (ระบุเงื่อนไขเอง)</option>
             </select>
+            {isCustomCondition && (
+              <div style={{ marginTop: '0.65rem' }}>
+                <input
+                  type="text"
+                  placeholder="กรอกเงื่อนไขเพิ่มเติม..."
+                  value={customConditionInput}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomConditionInput(val);
+                    setCondition(val);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '12px',
+                    border: '1px solid #3b82f6',
+                    fontSize: '1rem',
+                    backgroundColor: '#ffffff',
+                    color: '#1f2937',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            )}
           </div>
           <div className="form-group">
             <label>คะแนนเต็ม (Max Score)</label>
@@ -1666,7 +1776,7 @@ const EvaluationCriteria = () => {
   );
 };
 
-const Dashboard = () => {
+const Dashboard = ({ onNavigate }) => {
   const breedsList = [
     'วิเชียรมาศ', 'ขาวมณี', 'เปอร์เซีย', 'สีสวาด',
     'สก็อตติช โฟลด์', 'อเมริกัน ช็อตแฮร์', 'ศุภลักษณ์',
@@ -1695,6 +1805,8 @@ const Dashboard = () => {
   const [statusFilter, setStatusFilter] = useState('ทั้งหมด');
   const [monthFilter, setMonthFilter] = useState('ทั้งหมด'); // Dropdown filter
   const [pendingFilter, setPendingFilter] = useState('ทั้งหมด'); // Pending Actions filter
+  const [pendingCurrentPage, setPendingCurrentPage] = useState(1);
+  const [pendingItemsPerPage, setPendingItemsPerPage] = useState(6);
 
   const [localPendingActions, setLocalPendingActions] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -1793,8 +1905,12 @@ const Dashboard = () => {
     }
   };
 
+  const [confirmResolveAction, setConfirmResolveAction] = useState(null); // 'ignore' or 'ban'
+  const [resolveLoading, setResolveLoading] = useState(false);
+
   const handleResolveReport = async (action) => {
     if (!selectedReport) return;
+    setResolveLoading(true);
     try {
       const reasonNote = action === 'ban'
         ? `ระงับบัญชีผู้ใช้เนื่องจากพบการกระทำผิด (${selectedReport.issue || 'รายงานความผิด'})`
@@ -1809,8 +1925,11 @@ const Dashboard = () => {
         handled_at: nowStr
       } : item));
       setSelectedReport(null);
+      setConfirmResolveAction(null);
     } catch (err) {
       alert('เกิดข้อผิดพลาดในการบันทึกผล: ' + err.message);
+    } finally {
+      setResolveLoading(false);
     }
   };
 
@@ -1903,6 +2022,15 @@ const Dashboard = () => {
     if (pendingFilter === 'ทั้งหมด') return true;
     return item.status === pendingFilter;
   });
+
+  useEffect(() => {
+    setPendingCurrentPage(1);
+  }, [pendingFilter, localPendingActions]);
+
+  const paginatedPendingActions = filteredPendingActions.slice(
+    (pendingCurrentPage - 1) * pendingItemsPerPage,
+    pendingCurrentPage * pendingItemsPerPage
+  );
 
   // 1. Live Base Totals from backend API (fallback to mockData if loading/empty)
   const BASE_TOTAL_CATS = stats ? stats.totalCats : statsData.totalCats;
@@ -2034,7 +2162,7 @@ const Dashboard = () => {
     } else {
       let targetCats = rawCats;
       if (selectedMonthKey) targetCats = targetCats.filter(c => c.created_month === selectedMonthKey);
-      if (statusFilter === 'Active') targetCats = targetCats.filter(c => c.status === 'available');
+      if (statusFilter === 'Active') targetCats = targetCats.filter(c => c.status !== 'adopted');
       else if (statusFilter === 'Adopted') targetCats = targetCats.filter(c => c.status === 'adopted');
 
       targetCats.forEach(c => {
@@ -2065,12 +2193,18 @@ const Dashboard = () => {
   // Dynamic Stat Cards
   let dynamicPosters = activePostersCount;
   let dynamicAdopters = activeAdoptersCount;
-  if (filter === 'ผู้ลงประกาศ') dynamicAdopters = 0;
-  if (filter === 'ผู้ขอรับเลี้ยง') dynamicPosters = 0;
-  let dynamicUsers = dynamicPosters + dynamicAdopters;
+  let dynamicUsers = BASE_TOTAL_USERS;
+
+  if (filter === 'ผู้ลงประกาศ') {
+    dynamicAdopters = 0;
+    dynamicUsers = dynamicPosters;
+  } else if (filter === 'ผู้ขอรับเลี้ยง') {
+    dynamicPosters = 0;
+    dynamicUsers = dynamicAdopters;
+  }
 
   let dynamicAdopted = rawCats.length > 0 ? rawCats.filter(c => (selectedMonthKey ? c.created_month === selectedMonthKey : true) && (breedFilter !== 'ทั้งหมด' ? c.pet_breed === breedFilter : true) && c.status === 'adopted').length : BASE_ADOPTED;
-  let dynamicPending = rawCats.length > 0 ? rawCats.filter(c => (selectedMonthKey ? c.created_month === selectedMonthKey : true) && (breedFilter !== 'ทั้งหมด' ? c.pet_breed === breedFilter : true) && c.status === 'available').length : BASE_PENDING;
+  let dynamicPending = rawCats.length > 0 ? rawCats.filter(c => (selectedMonthKey ? c.created_month === selectedMonthKey : true) && (breedFilter !== 'ทั้งหมด' ? c.pet_breed === breedFilter : true) && c.status !== 'adopted').length : BASE_PENDING;
 
   if (statusFilter === 'Active') { dynamicAdopted = 0; }
   else if (statusFilter === 'Adopted') { dynamicPending = 0; }
@@ -2152,12 +2286,54 @@ const Dashboard = () => {
       {/* Statistics Section */}
       <h3 className="section-title">Statistics Overview</h3>
       <div className="stats-grid">
-        <StatCard icon={Users} title="จำนวนผู้ใช้ทั้งหมด" value={dynamicStatsData.totalUsers} unit="บัญชี" color="#4f46e5" />
-        <StatCard icon={FileText} title="จำนวนผู้ประกาศ" value={dynamicStatsData.totalPosters} unit="บัญชี" color="#0284c7" />
-        <StatCard icon={UserPlus} title="จำนวนผู้ขอรับเลี้ยง" value={dynamicStatsData.totalAdopters} unit="บัญชี" color="#0d9488" />
-        <StatCard icon={Cat} title="จำนวนแมวทั้งหมด" value={dynamicStatsData.totalCats} unit="ตัว" color="#ea580c" />
-        <StatCard icon={Heart} title="ได้บ้านแล้ว" value={dynamicStatsData.adoptedCats} unit="ตัว" color="#e11d48" />
-        <StatCard icon={Home} title="กำลังหาบ้าน" value={dynamicStatsData.findingHomeCats} unit="ตัว" color="#16a34a" />
+        <StatCard
+          icon={Users}
+          title="จำนวนผู้ใช้ทั้งหมด"
+          value={dynamicStatsData.totalUsers}
+          unit="บัญชี"
+          color="#4f46e5"
+          onClick={() => onNavigate && onNavigate('users', 'role', 'all')}
+        />
+        <StatCard
+          icon={FileText}
+          title="จำนวนผู้ประกาศ"
+          value={dynamicStatsData.totalPosters}
+          unit="บัญชี"
+          color="#0284c7"
+          onClick={() => onNavigate && onNavigate('users', 'role', 'poster')}
+        />
+        <StatCard
+          icon={UserPlus}
+          title="จำนวนผู้ขอรับเลี้ยง"
+          value={dynamicStatsData.totalAdopters}
+          unit="บัญชี"
+          color="#0d9488"
+          onClick={() => onNavigate && onNavigate('users', 'role', 'adopter')}
+        />
+        <StatCard
+          icon={Cat}
+          title="จำนวนแมวทั้งหมด"
+          value={dynamicStatsData.totalCats}
+          unit="ตัว"
+          color="#ea580c"
+          onClick={() => onNavigate && onNavigate('cats', 'status', 'all')}
+        />
+        <StatCard
+          icon={Heart}
+          title="ได้บ้านแล้ว"
+          value={dynamicStatsData.adoptedCats}
+          unit="ตัว"
+          color="#e11d48"
+          onClick={() => onNavigate && onNavigate('cats', 'status', 'adopted')}
+        />
+        <StatCard
+          icon={Home}
+          title="กำลังหาบ้าน"
+          value={dynamicStatsData.findingHomeCats}
+          unit="ตัว"
+          color="#16a34a"
+          onClick={() => onNavigate && onNavigate('cats', 'status', 'available')}
+        />
       </div>
 
       {/* Data Visualization Section */}
@@ -2583,7 +2759,7 @@ const Dashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredPendingActions.map((item) => (
+            {paginatedPendingActions.map((item) => (
               <tr key={item.id}>
                 <td>{item.username}</td>
                 <td>{item.date}</td>
@@ -2616,6 +2792,14 @@ const Dashboard = () => {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        currentPage={pendingCurrentPage}
+        totalItems={filteredPendingActions.length}
+        itemsPerPage={pendingItemsPerPage}
+        onPageChange={setPendingCurrentPage}
+        onItemsPerPageChange={setPendingItemsPerPage}
+      />
 
       {/* Report Inspection & History Modal */}
       {selectedReport && (
@@ -2779,13 +2963,74 @@ const Dashboard = () => {
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                <button className="btn-success" onClick={() => handleResolveReport('ignore')}>
+                <button className="btn-success" onClick={() => setConfirmResolveAction('ignore')}>
                   <CheckCircle size={20} /> ไม่พบความผิด
                 </button>
-                <button className="btn-danger" onClick={() => handleResolveReport('ban')}>
+                <button className="btn-danger" onClick={() => setConfirmResolveAction('ban')}>
                   <Ban size={20} /> ระงับบัญชีผู้ใช้
                 </button>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Report Resolution Action */}
+      {confirmResolveAction && (
+        <div className="modal-overlay" style={{ zIndex: 100050 }} onClick={() => setConfirmResolveAction(null)}>
+          <div className="modal-content" style={{ maxWidth: '420px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <X className="modal-close" size={24} onClick={() => setConfirmResolveAction(null)} />
+
+            {confirmResolveAction === 'ignore' ? (
+              <>
+                <h3 style={{ marginTop: 0, fontSize: '1.25rem', color: '#059669', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <CheckCircle size={26} color="#059669" /> ยืนยันปิดรายงาน (ไม่พบความผิด)
+                </h3>
+                <p style={{ color: '#4b5563', marginBottom: '1.5rem', lineHeight: '1.6', fontSize: '0.95rem' }}>
+                  คุณแน่ใจหรือไม่ว่าต้องการปิดรายงานปัญหานี้ โดยระบุว่า <strong>"ตรวจสอบแล้วไม่พบความผิดร้ายแรง"</strong>?<br />
+                  <span style={{ fontSize: '0.85rem', color: '#6b7280', display: 'block', marginTop: '6px' }}>
+                    สถานะรายงานนี้จะถูกเปลี่ยนเป็น ดำเนินการแล้ว (Resolved)
+                  </span>
+                </p>
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                  <button className="btn-cancel" onClick={() => setConfirmResolveAction(null)} disabled={resolveLoading}>
+                    ยกเลิก
+                  </button>
+                  <button
+                    className="btn-success"
+                    onClick={() => handleResolveReport('ignore')}
+                    disabled={resolveLoading}
+                    style={{ padding: '0.65rem 1.4rem' }}
+                  >
+                    {resolveLoading ? 'กำลังบันทึก...' : 'ยืนยัน ไม่พบความผิด'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 style={{ marginTop: 0, fontSize: '1.25rem', color: '#dc2626', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <Ban size={26} color="#dc2626" /> ยืนยันการระงับบัญชีผู้ใช้
+                </h3>
+                <p style={{ color: '#4b5563', marginBottom: '1.5rem', lineHeight: '1.6', fontSize: '0.95rem' }}>
+                  คุณแน่ใจหรือไม่ว่าต้องการ <strong style={{ color: '#dc2626' }}>ระงับบัญชีผู้ใช้ {selectedReport?.username || 'ผู้ถูกรายงาน'}</strong>?<br />
+                  <span style={{ fontSize: '0.85rem', color: '#6b7280', display: 'block', marginTop: '6px' }}>
+                    การกระทำนี้จะระงับสิทธิ์การใช้งานของผู้ใช้และปิดรายงานนี้เป็นดำเนินการแล้ว (Resolved)
+                  </span>
+                </p>
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                  <button className="btn-cancel" onClick={() => setConfirmResolveAction(null)} disabled={resolveLoading}>
+                    ยกเลิก
+                  </button>
+                  <button
+                    className="btn-danger"
+                    onClick={() => handleResolveReport('ban')}
+                    disabled={resolveLoading}
+                    style={{ padding: '0.65rem 1.4rem' }}
+                  >
+                    {resolveLoading ? 'กำลังระงับบัญชี...' : 'ยืนยัน ระงับบัญชี'}
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -3147,7 +3392,7 @@ const AssessmentsManagement = () => {
                         {d.criteria_name || d.criteria_code || `เกณฑ์ที่ ${idx + 1}`}
                       </div>
                       <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '2px' }}>
-                        คะแนนที่ได้: <strong>{d.score_received}</strong> / {d.max_score || 25}
+                        คะแนนที่ได้: <strong style={{ color: getScoreColor(d.score_received, d.max_score, d.is_blocking) }}>{d.score_received}</strong> <span style={{ color: '#1f2937', fontWeight: 'bold' }}>/ {d.max_score || 25}</span>
                       </div>
                       {d.explanation && (
                         <div style={{ fontSize: '0.8rem', color: '#4b5563', marginTop: '4px' }}>{d.explanation}</div>
@@ -3202,6 +3447,45 @@ const ApplicationsManagement = () => {
   const [appDetail, setAppDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
+  const [showPasswordAuthModal, setShowPasswordAuthModal] = useState(false);
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [passwordAuthError, setPasswordAuthError] = useState('');
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const [isChatUnlocked, setIsChatUnlocked] = useState(false);
+
+  const handleOpenChatClick = () => {
+    if (isChatUnlocked) {
+      setShowChatModal(true);
+    } else {
+      setAdminPasswordInput('');
+      setPasswordAuthError('');
+      setShowPasswordAuthModal(true);
+    }
+  };
+
+  const handleVerifyChatPassword = async (e) => {
+    e.preventDefault();
+    if (!adminPasswordInput.trim()) {
+      setPasswordAuthError('กรุณากรอกรหัสผ่านผู้ดูแลระบบ');
+      return;
+    }
+    setVerifyingPassword(true);
+    setPasswordAuthError('');
+    try {
+      const res = await adminApi.verifyAdminPassword(adminPasswordInput, appDetail?.match_id);
+      if (res && res.success) {
+        setIsChatUnlocked(true);
+        setShowPasswordAuthModal(false);
+        setShowChatModal(true);
+      } else {
+        setPasswordAuthError(res?.message || 'รหัสผ่านไม่ถูกต้อง');
+      }
+    } catch (err) {
+      setPasswordAuthError(err.message || 'รหัสผ่านไม่ถูกต้อง');
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
 
   // Override modal state
   const [targetStatus, setTargetStatus] = useState('');
@@ -3212,17 +3496,21 @@ const ApplicationsManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
 
+  const filteredApps = applications.filter(a => {
+    if (statusFilter === 'All') return true;
+    return a.status === statusFilter;
+  });
+
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, statusFilter, applications]);
 
-  const paginatedApps = applications.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedApps = filteredApps.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const fetchApplications = async () => {
     setLoading(true);
     try {
       const params = {};
-      if (statusFilter !== 'All') params.status = statusFilter;
       if (searchQuery.trim()) params.search = searchQuery.trim();
       const res = await adminApi.getApplications(params);
       if (res.success && Array.isArray(res.data)) {
@@ -3237,7 +3525,7 @@ const ApplicationsManagement = () => {
 
   useEffect(() => {
     fetchApplications();
-  }, [statusFilter]);
+  }, []);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -3350,21 +3638,85 @@ const ApplicationsManagement = () => {
 
       {/* Mini Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
-        <div style={{ backgroundColor: '#fff', padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: 'var(--shadow-sm)' }}>
+        {/* All Card */}
+        <div
+          onClick={() => setStatusFilter('All')}
+          style={{
+            backgroundColor: '#fff',
+            padding: '1rem 1.25rem',
+            borderRadius: '12px',
+            border: '1px solid #e5e7eb',
+            boxShadow: 'var(--shadow-sm)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          title="คลิกเพื่อเลือกแสดงคำขอทั้งหมด"
+        >
           <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>คำขอทั้งหมด</div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#1f2937' }}>{applications.length} รายการ</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#1f2937', marginTop: '4px' }}>{applications.length} รายการ</div>
         </div>
-        <div style={{ backgroundColor: '#fff', padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #fef3c7', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ fontSize: '0.85rem', color: '#b45309' }}>รอพิจารณา (Pending)</div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#d97706' }}>{countPending}</div>
+
+        {/* Pending Card */}
+        <div
+          onClick={() => setStatusFilter('pending')}
+          style={{
+            backgroundColor: statusFilter === 'pending' ? '#fffbeb' : '#fff',
+            padding: '1rem 1.25rem',
+            borderRadius: '12px',
+            border: statusFilter === 'pending' ? '2px solid #d97706' : '1px solid #fef3c7',
+            boxShadow: statusFilter === 'pending' ? '0 4px 12px rgba(217, 119, 6, 0.2)' : 'var(--shadow-sm)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            transform: statusFilter === 'pending' ? 'translateY(-2px)' : 'none'
+          }}
+          title="คลิกเพื่อกรองคำขอที่รอพิจารณา"
+        >
+          <div style={{ fontSize: '0.85rem', color: '#b45309', fontWeight: statusFilter === 'pending' ? 'bold' : 'normal', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>รอพิจารณา (Pending)</span>
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#d97706', marginTop: '4px' }}>{countPending}</div>
         </div>
-        <div style={{ backgroundColor: '#fff', padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #d1fae5', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ fontSize: '0.85rem', color: '#065f46' }}>อนุมัติรับเลี้ยง (Approved)</div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#059669' }}>{countApproved}</div>
+
+        {/* Approved Card */}
+        <div
+          onClick={() => setStatusFilter('approved')}
+          style={{
+            backgroundColor: statusFilter === 'approved' ? '#ecfdf5' : '#fff',
+            padding: '1rem 1.25rem',
+            borderRadius: '12px',
+            border: statusFilter === 'approved' ? '2px solid #059669' : '1px solid #d1fae5',
+            boxShadow: statusFilter === 'approved' ? '0 4px 12px rgba(5, 150, 105, 0.2)' : 'var(--shadow-sm)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            transform: statusFilter === 'approved' ? 'translateY(-2px)' : 'none'
+          }}
+          title="คลิกเพื่อกรองคำขอที่อนุมัติแล้ว"
+        >
+          <div style={{ fontSize: '0.85rem', color: '#065f46', fontWeight: statusFilter === 'approved' ? 'bold' : 'normal', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>อนุมัติรับเลี้ยง (Approved)</span>
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#059669', marginTop: '4px' }}>{countApproved}</div>
         </div>
-        <div style={{ backgroundColor: '#fff', padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #fee2e2', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ fontSize: '0.85rem', color: '#b91c1c' }}>ปฏิเสธ (Rejected)</div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#dc2626' }}>{countRejected}</div>
+
+        {/* Rejected Card */}
+        <div
+          onClick={() => setStatusFilter('rejected')}
+          style={{
+            backgroundColor: statusFilter === 'rejected' ? '#fef2f2' : '#fff',
+            padding: '1rem 1.25rem',
+            borderRadius: '12px',
+            border: statusFilter === 'rejected' ? '2px solid #dc2626' : '1px solid #fee2e2',
+            boxShadow: statusFilter === 'rejected' ? '0 4px 12px rgba(220, 38, 38, 0.2)' : 'var(--shadow-sm)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            transform: statusFilter === 'rejected' ? 'translateY(-2px)' : 'none'
+          }}
+          title="คลิกเพื่อกรองคำขอที่ไม่ผ่านการพิจารณา"
+        >
+          <div style={{ fontSize: '0.85rem', color: '#b91c1c', fontWeight: statusFilter === 'rejected' ? 'bold' : 'normal', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>ปฏิเสธ (Rejected)</span>
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#dc2626', marginTop: '4px' }}>{countRejected}</div>
         </div>
       </div>
 
@@ -3374,7 +3726,7 @@ const ApplicationsManagement = () => {
           <Loader2 className="animate-spin" size={32} style={{ margin: '0 auto 1rem auto' }} />
           <p>กำลังโหลดข้อมูลคำขอรับเลี้ยง...</p>
         </div>
-      ) : applications.length === 0 ? (
+      ) : filteredApps.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
           <p style={{ color: '#9ca3af', fontSize: '1.1rem' }}>ไม่พบรายการคำขอรับเลี้ยงตามเงื่อนไขที่เลือก</p>
         </div>
@@ -3455,7 +3807,7 @@ const ApplicationsManagement = () => {
 
           <Pagination
             currentPage={currentPage}
-            totalItems={applications.length}
+            totalItems={filteredApps.length}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
             onItemsPerPageChange={setItemsPerPage}
@@ -3563,7 +3915,7 @@ const ApplicationsManagement = () => {
 
                   {/* Parties Box */}
                   <div style={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '1rem' }}>
-                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#1f2937' }}>👥 ข้อมูลคู่กรณี</h4>
+                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#1f2937' }}>👥 ข้อมูลการติดต่อ</h4>
 
                     <div style={{ marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid #f3f4f6' }}>
                       <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#2563eb' }}>ผู้ขอรับเลี้ยง (Applicant):</div>
@@ -3637,7 +3989,7 @@ const ApplicationsManagement = () => {
                                 {item.criteria_name || item.topic || `เกณฑ์ที่ ${idx + 1}`}
                               </div>
                               <div style={{ fontSize: '0.9rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                                คะแนนที่ได้: <strong style={{ color: item.is_blocking ? '#ef4444' : '#1f2937' }}>{Number(item.score_received || 0).toFixed(2)} / {Number(item.max_score || 25).toFixed(2)}</strong>
+                                คะแนนที่ได้: <strong style={{ color: getScoreColor(item.score_received, item.max_score, item.is_blocking) }}>{Number(item.score_received || 0).toFixed(2)}</strong> <span style={{ color: '#1f2937', fontWeight: 'bold' }}>/ {Number(item.max_score || 25).toFixed(2)}</span>
                               </div>
                               <div style={{ fontSize: '0.85rem', color: '#4b5563', marginTop: '0.25rem' }}>
                                 {item.explanation || item.condition || '-'}
@@ -3658,7 +4010,7 @@ const ApplicationsManagement = () => {
                     </h4>
                     {appDetail.chat_history && appDetail.chat_history.length > 0 && (
                       <button
-                        onClick={() => setShowChatModal(true)}
+                        onClick={handleOpenChatClick}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -3673,9 +4025,9 @@ const ApplicationsManagement = () => {
                           cursor: 'pointer',
                           transition: 'all 0.2s'
                         }}
-                        title="ดูบทสนทนาทั้งหมดในหน้าต่างใหม่"
+                        title="ดูบทสนทนาทั้งหมด (ต้องยืนยันรหัสผ่านแอดมิน)"
                       >
-                        <ExternalLink size={14} /> ดูประวัติแชททั้งหมด
+                        <Lock size={14} /> ดูประวัติแชททั้งหมด
                       </button>
                     )}
                   </div>
@@ -3724,6 +4076,87 @@ const ApplicationsManagement = () => {
               </div>
             ) : null}
 
+          </div>
+        </div>
+      )}
+
+      {/* Password Verification Modal for Viewing Chat */}
+      {showPasswordAuthModal && (
+        <div className="modal-overlay" style={{ zIndex: 1200 }} onClick={() => setShowPasswordAuthModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '420px', padding: '1.75rem', borderRadius: '16px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Lock size={22} color="#8b5cf6" /> ยืนยันรหัสผ่านเพื่อเข้าดูแชท
+              </h3>
+              <X className="modal-close" size={22} onClick={() => setShowPasswordAuthModal(false)} />
+            </div>
+
+            <p style={{ color: '#4b5563', fontSize: '0.875rem', marginBottom: '1.25rem', lineHeight: '1.5' }}>
+              เพื่อความเป็นส่วนตัวของผู้ใช้งาน กรุณากรอกรหัสผ่านผู้ดูแลระบบ (Password ของบัญชีแอดมิน) เพื่อยืนยันสิทธิ์ในการดูประวัติการสนทนา
+            </p>
+
+            <form onSubmit={handleVerifyChatPassword}>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  กรุณากรอกรหัสผ่าน :
+                </label>
+                <input
+                  type="password"
+                  placeholder="กรอกรหัสผ่าน..."
+                  value={adminPasswordInput}
+                  onChange={(e) => { setAdminPasswordInput(e.target.value); setPasswordAuthError(''); }}
+                  style={{
+                    width: '100%',
+                    padding: '0.7rem 0.9rem',
+                    borderRadius: '10px',
+                    border: passwordAuthError ? '1.5px solid #ef4444' : '1px solid #d1d5db',
+                    fontSize: '0.95rem',
+                    boxSizing: 'border-box',
+                    outline: 'none'
+                  }}
+                  autoFocus
+                />
+                {passwordAuthError && (
+                  <div style={{ color: '#ef4444', fontSize: '0.825rem', marginTop: '6px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <AlertCircle size={14} /> {passwordAuthError}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={() => setShowPasswordAuthModal(false)}
+                  disabled={verifyingPassword}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="btn-save"
+                  disabled={verifyingPassword}
+                  style={{
+                    backgroundColor: '#8b5cf6',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '0.65rem 1.4rem',
+                    borderRadius: '10px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {verifyingPassword ? (
+                    <><Loader2 className="animate-spin" size={16} /> กำลังตรวจสอบ...</>
+                  ) : (
+                    <><Lock size={16} /> ยืนยันเพื่อดูแชท</>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -3983,7 +4416,19 @@ const Login = ({ onLogin }) => {
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('adminToken')));
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [userRoleFilter, setUserRoleFilter] = useState('all');
+  const [catStatusFilter, setCatStatusFilter] = useState('all');
   const storedUser = getStoredUser();
+
+  const handleDashboardNavigate = (targetTab, filterType, filterValue) => {
+    if (targetTab === 'users') {
+      setUserRoleFilter(filterValue);
+      setActiveTab('users');
+    } else if (targetTab === 'cats') {
+      setCatStatusFilter(filterValue);
+      setActiveTab('cats');
+    }
+  };
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -4347,11 +4792,11 @@ function App() {
         ) : activeTab === 'evaluation' ? (
           <EvaluationCriteria />
         ) : activeTab === 'users' ? (
-          <UserManagement />
+          <UserManagement initialRoleFilter={userRoleFilter} />
         ) : activeTab === 'cats' ? (
-          <CatManagement />
+          <CatManagement initialStatusFilter={catStatusFilter} />
         ) : (
-          <Dashboard />
+          <Dashboard onNavigate={handleDashboardNavigate} />
         )}
       </main>
     </div>

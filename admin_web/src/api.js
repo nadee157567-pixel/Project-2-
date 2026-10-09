@@ -72,6 +72,15 @@ export const adminApi = {
     }
     return res;
   },
+  verifyAdminPassword: async (password, matchId = null) => {
+    const user = getStoredUser();
+    const username = user?.username || 'admin';
+    const res = await request('/auth/verify-password', {
+      method: 'POST',
+      body: JSON.stringify({ username, password, matchId }),
+    });
+    return res;
+  },
 
   // Dashboard
   getStats: () => request('/admin/dashboard/stats'),

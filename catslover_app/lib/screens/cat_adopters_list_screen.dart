@@ -169,6 +169,13 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
     return exp ?? '-';
   }
 
+  String _translateTime(String? time) {
+    if (time == 'low') return 'น้อย (1-2 ชม.)';
+    if (time == 'medium') return 'ปานกลาง (3-4 ชม.)';
+    if (time == 'high') return 'มาก (5 ชม. ขึ้นไป)';
+    return time ?? '-';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -298,34 +305,12 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
                       const Divider(height: 24),
                       _buildInfoRow(Icons.home, "ที่พัก", _translateSpace(adopter['living_space_type'])),
                       _buildInfoRow(Icons.pets, "ประสบการณ์", _translateExperience(adopter['experience'])),
-                      if (adopter['upload_remark'] != null && adopter['upload_remark'].toString().isNotEmpty)
-                        Container(
-                          margin: const EdgeInsets.only(top: 12.0),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            borderRadius: BorderRadius.circular(8),
-                            border: const Border(
-                              left: BorderSide(color: Colors.pink, width: 4),
-                              top: BorderSide(color: Color(0xFFE0E0E0)),
-                              right: BorderSide(color: Color(0xFFE0E0E0)),
-                              bottom: BorderSide(color: Color(0xFFE0E0E0)),
-                            ),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.format_quote, size: 18, color: Colors.pink[300]),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  "${adopter['upload_remark']}",
-                                  style: TextStyle(color: Colors.grey[800], fontSize: 13, fontStyle: FontStyle.italic),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                      _buildInfoRow(Icons.access_time, "เวลาว่าง", _translateTime(adopter['daily_free_hours'])),
+                      _buildStarInfoRow(
+                        Icons.star, 
+                        "ความเหมาะสม", 
+                        double.parse(adopter['matchscore'].toString()) / 20.0,
+                      ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -416,7 +401,7 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildInfoRow(IconData icon, String label, String value, {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -424,7 +409,43 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
           Icon(icon, size: 16, color: Colors.grey[600]),
           const SizedBox(width: 8),
           Text("$label: ", style: const TextStyle(fontWeight: FontWeight.bold)),
-          Expanded(child: Text(value)),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: valueColor ?? Colors.black,
+                fontWeight: valueColor != null ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStarInfoRow(IconData icon, String label, double score) {
+    int fullStars = score.floor();
+    bool hasHalfStar = (score - fullStars) >= 0.5;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Text("$label: ", style: const TextStyle(fontWeight: FontWeight.bold)),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(5, (index) {
+              if (index < fullStars) {
+                return const Icon(Icons.star, color: Colors.amber, size: 16);
+              } else if (index == fullStars && hasHalfStar) {
+                return const Icon(Icons.star_half, color: Colors.amber, size: 16);
+              } else {
+                return const Icon(Icons.star_border, color: Colors.amber, size: 16);
+              }
+            }),
+          ),
         ],
       ),
     );

@@ -219,7 +219,7 @@ const getRequestsByCat = async (req, res) => {
     try {
         const catId = req.params.catId;
         const [rows] = await pool.query(`
-            SELECT a.*, u.fullname, u.phonenumber, p.living_space_type, p.experience
+            SELECT a.*, u.fullname, u.phonenumber, p.living_space_type, p.experience, p.daily_free_hours
             FROM adoptionapplications a
             JOIN users u ON a.applicant_id = u.user_id
             LEFT JOIN user_profiles p ON a.applicant_id = p.user_id

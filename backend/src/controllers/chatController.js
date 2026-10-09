@@ -21,6 +21,12 @@ exports.createRoom = async (req, res) => {
             VALUES (?) 
         `, [matchId]);
 
+        await pool.query(`
+            UPDATE adoptionapplications
+            SET status = 'interview'
+            WHERE match_id = ? AND status = 'pending'
+        `, [matchId]);
+
         res.status(201).json({ success: true, message: 'สร้างห้องแชทสำเร็จ', roomId: result.insertId });
     } catch (error) {
         console.error(error);
@@ -128,6 +134,14 @@ exports.sendMessage = async (req, res) => {
             `, [result.insertId]);
 
         // Optional: Update last_message_at in conversations table here
+        const [room] = await pool.query(`SELECT match_id FROM conversations WHERE room_id = ?`, [roomId]);
+        if (room.length > 0 && room[0].match_id) {
+            await pool.query(`
+                UPDATE adoptionapplications
+                SET status = 'interview'
+                WHERE match_id = ? AND status = 'pending'
+            `, [room[0].match_id]);
+        }
 
         const socket = require('../socket');
         socket.to(`chat-${roomId}`).emit('receive_message', newMessage[0]); // changed to receive_message to match flutter

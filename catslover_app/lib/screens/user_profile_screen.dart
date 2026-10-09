@@ -6,7 +6,7 @@ import 'adoption_requests_screen.dart';
 import 'poster_dashboard_screen.dart';
 import 'landing_screen.dart';
 import '../config/api_config.dart';
-import 'poster_cats_screen.dart';
+
 
 class UserProfileScreen extends StatefulWidget {
   final int userId;
@@ -278,7 +278,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => PosterCatsScreen(userId: widget.userId),
+                            builder: (context) => PosterDashboardScreen(userId: widget.userId),
                           ),
                         );
                       } else {

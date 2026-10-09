@@ -194,29 +194,30 @@ class _CatDetailScreenState extends State<CatDetailScreen> {
                       ),
                     ),
                     // Report Button (Top Right)
-                    Positioned(
-                      top: 50,
-                      right: 20,
-                      child: GestureDetector(
-                        onTap: () {
-                          // Report the cat poster
-                          ReportUtils.showReportDialog(
-                            context,
-                            reporterId: widget.userId,
-                            reportedUserId: int.tryParse(cat['poster_id'].toString()),
-                            catId: int.tryParse(cat['cat_id'].toString()),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
+                    if (!isOwner)
+                      Positioned(
+                        top: 50,
+                        right: 20,
+                        child: GestureDetector(
+                          onTap: () {
+                            // Report the cat poster
+                            ReportUtils.showReportDialog(
+                              context,
+                              reporterId: widget.userId,
+                              reportedUserId: int.tryParse(cat['poster_id'].toString()),
+                              catId: int.tryParse(cat['cat_id'].toString()),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.report_problem_outlined, color: Colors.redAccent),
                           ),
-                          child: const Icon(Icons.report_problem_outlined, color: Colors.redAccent),
                         ),
                       ),
-                    ),
                   ],
                 ),
 

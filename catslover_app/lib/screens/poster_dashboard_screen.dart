@@ -49,8 +49,8 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
         final catData = jsonDecode(catRes.body);
         if (catData['success'] == true && catData['data'] != null) {
           final cats = catData['data'] as List;
-          _availableCats = cats.where((c) => c['status'] == 'available').toList();
-          _pendingCats = cats.where((c) => c['status'] == 'pending').toList();
+          _availableCats = cats.where((c) => c['status'] == 'available' || c['status'] == 'pending').toList();
+          _pendingCats = []; // No longer used as a separate list
           _adoptedCats = cats.where((c) => c['status'] == 'adopted').toList();
         }
       }
@@ -359,19 +359,13 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                               if (_availableCats.isNotEmpty) ...[
                                 _buildCategoryPill("แมวที่กำลังหาบ้าน", Colors.pink[200]!),
                                 const SizedBox(height: 10),
-                                _buildCatList(_availableCats, 'available'),
-                                const SizedBox(height: 20),
-                              ],
-                              if (_pendingCats.isNotEmpty) ...[
-                                _buildCategoryPill("แมวที่มีผู้ขอรับเลี้ยง", Colors.orange[300]!),
-                                const SizedBox(height: 10),
-                                _buildCatList(_pendingCats, 'pending'),
+                                _buildCatList(_availableCats),
                                 const SizedBox(height: 20),
                               ],
                               if (_adoptedCats.isNotEmpty) ...[
                                 _buildCategoryPill("แมวที่ได้บ้านที่อบอุ่นแล้ว", Colors.pink[300]!),
                                 const SizedBox(height: 10),
-                                _buildCatList(_adoptedCats, 'adopted'),
+                                _buildCatList(_adoptedCats),
                               ]
                             ],
                           ),
@@ -395,7 +389,7 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
     );
   }
 
-  Widget _buildCatList(List cats, String listStatus) {
+  Widget _buildCatList(List cats) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -403,13 +397,18 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 0.6, // Adjusted for second button
+        childAspectRatio: 0.75, // Adjusted for single button
       ),
       itemCount: cats.length,
       itemBuilder: (context, index) {
-        // Create a modifiable copy of the cat data and ensure poster_id is set
         final Map<String, dynamic> cat = Map<String, dynamic>.from(cats[index]);
         cat['poster_id'] = widget.userId;
+        String catStatus = cat['status'] ?? 'available';
+        int activeCount = int.tryParse(cat['active_applications_count']?.toString() ?? '0') ?? 0;
+        
+        if (catStatus == 'available' && activeCount > 0) {
+          catStatus = 'pending';
+        }
         
         return GestureDetector(
           onTap: () {
@@ -462,42 +461,25 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: listStatus == 'available' ? Colors.green : (listStatus == 'pending' ? Colors.orange : Colors.grey),
+                  color: catStatus == 'available' ? Colors.green : (catStatus == 'pending' ? Colors.orange : const Color(0xFFE55A3F)), // matches screenshot color for adopted
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  listStatus == 'available' ? "ว่าง" : (listStatus == 'pending' ? "มีผู้ขอรับเลี้ยง" : "ได้บ้านแล้ว"),
+                  catStatus == 'available' ? "ว่าง" : (catStatus == 'pending' ? "มีผู้ขอรับเลี้ยง" : "ได้บ้านแล้ว"),
                   style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(height: 4),
-              // Details Button
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1B3B5A),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Text("รายละเอียด", style: TextStyle(color: Colors.white, fontSize: 10)),
-                    Icon(Icons.arrow_right, color: Colors.white, size: 14),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 4),
-              // Adopters Button
+              // Unified Action Button
               GestureDetector(
-                onTap: () {
+                onTap: catStatus == 'available' ? null : () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => CatAdoptersListScreen(
                         catId: int.tryParse(cat['cat_id'].toString()) ?? 0, 
                         catName: cat['pet_name'].toString(),
-                        isAdopted: listStatus == 'adopted',
+                        isAdopted: catStatus == 'adopted',
                         posterId: widget.userId,
                       ),
                     ),
@@ -507,14 +489,17 @@ class _PosterDashboardScreenState extends State<PosterDashboardScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.pink[400],
-                    borderRadius: BorderRadius.circular(10),
+                    color: const Color(0xFF1B3B5A),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(listStatus != 'adopted' ? "ดูผู้ขอรับเลี้ยง" : "ดูรายละเอียดผู้รับเลี้ยง", style: const TextStyle(color: Colors.white, fontSize: 10)),
-                      const Icon(Icons.group, color: Colors.white, size: 14),
+                      Text(
+                        catStatus == 'available' ? "ยังไม่มีคำขอรับเลี้ยง" : "รายละเอียดผู้รับเลี้ยง", 
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)
+                      ),
+                      const Icon(Icons.play_arrow, color: Colors.white, size: 14),
                     ],
                   ),
                 ),

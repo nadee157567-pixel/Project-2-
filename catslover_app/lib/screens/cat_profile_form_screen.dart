@@ -26,6 +26,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
   // ==============================
   final TextEditingController _catNameController = TextEditingController();
   final TextEditingController _healthDetailsController = TextEditingController();
+  final TextEditingController _vaccineDetailsController = TextEditingController();
   
   List<XFile> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
@@ -83,7 +84,16 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       else selectedAge = catAgeRanges[4];
 
       sterilizationStatus = data['is_sterilized']?.toString();
-      vaccinationStatus = data['is_vaccinated']?.toString();
+      
+      String vac = data['is_vaccinated']?.toString() ?? '';
+      if (vac.startsWith('ยังฉีดไม่ครบ')) {
+        vaccinationStatus = 'ยังฉีดไม่ครบ';
+        if (vac.contains(' - ')) {
+          _vaccineDetailsController.text = vac.split(' - ')[1];
+        }
+      } else {
+        vaccinationStatus = vac.isNotEmpty ? vac : null;
+      }
       
       if (data['req_space_level'] == 'large') requiredHousing = 'พื้นที่โล่งกว้างๆ';
       else if (data['req_space_level'] == 'small') requiredHousing = 'ไม่ต้องการพื้นที่มาก';
@@ -274,6 +284,10 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาเลือกสถานะการฉีดวัคซีน")));
       return;
     }
+    if (vaccinationStatus == 'ยังฉีดไม่ครบ' && _vaccineDetailsController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณาระบุรายละเอียดการฉีดวัคซีนที่ไม่ครบ")));
+      return;
+    }
 
     // Validate Page 2 fields (except precautions / special care)
     if (requiredHousing == null) {
@@ -313,7 +327,9 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
       "gender": selectedGender,
       "ageRange": selectedAge,
       "sterilization": sterilizationStatus,
-      "vaccination": vaccinationStatus,
+      "vaccination": vaccinationStatus == 'ยังฉีดไม่ครบ' && _vaccineDetailsController.text.trim().isNotEmpty
+          ? 'ยังฉีดไม่ครบ - ${_vaccineDetailsController.text.trim()}'
+          : vaccinationStatus,
       "healthDetails": _healthDetailsController.text,
       "reqHousing": requiredHousing,
       "reqTime": requiredTime,
@@ -430,6 +446,7 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
   void dispose() {
     _catNameController.dispose();
     _healthDetailsController.dispose();
+    _vaccineDetailsController.dispose();
     super.dispose();
   }
 
@@ -744,6 +761,18 @@ class _CatProfileFormScreenState extends State<CatProfileFormScreen> {
                     ),
                     const SizedBox(height: 12),
                     _buildRadio("ยังฉีดไม่ครบ (โปรดระบุเพิ่มเติม)", "ยังฉีดไม่ครบ", vaccinationStatus, (val) => setState(() => vaccinationStatus = val)),
+                    if (vaccinationStatus == 'ยังฉีดไม่ครบ') ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _vaccineDetailsController,
+                        decoration: InputDecoration(
+                          hintText: "โปรดระบุวัคซีนที่ฉีดแล้ว",
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 

@@ -238,17 +238,18 @@ class _PosterProfileScreenState extends State<PosterProfileScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.report_problem_outlined, color: Colors.white),
-            onPressed: () {
-              ReportUtils.showReportDialog(
-                context,
-                reporterId: widget.currentUserId,
-                reportedUserId: widget.posterId,
-              );
-            },
-            tooltip: 'รายงานผู้ใช้',
-          )
+          if (widget.currentUserId != widget.posterId)
+            IconButton(
+              icon: const Icon(Icons.report_problem_outlined, color: Colors.white),
+              onPressed: () {
+                ReportUtils.showReportDialog(
+                  context,
+                  reporterId: widget.currentUserId,
+                  reportedUserId: widget.posterId,
+                );
+              },
+              tooltip: 'รายงานผู้ใช้',
+            )
         ],
         flexibleSpace: Container(
           decoration: BoxDecoration(

@@ -39,6 +39,24 @@ class _CatAdoptersListScreenState extends State<CatAdoptersListScreen> {
   }
 
   Future<void> _navigateToChat(BuildContext context, Map<String, dynamic> adopter) async {
+    // ถ้าสถานะเป็น pending ให้เปลี่ยนเป็น interview อัตโนมัติเมื่อกดทักแชท
+    if (adopter['status'] == 'pending') {
+      try {
+        final updateRes = await http.put(
+          Uri.parse('${ApiConfig.baseUrl}/adoption/request/${adopter['match_id']}/status'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'status': 'interview', 'rejection_reason': null}),
+        );
+        if (updateRes.statusCode == 200) {
+          setState(() {
+            adopter['status'] = 'interview';
+          });
+        }
+      } catch (e) {
+        print("Error updating status to interview: $e");
+      }
+    }
+
     try {
       final res = await http.get(Uri.parse('${ApiConfig.baseUrl}/chats?userId=${widget.posterId}'));
       if (res.statusCode == 200) {

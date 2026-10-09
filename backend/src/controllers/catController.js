@@ -22,7 +22,7 @@ async function getAllCats(req, res) {
             
             JOIN users AS u
               ON c.poster_id = u.user_id
-            WHERE c.is_hidden = 0
+            WHERE c.is_hidden = 0 AND c.status != 'adopted'
             ORDER BY c.created_at DESC`);
         return res.status(200).json({
             success: true,
@@ -209,7 +209,12 @@ async function getCatsByPosterId(req, res) {
                     WHERE cp.cat_id = c.cat_id
                     ORDER BY cp.photo_id ASC
                     LIMIT 1
-                ) AS image_url
+                ) AS image_url,
+                (
+                    SELECT COUNT(*)
+                    FROM adoptionapplications aa
+                    WHERE aa.cat_id = c.cat_id AND aa.status != 'rejected'
+                ) AS active_applications_count
             FROM cats AS c
             WHERE c.poster_id = ?
             ORDER BY c.created_at DESC

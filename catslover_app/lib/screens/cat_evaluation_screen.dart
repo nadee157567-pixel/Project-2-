@@ -26,6 +26,7 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
   Map<String, dynamic>? evaluationResult;
   bool isLoading = true; // Auto start loading
   bool isEvaluated = false;
+  String? errorMessage;
 
   @override
   void initState() {
@@ -57,6 +58,12 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
             }
           });
         }
+      } else {
+        final jsonResponse = json.decode(response.body);
+        if (!mounted) return;
+        setState(() {
+          errorMessage = jsonResponse['message'] ?? 'เกิดข้อผิดพลาดในการดึงข้อมูล';
+        });
       }
     } catch (e) {
       print("เกิดข้อผิดพลาดในการดึงข้อมูล: $e");
@@ -104,12 +111,12 @@ class _EvaluationScreenState extends State<EvaluationScreen> {
         child: Column(
           children: [
             if (!isEvaluated || evaluationResult == null)
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
-                    "ไม่สามารถดึงข้อมูลประเมินได้\n(คุณอาจเป็นเจ้าของแมวตัวนี้ หรือข้อมูลโปรไฟล์ไม่สมบูรณ์)",
+                    errorMessage ?? "ไม่สามารถดึงข้อมูลประเมินได้\n(คุณอาจเป็นเจ้าของแมวตัวนี้ หรือข้อมูลโปรไฟล์ไม่สมบูรณ์)",
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.red, fontSize: 16),
+                    style: const TextStyle(color: Colors.red, fontSize: 16),
                   ),
                 ),
               )

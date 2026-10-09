@@ -30,6 +30,7 @@ class AdoptionStatusScreen extends StatefulWidget {
 class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
   Map<String, dynamic>? _realEvaluationResult;
   bool _isFetching = false;
+  Map<String, dynamic>? _catDetails;
 
   @override
   void initState() {
@@ -50,6 +51,25 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
     
     if (isFake) {
       _fetchRealEvaluation();
+    }
+    _fetchCatDetails();
+  }
+
+  Future<void> _fetchCatDetails() async {
+    try {
+      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/cats/${widget.catId}'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          if (mounted) {
+            setState(() {
+              _catDetails = data['data'];
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print("Error fetching cat details: $e");
     }
   }
 
@@ -198,6 +218,30 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
     );
   }
 
+  Widget _buildCatDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStarRow(String title, int score) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -259,14 +303,14 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
     String statusText = "";
     Color statusColor = Colors.grey;
 
-    if (matchPercent > 70) {
-      statusText = "เหมาะสม";
+    if (matchPercent >= 80) {
+      statusText = "เหมาะสมมาก (ว่าที่ทาสแมวตัวจริง!)";
       statusColor = Colors.green;
-    } else if (matchPercent > 50) {
-      statusText = "พอใช้";
+    } else if (matchPercent >= 50) {
+      statusText = "พอใช้ (ลองพูดคุยกันดูก่อนได้น้า)";
       statusColor = Colors.yellow[700]!;
     } else {
-      statusText = "ไม่เหมาะสม";
+      statusText = "อาจจะยังไม่เหมาะ";
       statusColor = Colors.red;
     }
 
@@ -559,6 +603,43 @@ class _AdoptionStatusScreenState extends State<AdoptionStatusScreen> {
                                   _buildStarRow("เวลาว่าง", timeScore),
                                   _buildStarRow("ค่าใช้จ่าย", budgetScore),
                                   _buildStarRow("ประสบการณ์", expScore),
+                                  
+                                  const SizedBox(height: 16),
+                                  const Divider(),
+                                  if (widget.status == 'approved' && _catDetails != null)
+                                    Theme(
+                                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                                      child: ExpansionTile(
+                                        tilePadding: EdgeInsets.zero,
+                                        title: const Text(
+                                          "รายละเอียดน้องแมว",
+                                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                                        ),
+                                        children: [
+                                          Container(
+                                            alignment: Alignment.centerLeft,
+                                            padding: const EdgeInsets.only(bottom: 12),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                _buildCatDetailRow("สายพันธุ์", _catDetails!['pet_breed'] ?? "-"),
+                                                _buildCatDetailRow("อายุ", _catDetails!['age_months'] != null ? "${_catDetails!['age_months']} เดือน" : "-"),
+                                                _buildCatDetailRow("เพศ", _catDetails!['gender'] == 'male' ? "ตัวผู้" : (_catDetails!['gender'] == 'female' ? "ตัวเมีย" : "-")),
+                                                _buildCatDetailRow("การฉีดวัคซีน", _catDetails!['is_vaccinated'] ?? "-"),
+                                                _buildCatDetailRow("การทำหมัน", _catDetails!['is_sterilized'] ?? "-"),
+                                                if (_catDetails!['health_note'] != null && _catDetails!['health_note'].toString().trim().isNotEmpty)
+                                                  _buildCatDetailRow("โรค / สุขภาพ", _catDetails!['health_note']),
+                                              ],
+                                            ),
+                                          )
+                                        ],
+                                      ),
+                                    )
+                                  else if (widget.status == 'approved' && _isFetching)
+                                    const Padding(
+                                      padding: EdgeInsets.all(16.0),
+                                      child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.pinkAccent, strokeWidth: 2)),
+                                    ),
                                 ],
                               ),
                             ),

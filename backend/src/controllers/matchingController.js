@@ -778,7 +778,7 @@ const matchSelectedCat = async (req, res) => {
         const [cats] = await pool.query(`
            ${CAT_SELECT_SQL}
             WHERE c.cat_id = ?
-            AND c.status = 'available'
+            AND c.status IN ('available', 'pending', 'interview')
             LIMIT 1
             `,
             [catId]
@@ -1012,7 +1012,7 @@ const matchAllCats = async (req, res) => {
 
         let query = `   
             ${CAT_SELECT_SQL}
-            WHERE c.status = 'available'
+            WHERE c.status != 'adopted'
         `;
         const queryParams = [];
 

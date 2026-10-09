@@ -874,19 +874,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   )
                                                 : const Icon(Icons.pets, color: Colors.grey, size: 40),
                                           ),
-                                          // Favorite Icon
-                                          Positioned(
-                                            top: 8,
-                                            right: 8,
-                                            child: Container(
-                                              padding: const EdgeInsets.all(4),
-                                              decoration: const BoxDecoration(
-                                                color: Colors.white,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(Icons.favorite_border, size: 16, color: Colors.redAccent),
-                                            ),
-                                          )
+
                                         ],
                                       ),
                                     ),

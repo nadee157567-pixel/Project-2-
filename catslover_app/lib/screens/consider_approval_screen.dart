@@ -90,56 +90,153 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
     _remarkController.clear();
     final bool isApprove = status == 'approved';
     final String title = isApprove ? 'ตกลงเลือกผู้รับเลี้ยงนี้ 🐾' : 'ปฏิเสธผู้รับเลี้ยง';
-    final String contentText = isApprove 
-        ? 'คุณแน่ใจไหมที่จะเลือกผู้ใช้คนนี้ไปดูแลน้องแมว? คุณสามารถฝากข้อความถึงว่าที่ทาสแมวคนใหม่ได้นะ (ถ้ามี):'
-        : 'คุณต้องการปฏิเสธคำขอนี้ใช่ไหม? กรุณาระบุเหตุผลเพื่อแจ้งให้ผู้ขอทราบ (ถ้ามี):';
     final String confirmBtnText = isApprove ? 'ตกลง! มอบน้องแมวให้เลย' : 'ยืนยันปฏิเสธ';
     final Color confirmBtnColor = isApprove ? Colors.green : Colors.red;
+
+    final List<String> approvalOptions = [
+      'ยินดีด้วยน้าา คุณเหมาะสมกับน้องแมวมาก',
+      'น้องแมวพร้อมให้มารับแล้วนะ',
+      'ฝากดูแลน้องแมวด้วยนะ',
+      'อื่นๆ(ระบุ)'
+    ];
+
+    final List<String> rejectionOptions = [
+      'คุณสมบัติยังไม่ตรงตามที่ต้องการ',
+      'เวลาที่มีให้น้องแมวอาจจะยังน้อยเกินไป',
+      'สถานที่เลี้ยงอาจจะยังไม่เหมาะสม',
+      'ไม่สามารถติดต่อได้',
+      'อื่นๆ(ระบุ)'
+    ];
+
+    final List<String> options = isApprove ? approvalOptions : rejectionOptions;
+    String? selectedOption;
+    bool showError = false;
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(contentText),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _remarkController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'พิมพ์หมายเหตุ...',
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        text: isApprove 
+                            ? 'คุณแน่ใจไหมที่จะเลือกผู้ใช้คนนี้ไปดูแลน้องแมว? คุณสามารถฝากข้อความถึงว่าที่ทาสแมวคนใหม่ได้นะ '
+                            : 'คุณต้องการปฏิเสธคำขอนี้ใช่ไหม? กรุณาระบุเหตุผลเพื่อแจ้งให้ผู้ขอทราบ ',
+                        style: const TextStyle(color: Colors.black87, fontSize: 14),
+                        children: const [
+                          TextSpan(text: '*', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: showError && selectedOption == null ? Colors.red : Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: showError && selectedOption == null ? Colors.red : Colors.grey[300]!),
+                        ),
+                      ),
+                      hint: Text(isApprove ? 'เลือกข้อความแนะนำ...' : 'เลือกเหตุผลที่ปฏิเสธ...'),
+                      value: selectedOption,
+                      isExpanded: true,
+                      items: options.map((String option) {
+                        return DropdownMenuItem<String>(
+                          value: option,
+                          child: Text(option),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          selectedOption = newValue;
+                          showError = false;
+                          if (newValue != null && newValue != 'อื่นๆ(ระบุ)') {
+                            _remarkController.text = newValue;
+                          } else {
+                            _remarkController.clear();
+                          }
+                        });
+                      },
+                    ),
+                    if (showError && selectedOption == null)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8.0, left: 12.0),
+                        child: Text('กรุณาเลือกตัวเลือก', style: TextStyle(color: Colors.red, fontSize: 12)),
+                      ),
+                    if (selectedOption == 'อื่นๆ(ระบุ)') ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _remarkController,
+                        maxLines: 3,
+                        onChanged: (value) {
+                          if (showError) setState(() => showError = false);
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'พิมพ์รายละเอียดเพิ่มเติมที่นี่...',
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: showError && _remarkController.text.trim().isEmpty 
+                                ? const BorderSide(color: Colors.red) 
+                                : BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: showError && _remarkController.text.trim().isEmpty 
+                                ? const BorderSide(color: Colors.red) 
+                                : BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      if (showError && _remarkController.text.trim().isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8.0, left: 12.0),
+                          child: Text('กรุณาระบุหมายเหตุ', style: TextStyle(color: Colors.red, fontSize: 12)),
+                        ),
+                    ],
+                  ],
                 ),
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _updateStatus(status);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: confirmBtnColor,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: Text(confirmBtnText, style: const TextStyle(color: Colors.white)),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (selectedOption == null || (selectedOption == 'อื่นๆ(ระบุ)' && _remarkController.text.trim().isEmpty)) {
+                      setState(() {
+                        showError = true;
+                      });
+                      return;
+                    }
+                    Navigator.pop(context);
+                    _updateStatus(status);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: confirmBtnColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: Text(confirmBtnText, style: const TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -392,7 +489,52 @@ class _ConsiderApprovalScreenState extends State<ConsiderApprovalScreen> {
                                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
                               ),
                             ),
-                          )
+                          ),
+                          if (widget.adopter['rejection_reason'] != null && widget.adopter['rejection_reason'].toString().trim().isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: currentStatus == 'approved' ? Colors.green.shade200 : Colors.red.shade200,
+                                ),
+                              ),
+                              child: Builder(
+                                builder: (context) {
+                                  String reason = widget.adopter['rejection_reason'].toString().trim();
+                                  if (reason == 'adopted_by_other') {
+                                    reason = 'มีผู้รับเลี้ยงน้องแมวแล้ว';
+                                  }
+                                  return RichText(
+                                    text: TextSpan(
+                                      children: [
+                                        TextSpan(
+                                          text: '* ',
+                                          style: TextStyle(
+                                            color: currentStatus == 'approved' ? Colors.green : Colors.red,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: currentStatus == 'approved' 
+                                              ? 'ข้อความฝากถึง: $reason'
+                                              : 'เหตุผล: $reason',
+                                          style: const TextStyle(
+                                            color: Colors.black87,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                              ),
+                            ),
+                          ],
                         ],
                         const SizedBox(height: 20),
                         OutlinedButton(

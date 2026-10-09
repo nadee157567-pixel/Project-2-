@@ -299,7 +299,7 @@ class _LandingScreenState extends State<LandingScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
-                  "น้องแมวแนะนำ ",
+                  "น้องแมวแนะนำ  ",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54),
                 ),
               ),
@@ -359,7 +359,7 @@ class _LandingScreenState extends State<LandingScreen> {
                               ),
                               SizedBox(height: 12),
                               Text(
-                                "ค้นหาเจ้านายที่ใช่เลย 🐈",
+                                "ค้นหาเจ้านายที่ใช่เลย 🥰",
                                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
                               ),
                             ],
@@ -487,19 +487,7 @@ class _LandingScreenState extends State<LandingScreen> {
                           )
                         : const Icon(Icons.pets, color: Colors.grey),
                   ),
-                  // Heart icon
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.favorite, color: Colors.redAccent, size: 12),
-                    ),
-                  ),
+
                 ],
               ),
             ),

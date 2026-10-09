@@ -56,6 +56,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
             _chats = data['data'];
             _isLoading = false;
           });
+          if (widget.onRefreshUnread != null) {
+            widget.onRefreshUnread!();
+          }
         }
       } else {
         if (!mounted) return;

@@ -614,6 +614,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
+    // รีเฟรชตัวเลขแจ้งเตือนทุกครั้งที่เปลี่ยนแท็บ
+    _fetchNotifications();
   }
 
   Widget _buildAdopterView() {

@@ -3536,6 +3536,7 @@ const ApplicationsManagement = () => {
     setSelectedApp(app);
     setAppDetail(null);
     setShowChatModal(false);
+    setIsChatUnlocked(false);
     setTargetStatus(app.status);
     setOverrideReason('');
     setActionSuccessMsg('');
@@ -4067,6 +4068,7 @@ const ApplicationsManagement = () => {
                     onClick={() => {
                       setSelectedApp(null);
                       setShowChatModal(false);
+                      setIsChatUnlocked(false);
                     }}
                     style={{ padding: '0.5rem 1.5rem', fontSize: '0.95rem' }}
                   >
@@ -4163,7 +4165,7 @@ const ApplicationsManagement = () => {
 
       {/* Full Chat History Modal */}
       {showChatModal && appDetail && (
-        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setShowChatModal(false)}>
+        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => { setShowChatModal(false); setIsChatUnlocked(false); }}>
           <div className="modal-content" style={{ maxWidth: '600px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.85rem', borderBottom: '1px solid #e5e7eb', marginBottom: '1rem' }}>
               <div>
@@ -4176,7 +4178,7 @@ const ApplicationsManagement = () => {
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#15803d', fontWeight: '600' }}>🏠 {appDetail.poster_name} (เจ้าของเดิม)</span>
                 </div>
               </div>
-              <X className="modal-close" size={22} onClick={() => setShowChatModal(false)} />
+              <X className="modal-close" size={22} onClick={() => { setShowChatModal(false); setIsChatUnlocked(false); }} />
             </div>
 
             <div className="chat-container" style={{
@@ -4285,7 +4287,7 @@ const ApplicationsManagement = () => {
             <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.5rem' }}>
               <button
                 className="btn-cancel"
-                onClick={() => setShowChatModal(false)}
+                onClick={() => { setShowChatModal(false); setIsChatUnlocked(false); }}
                 style={{ padding: '0.4rem 1.25rem', fontSize: '0.9rem' }}
               >
                 ปิดหน้าต่างแชท

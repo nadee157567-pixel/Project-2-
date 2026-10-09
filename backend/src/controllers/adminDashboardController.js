@@ -35,8 +35,8 @@ async function getDashboardStats(req, res) {
             pool.query(`SELECT COUNT(DISTINCT poster_id) AS count FROM cats`),
             pool.query(`SELECT COUNT(DISTINCT applicant_id) AS count FROM adoptionapplications`),
             pool.query(`SELECT COUNT(*) AS count FROM cats WHERE is_hidden = 0`),
-            pool.query(`SELECT COUNT(*) AS count FROM cats WHERE status = 'available' AND is_hidden = 0`),
-            pool.query(`SELECT COUNT(*) AS count FROM cats WHERE status = 'adopted'`),
+            pool.query(`SELECT COUNT(*) AS count FROM cats WHERE status != 'adopted' AND is_hidden = 0`),
+            pool.query(`SELECT COUNT(*) AS count FROM cats WHERE status = 'adopted' AND is_hidden = 0`),
             pool.query(`SELECT COUNT(*) AS count FROM adoptionapplications`),
             pool.query(`SELECT COUNT(*) AS count FROM adoptionapplications WHERE status = 'pending'`),
             pool.query(`SELECT COUNT(*) AS count FROM assessments`),
@@ -419,7 +419,7 @@ async function exportDashboardReport(req, res) {
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_count
             FROM adoptionapplications
             WHERE applied_at IS NOT NULL
-            GROUP BY month_key
+            GROUP BY DATE_FORMAT(applied_at, '%Y-%m')
             ORDER BY month_key ASC
         `);
 
@@ -432,7 +432,7 @@ async function exportDashboardReport(req, res) {
                 SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) AS available_count,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_count
             FROM cats
-            GROUP BY breed
+            GROUP BY COALESCE(pet_breed, 'ไม่ระบุสายพันธุ์')
             ORDER BY total_count DESC
         `);
 
@@ -443,19 +443,91 @@ async function exportDashboardReport(req, res) {
         };
 
         const formattedTrends = trendsList.map(t => {
-            const [year, month] = (t.month_key || '').split('-');
-            const thaiMonthName = thaiMonths[month] ? `${thaiMonths[month]} ${parseInt(year, 10) + 543}` : t.month_key;
-            const rate = t.total_applications > 0
-                ? ((Number(t.approved_count) / Number(t.total_applications)) * 100).toFixed(1) + '%'
-                : '0.0%';
+            const parts = (t.month_key || '').split('-');
+            const year = parts[0] || '';
+            const month = parts[1] || '';
+            const monthName = (thaiMonths[month] || month) + (year ? ` ${year}` : '');
+            const total = Number(t.total_applications || 0);
+            const approved = Number(t.approved_count || 0);
+            const rate = total > 0 ? ((approved / total) * 100).toFixed(1) + '%' : '0%';
             return {
-                month_key: t.month_key,
-                month_name: thaiMonthName,
-                total_applications: Number(t.total_applications),
-                approved_count: Number(t.approved_count),
-                rejected_count: Number(t.rejected_count),
-                pending_count: Number(t.pending_count),
+                month_key: t.month_key || '-',
+                month_name: monthName,
+                total_applications: total,
+                approved_count: approved,
+                rejected_count: Number(t.rejected_count || 0),
+                pending_count: Number(t.pending_count || 0),
                 success_rate: rate
+            };
+        });
+
+        // 6. Fetch Daily Breakdown Data (สถิติสแกนย่อยจำแนกตามวันที่)
+        const [catsByDay] = await pool.query(`
+            SELECT 
+                DATE_FORMAT(created_at, '%Y-%m-%d') AS date_key,
+                COUNT(*) AS new_cats,
+                SUM(CASE WHEN status = 'adopted' THEN 1 ELSE 0 END) AS adopted_cats
+            FROM cats
+            WHERE created_at IS NOT NULL
+            GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+        `);
+
+        const [appsByDay] = await pool.query(`
+            SELECT 
+                DATE_FORMAT(applied_at, '%Y-%m-%d') AS date_key,
+                COUNT(*) AS new_applications
+            FROM adoptionapplications
+            WHERE applied_at IS NOT NULL
+            GROUP BY DATE_FORMAT(applied_at, '%Y-%m-%d')
+        `);
+
+        const [usersByDay] = await pool.query(`
+            SELECT 
+                DATE_FORMAT(created_at, '%Y-%m-%d') AS date_key,
+                COUNT(*) AS new_users
+            FROM users
+            WHERE created_at IS NOT NULL
+            GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+        `);
+
+        const dailyMap = {};
+
+        catsByDay.forEach(r => {
+            if (!r.date_key) return;
+            if (!dailyMap[r.date_key]) {
+                dailyMap[r.date_key] = { date_key: r.date_key, new_cats: 0, adopted_cats: 0, new_applications: 0, new_users: 0 };
+            }
+            dailyMap[r.date_key].new_cats = Number(r.new_cats || 0);
+            dailyMap[r.date_key].adopted_cats = Number(r.adopted_cats || 0);
+        });
+
+        appsByDay.forEach(r => {
+            if (!r.date_key) return;
+            if (!dailyMap[r.date_key]) {
+                dailyMap[r.date_key] = { date_key: r.date_key, new_cats: 0, adopted_cats: 0, new_applications: 0, new_users: 0 };
+            }
+            dailyMap[r.date_key].new_applications = Number(r.new_applications || 0);
+        });
+
+        usersByDay.forEach(r => {
+            if (!r.date_key) return;
+            if (!dailyMap[r.date_key]) {
+                dailyMap[r.date_key] = { date_key: r.date_key, new_cats: 0, adopted_cats: 0, new_applications: 0, new_users: 0 };
+            }
+            dailyMap[r.date_key].new_users = Number(r.new_users || 0);
+        });
+
+        const dailyList = Object.values(dailyMap).sort((a, b) => b.date_key.localeCompare(a.date_key));
+
+        const formattedDaily = dailyList.map(d => {
+            const dateStr = d.date_key ? formatDate(d.date_key) : '-';
+            return {
+                date_key: d.date_key,
+                date_formatted: dateStr,
+                new_cats: Number(d.new_cats || 0),
+                adopted_cats: Number(d.adopted_cats || 0),
+                new_applications: Number(d.new_applications || 0),
+                new_users: Number(d.new_users || 0)
             };
         });
 
@@ -558,11 +630,37 @@ async function exportDashboardReport(req, res) {
                         pct
                     ]));
                 });
+                csvRows.push('');
+                csvRows.push(toCsvRow(['=== 4. สถิติจำแนกตามวันที่ (Daily Breakdown by Date) ===']));
+                csvRows.push(toCsvRow(['วันที่ (YYYY-MM-DD)', 'วันที่ (รูปแบบไทย)', 'แมวเข้าใหม่ (ตัว)', 'รับเลี้ยงสำเร็จ (ตัว)', 'คำขอรับเลี้ยงใหม่ (ใบ)', 'ผู้ใช้ใหม่ (คน)']));
+                formattedDaily.forEach(d => {
+                    csvRows.push(toCsvRow([
+                        d.date_key,
+                        d.date_formatted,
+                        d.new_cats,
+                        d.adopted_cats,
+                        d.new_applications,
+                        d.new_users
+                    ]));
+                });
             } else {
                 // Summary or default all
                 csvRows.push(toCsvRow(['หัวข้อสถิติ', 'จำนวน (ค่า)', 'คำอธิบาย']));
                 summaryRows.forEach(s => {
                     csvRows.push(toCsvRow([s.topic, s.value, s.desc]));
+                });
+                csvRows.push('');
+                csvRows.push(toCsvRow(['=== สถิติจำแนกตามวันที่ (Daily Breakdown by Date) ===']));
+                csvRows.push(toCsvRow(['วันที่ (YYYY-MM-DD)', 'วันที่ (รูปแบบไทย)', 'แมวเข้าใหม่ (ตัว)', 'รับเลี้ยงสำเร็จ (ตัว)', 'คำขอรับเลี้ยงใหม่ (ใบ)', 'ผู้ใช้ใหม่ (คน)']));
+                formattedDaily.forEach(d => {
+                    csvRows.push(toCsvRow([
+                        d.date_key,
+                        d.date_formatted,
+                        d.new_cats,
+                        d.adopted_cats,
+                        d.new_applications,
+                        d.new_users
+                    ]));
                 });
             }
 
@@ -657,7 +755,24 @@ async function exportDashboardReport(req, res) {
             styleWorksheet(appsSheet, 'FF7C3AED'); // Violet header
         }
 
-        // Sheet 4: แนวโน้มการรับเลี้ยงรายเดือน (Monthly Trends)
+        // Sheet 4: สถิติจำแนกตามวันที่ (Daily Breakdown)
+        if (type === 'all' || type === 'charts' || type === 'daily') {
+            const dailySheet = workbook.addWorksheet('สถิติตามวันที่ (Daily)');
+            dailySheet.columns = [
+                { header: 'วันที่ (YYYY-MM-DD)', key: 'date_key', width: 22 },
+                { header: 'วันที่ (รูปแบบไทย)', key: 'date_formatted', width: 25 },
+                { header: 'แมวเข้าใหม่ (ตัว)', key: 'new_cats', width: 20 },
+                { header: 'รับเลี้ยงสำเร็จแล้ว (ตัว)', key: 'adopted_cats', width: 24 },
+                { header: 'คำขอรับเลี้ยงใหม่ (ใบ)', key: 'new_applications', width: 24 },
+                { header: 'ผู้ใช้สมัครใหม่ (คน)', key: 'new_users', width: 22 }
+            ];
+            formattedDaily.forEach(d => {
+                dailySheet.addRow(d);
+            });
+            styleWorksheet(dailySheet, 'FF0284C7'); // Sky Blue header
+        }
+
+        // Sheet 5: แนวโน้มการรับเลี้ยงรายเดือน (Monthly Trends)
         if (type === 'all' || type === 'charts' || type === 'trends' || type === 'monthly') {
             const trendsSheet = workbook.addWorksheet('สถิติรายเดือน (Trends)');
             trendsSheet.columns = [

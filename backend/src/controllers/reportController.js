@@ -3,7 +3,7 @@ const pool = require('../config/database');
 exports.createReport = async (req, res) => {
     try {
         const { reporterId, reportedUserId, catId, reason, details } = req.body;
-        
+
         if (!reporterId || !reason) {
             return res.status(400).json({ success: false, message: 'กรุณาส่งข้อมูลผู้รายงานและเหตุผล' });
         }
@@ -63,7 +63,7 @@ exports.updateReportStatus = async (req, res) => {
                 INSERT INTO notifications (user_id, title, message, type, related_id)
                 VALUES (?, 'อัปเดตสถานะการรายงาน', ?, 'report_updated', ?)
             `, [report.reporter_id, `รายงานของคุณ (หมายเลข ${reportId}) ${statusMsg}`, reportId]);
-            
+
             // แจ้งเตือนผู้ถูกรายงานว่าโดนตรวจสอบแล้ว
             if (report.reported_user_id && status === 'Resolved') {
                 const note = adminNote ? `รายละเอียด: ${adminNote}` : 'ทีมงานได้ตรวจสอบและดำเนินการเรียบร้อยแล้ว';
@@ -91,7 +91,7 @@ exports.uploadReportPhotos = async (req, res) => {
         }
 
         const imageValues = files.map(file => [reportId, file.path]);
-        
+
         await pool.query(`
             INSERT INTO report_images (report_id, image_url)
             VALUES ?

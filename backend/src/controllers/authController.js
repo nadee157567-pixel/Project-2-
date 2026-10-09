@@ -80,6 +80,15 @@ async function login(req, res) {
             return res.status(401).json({ success: false, message: 'Username หรือ Password ไม่ถูกต้อง' });
         }
 
+        // หากเป็นการยืนยันสิทธิ์เข้าดูประวัติการแชทของแอดมิน ให้บันทึก Audit Log ลงตาราง admin_logs
+        if (req.body.isChatVerification) {
+            const appInfo = req.body.matchId ? ` (คำขอ ID: ${req.body.matchId})` : '';
+            await pool.query(
+                'INSERT INTO admin_logs (admin_id, action, details) VALUES (?, ?, ?)',
+                [user.user_id, 'VIEW_CHAT_HISTORY', `แอดมิน '${user.username}' ยืนยันรหัสผ่านเพื่อเข้าดูประวัติการแชท${appInfo}`]
+            ).catch(err => console.error('Failed to insert admin_logs:', err));
+        }
+
         // สร้าง JWT Token
         const token = jwt.sign(
             {
@@ -225,9 +234,50 @@ async function updateAdopterProfile(req, res) {
     }
 }
 
+async function verifyAdminPassword(req, res) {
+    try {
+        const { username, password, matchId } = req.body;
+
+        if (!username || !password) {
+            return res.status(200).json({ success: false, message: 'รหัสผ่านไม่ถูกต้อง' });
+        }
+
+        const [users] = await pool.query(
+            'SELECT user_id, username, password, role FROM users WHERE username = ?',
+            [username]
+        );
+
+        if (users.length === 0) {
+            return res.status(200).json({ success: false, message: 'รหัสผ่านไม่ถูกต้อง' });
+        }
+
+        const user = users[0];
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(200).json({ success: false, message: 'รหัสผ่านไม่ถูกต้อง' });
+        }
+
+        // บันทึก Audit Log ลงตาราง admin_logs
+        const appInfo = matchId ? ` (คำขอ ID: ${matchId})` : '';
+        await pool.query(
+            'INSERT INTO admin_logs (admin_id, action, details) VALUES (?, ?, ?)',
+            [user.user_id, 'VIEW_CHAT_HISTORY', `แอดมิน '${user.username}' ยืนยันรหัสผ่านเพื่อเข้าดูประวัติการแชท${appInfo}`]
+        ).catch(err => console.error('Failed to insert admin_logs:', err));
+
+        return res.status(200).json({
+            success: true,
+            message: 'ยืนยันรหัสผ่านถูกต้อง'
+        });
+    } catch (error) {
+        console.error('verifyAdminPassword error:', error);
+        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการตรวจสอบรหัสผ่าน' });
+    }
+}
+
 module.exports = {
     signup,
     login,
     getUserById,
     updateUser,
+    verifyAdminPassword
 };

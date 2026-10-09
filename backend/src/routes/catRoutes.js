@@ -6,7 +6,7 @@ const { validateCatPost } = require('../middleware/validationMiddleware');
 
 const { storage } = require('../config/cloudinary');
 
-const upload = multer({ 
+const upload = multer({
     storage: storage,
     limits: {
         fileSize: 5 * 1024 * 1024 // จำกัดขนาดไฟล์ที่ 5MB

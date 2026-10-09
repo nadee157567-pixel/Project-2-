@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, UserPlus, FileText, Cat, Home, Heart,
-  MoreVertical, Menu, LayoutGrid, FileSpreadsheet, Download, Filter, ClipboardList, Trash2, Edit, Plus, User, Search, Settings2, X, AlertCircle, Ban, XCircle, CheckCircle, ExternalLink, Eye, EyeOff, LogOut, Loader2, RefreshCw, MessageSquare, Camera, Image, ChevronDown, Bell, AlertTriangle, ShieldAlert, Check
+  MoreVertical, Menu, LayoutGrid, FileSpreadsheet, Download, Filter, ClipboardList, Trash2, Edit, Plus, User, Search, Settings2, X, AlertCircle, Ban, XCircle, CheckCircle, ExternalLink, Eye, EyeOff, LogOut, Loader2, RefreshCw, MessageSquare, Camera, Image, ChevronDown, Bell, AlertTriangle, ShieldAlert, Check, RotateCcw
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import html2canvas from 'html2canvas';
@@ -1912,31 +1912,165 @@ const Dashboard = () => {
   const BASE_ADOPTED = stats ? (stats.adoptedCats !== undefined ? stats.adoptedCats : statsData.adoptedCats) : statsData.adoptedCats;
   const BASE_PENDING = stats ? (stats.findingHomeCats !== undefined ? stats.findingHomeCats : statsData.findingHomeCats) : statsData.findingHomeCats;
 
-  // 2. Real Data Arrays from backend API
-  const rawMonthlyData = (stats && stats.monthlyTrends && stats.monthlyTrends.length > 0)
+  // --- Cross-Chart Linking & Dynamic Multi-Filtering Logic ---
+  const thaiMonthsList = [
+    { key: '01', value: '/01/', name: 'มกราคม', short: 'ม.ค.' },
+    { key: '02', value: '/02/', name: 'กุมภาพันธ์', short: 'ก.พ.' },
+    { key: '03', value: '/03/', name: 'มีนาคม', short: 'มี.ค.' },
+    { key: '04', value: '/04/', name: 'เมษายน', short: 'เม.ย.' },
+    { key: '05', value: '/05/', name: 'พฤษภาคม', short: 'พ.ค.' },
+    { key: '06', value: '/06/', name: 'มิถุนายน', short: 'มิ.ย.' },
+    { key: '07', value: '/07/', name: 'กรกฎาคม', short: 'ก.ค.' },
+    { key: '08', value: '/08/', name: 'สิงหาคม', short: 'ส.ค.' },
+    { key: '09', value: '/09/', name: 'กันยายน', short: 'ก.ย.' },
+    { key: '10', value: '/10/', name: 'ตุลาคม', short: 'ต.ค.' },
+    { key: '11', value: '/11/', name: 'พฤศจิกายน', short: 'พ.ย.' },
+    { key: '12', value: '/12/', name: 'ธันวาคม', short: 'ธ.ค.' }
+  ];
+
+  const monthNameMap = {
+    '/01/': 'มกราคม', '/02/': 'กุมภาพันธ์', '/03/': 'มีนาคม', '/04/': 'เมษายน',
+    '/05/': 'พฤษภาคม', '/06/': 'มิถุนายน', '/07/': 'กรกฎาคม', '/08/': 'สิงหาคม',
+    '/09/': 'กันยายน', '/10/': 'ตุลาคม', '/11/': 'พฤศจิกายน', '/12/': 'ธันวาคม'
+  };
+
+  const selectedMonthKey = monthFilter !== 'ทั้งหมด' ? monthFilter.replace(/\//g, '') : null;
+  const activeShortMonth = monthFilter !== 'ทั้งหมด' ? (monthNameMap[monthFilter] || monthFilter) : 'ทั้งหมด';
+
+  const rawCats = (stats && Array.isArray(stats.rawCats)) ? stats.rawCats : [];
+  const rawApps = (stats && Array.isArray(stats.rawApps)) ? stats.rawApps : [];
+  const rawMonthlyData = (stats && Array.isArray(stats.monthlyTrends) && stats.monthlyTrends.length > 0)
     ? stats.monthlyTrends
     : monthlyAdoptionData;
 
-  const rawUserTypesData = (stats && stats.userTypes && stats.userTypes.length > 0)
-    ? stats.userTypes
-    : [
-      { name: 'ผู้ลงประกาศ', value: BASE_POSTERS },
-      { name: 'ผู้ขอรับเลี้ยง', value: BASE_ADOPTERS }
-    ];
+  // 1. Monthly Chart Data (Cross-filtered by breedFilter and filter [User Type])
+  let filteredMonthlyData = thaiMonthsList.map(m => {
+    let added = 0;
+    let adopted = 0;
 
-  const rawCatBreedsData = (stats && stats.catBreeds && stats.catBreeds.all && stats.catBreeds.all.length > 0)
-    ? (filter === 'ผู้ลงประกาศ' ? stats.catBreeds.posters : filter === 'ผู้ขอรับเลี้ยง' ? stats.catBreeds.adopters : stats.catBreeds.all)
-    : (filter === 'ผู้ลงประกาศ' ? catBreedsDataPosters : filter === 'ผู้ขอรับเลี้ยง' ? catBreedsDataAdopters : catBreedsDataAll);
+    if (rawCats.length > 0 || rawApps.length > 0) {
+      let mCats = rawCats.filter(c => c.created_month === m.key);
+      let mApps = rawApps.filter(a => a.applied_month === m.key && a.status === 'approved');
 
-  // 3. Dynamic Stat Cards
-  let dynamicPosters = BASE_POSTERS;
-  let dynamicAdopters = BASE_ADOPTERS;
+      if (breedFilter !== 'ทั้งหมด') {
+        mCats = mCats.filter(c => c.pet_breed === breedFilter);
+        mApps = mApps.filter(a => a.pet_breed === breedFilter);
+      }
+
+      if (filter === 'ผู้ลงประกาศ') {
+        mApps = [];
+      } else if (filter === 'ผู้ขอรับเลี้ยง') {
+        mCats = [];
+      }
+
+      added = mCats.length;
+      adopted = statusFilter === 'Active' ? 0 : mApps.length;
+    } else {
+      const found = rawMonthlyData.find(d => d.name === m.name || d.short === m.short);
+      added = found ? found.added : 0;
+      adopted = statusFilter === 'Active' ? 0 : (found ? found.adopted : 0);
+    }
+
+    return {
+      name: m.name,
+      short: m.short,
+      added,
+      adopted
+    };
+  });
+
+  if (monthFilter !== 'ทั้งหมด' && activeShortMonth !== 'ทั้งหมด') {
+    filteredMonthlyData = filteredMonthlyData.filter(item => item.name === activeShortMonth || item.short === activeShortMonth);
+  }
+
+  // 2. User Types Chart Data (Cross-filtered by monthFilter and breedFilter)
+  let activePostersCount = BASE_POSTERS;
+  let activeAdoptersCount = BASE_ADOPTERS;
+
+  if (rawCats.length > 0 || rawApps.length > 0) {
+    let pCats = rawCats;
+    let aApps = rawApps;
+
+    if (selectedMonthKey) {
+      pCats = pCats.filter(c => c.created_month === selectedMonthKey);
+      aApps = aApps.filter(a => a.applied_month === selectedMonthKey);
+    }
+    if (breedFilter !== 'ทั้งหมด') {
+      pCats = pCats.filter(c => c.pet_breed === breedFilter);
+      aApps = aApps.filter(a => a.pet_breed === breedFilter);
+    }
+
+    activePostersCount = new Set(pCats.map(c => c.poster_id)).size;
+    activeAdoptersCount = new Set(aApps.map(a => a.applicant_id)).size;
+  }
+
+  let activeUserTypesData = [
+    { name: 'ผู้ลงประกาศ', value: activePostersCount },
+    { name: 'ผู้ขอรับเลี้ยง', value: activeAdoptersCount }
+  ];
+
+  if (filter !== 'All') {
+    activeUserTypesData = activeUserTypesData.map(u =>
+      u.name === filter ? u : { ...u, value: 0 }
+    );
+  }
+
+  // 3. Cat Breeds Chart Data (Cross-filtered by monthFilter and filter [User Type])
+  let activeCatBreedsData = [];
+
+  if (rawCats.length > 0 || rawApps.length > 0) {
+    const bMap = {};
+
+    if (filter === 'ผู้ขอรับเลี้ยง') {
+      let targetApps = rawApps;
+      if (selectedMonthKey) targetApps = targetApps.filter(a => a.applied_month === selectedMonthKey);
+      if (statusFilter === 'Adopted') targetApps = targetApps.filter(a => a.status === 'approved');
+      else if (statusFilter === 'Active') targetApps = targetApps.filter(a => a.status === 'pending');
+
+      targetApps.forEach(a => {
+        const b = a.pet_breed || 'ไม่ทราบสายพันธุ์';
+        bMap[b] = (bMap[b] || 0) + 1;
+      });
+    } else {
+      let targetCats = rawCats;
+      if (selectedMonthKey) targetCats = targetCats.filter(c => c.created_month === selectedMonthKey);
+      if (statusFilter === 'Active') targetCats = targetCats.filter(c => c.status === 'available');
+      else if (statusFilter === 'Adopted') targetCats = targetCats.filter(c => c.status === 'adopted');
+
+      targetCats.forEach(c => {
+        const b = c.pet_breed || 'ไม่ทราบสายพันธุ์';
+        bMap[b] = (bMap[b] || 0) + 1;
+      });
+    }
+
+    activeCatBreedsData = Object.keys(bMap).map(b => ({
+      name: b,
+      value: bMap[b]
+    })).sort((a, b) => b.value - a.value);
+
+    if (activeCatBreedsData.length === 0) {
+      activeCatBreedsData = breedsList.map(b => ({ name: b, value: 0 }));
+    }
+  } else {
+    const rawCatBreedsData = (stats && stats.catBreeds && stats.catBreeds.all && stats.catBreeds.all.length > 0)
+      ? (filter === 'ผู้ลงประกาศ' ? stats.catBreeds.posters : filter === 'ผู้ขอรับเลี้ยง' ? stats.catBreeds.adopters : stats.catBreeds.all)
+      : (filter === 'ผู้ลงประกาศ' ? catBreedsDataPosters : filter === 'ผู้ขอรับเลี้ยง' ? catBreedsDataAdopters : catBreedsDataAll);
+
+    activeCatBreedsData = rawCatBreedsData.map(item => ({
+      name: item.name,
+      value: statusFilter === 'Adopted' ? (item.adopted !== undefined ? item.adopted : item.value) : statusFilter === 'Active' ? (item.available !== undefined ? item.available : item.value) : item.value
+    }));
+  }
+
+  // Dynamic Stat Cards
+  let dynamicPosters = activePostersCount;
+  let dynamicAdopters = activeAdoptersCount;
   if (filter === 'ผู้ลงประกาศ') dynamicAdopters = 0;
   if (filter === 'ผู้ขอรับเลี้ยง') dynamicPosters = 0;
   let dynamicUsers = dynamicPosters + dynamicAdopters;
 
-  let dynamicAdopted = BASE_ADOPTED;
-  let dynamicPending = BASE_PENDING;
+  let dynamicAdopted = rawCats.length > 0 ? rawCats.filter(c => (selectedMonthKey ? c.created_month === selectedMonthKey : true) && (breedFilter !== 'ทั้งหมด' ? c.pet_breed === breedFilter : true) && c.status === 'adopted').length : BASE_ADOPTED;
+  let dynamicPending = rawCats.length > 0 ? rawCats.filter(c => (selectedMonthKey ? c.created_month === selectedMonthKey : true) && (breedFilter !== 'ทั้งหมด' ? c.pet_breed === breedFilter : true) && c.status === 'available').length : BASE_PENDING;
 
   if (statusFilter === 'Active') { dynamicAdopted = 0; }
   else if (statusFilter === 'Adopted') { dynamicPending = 0; }
@@ -1950,39 +2084,6 @@ const Dashboard = () => {
     adoptedCats: dynamicAdopted.toLocaleString(),
     findingHomeCats: dynamicPending.toLocaleString()
   };
-
-  // 4. Monthly Chart Data (using real backend data)
-  let filteredMonthlyData = rawMonthlyData.map(item => ({
-    name: item.name,
-    added: item.added,
-    adopted: statusFilter === 'Active' ? 0 : item.adopted,
-    pending: statusFilter === 'Adopted' ? 0 : (item.pending !== undefined ? item.pending : Math.max(0, item.added - item.adopted))
-  }));
-
-  const monthNameMap = {
-    '/01/': 'มกราคม', '/02/': 'กุมภาพันธ์', '/03/': 'มีนาคม', '/04/': 'เมษายน',
-    '/05/': 'พฤษภาคม', '/06/': 'มิถุนายน', '/07/': 'กรกฎาคม', '/08/': 'สิงหาคม',
-    '/09/': 'กันยายน', '/10/': 'ตุลาคม', '/11/': 'พฤศจิกายน', '/12/': 'ธันวาคม'
-  };
-  const activeShortMonth = monthFilter !== 'ทั้งหมด' ? (monthNameMap[monthFilter] || monthFilter) : 'ทั้งหมด';
-  const targetMonthName = monthNameMap[monthFilter];
-  if (monthFilter !== 'ทั้งหมด' && targetMonthName) {
-    filteredMonthlyData = filteredMonthlyData.filter(item => item.name === targetMonthName || item.short === targetMonthName);
-  }
-
-  // 5. Donut Chart Data (User Types)
-  let activeUserTypesData = rawUserTypesData;
-  if (filter !== 'All') {
-    activeUserTypesData = activeUserTypesData.map(u =>
-      u.name === filter ? u : { ...u, value: 0 }
-    );
-  }
-
-  // 6. Bar Chart Data (Cat Breeds)
-  let activeCatBreedsData = rawCatBreedsData.map(item => ({
-    name: item.name,
-    value: statusFilter === 'Adopted' ? (item.adopted !== undefined ? item.adopted : item.value) : statusFilter === 'Active' ? (item.available !== undefined ? item.available : item.value) : item.value
-  }));
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
@@ -2148,6 +2249,118 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* Active Cross-Filter Indicator Banner */}
+      {(monthFilter !== 'ทั้งหมด' || filter !== 'All' || breedFilter !== 'ทั้งหมด' || statusFilter !== 'ทั้งหมด') && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          marginBottom: '1.25rem',
+          padding: '0.65rem 1rem',
+          backgroundColor: '#fff1f2',
+          border: '1px solid #fecdd3',
+          borderRadius: '12px',
+          flexWrap: 'wrap',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+        }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#be123c', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Filter size={15} /> กำลังกรองข้อมูลกราฟ:
+          </span>
+
+          {monthFilter !== 'ทั้งหมด' && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 10px',
+              borderRadius: '20px',
+              backgroundColor: '#ffe4e6',
+              color: '#e11d48',
+              fontSize: '0.8rem',
+              fontWeight: '600'
+            }}>
+              📅 เดือน: {monthNameMap[monthFilter] || monthFilter}
+              <X size={14} style={{ cursor: 'pointer' }} onClick={() => setMonthFilter('ทั้งหมด')} />
+            </span>
+          )}
+
+          {filter !== 'All' && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 10px',
+              borderRadius: '20px',
+              backgroundColor: '#e0e7ff',
+              color: '#4338ca',
+              fontSize: '0.8rem',
+              fontWeight: '600'
+            }}>
+              👤 ประเภท: {filter}
+              <X size={14} style={{ cursor: 'pointer' }} onClick={() => setFilter('All')} />
+            </span>
+          )}
+
+          {breedFilter !== 'ทั้งหมด' && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 10px',
+              borderRadius: '20px',
+              backgroundColor: '#f3e8ff',
+              color: '#7e22ce',
+              fontSize: '0.8rem',
+              fontWeight: '600'
+            }}>
+              🐱 สายพันธุ์: {breedFilter}
+              <X size={14} style={{ cursor: 'pointer' }} onClick={() => setBreedFilter('ทั้งหมด')} />
+            </span>
+          )}
+
+          {statusFilter !== 'ทั้งหมด' && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 10px',
+              borderRadius: '20px',
+              backgroundColor: '#dcfce7',
+              color: '#15803d',
+              fontSize: '0.8rem',
+              fontWeight: '600'
+            }}>
+              🏷️ สถานะ: {statusFilter}
+              <X size={14} style={{ cursor: 'pointer' }} onClick={() => setStatusFilter('ทั้งหมด')} />
+            </span>
+          )}
+
+          <button
+            onClick={() => {
+              setMonthFilter('ทั้งหมด');
+              setFilter('All');
+              setBreedFilter('ทั้งหมด');
+              setStatusFilter('ทั้งหมด');
+            }}
+            style={{
+              marginLeft: 'auto',
+              background: 'none',
+              border: 'none',
+              color: '#be123c',
+              fontSize: '0.8rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            <RotateCcw size={13} /> ล้างตัวกรองทั้งหมด
+          </button>
+        </div>
+      )}
+
       <div className="charts-layout" id="charts-layout-container">
 
         {/* Main Composed Chart */}
@@ -2155,9 +2368,15 @@ const Dashboard = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
             <h4 className="chart-title" style={{ margin: 0 }}>
               สถิติการรับเลี้ยงรายเดือน
-              <span style={{ display: 'block', fontSize: '0.8rem', color: '#f87171', marginTop: '4px', fontWeight: 'normal' }}>
-                (คลิกที่แท่งกราฟเดือนที่ต้องการ เพื่อกรองข้อมูลกราฟด้านล่าง)
-              </span>
+              {breedFilter !== 'ทั้งหมด' ? (
+                <span style={{ display: 'block', fontSize: '0.8rem', color: '#7e22ce', marginTop: '4px', fontWeight: 'normal' }}>
+                  (เฉพาะสายพันธุ์: {breedFilter})
+                </span>
+              ) : (
+                <span style={{ display: 'block', fontSize: '0.8rem', color: '#f87171', marginTop: '4px', fontWeight: 'normal' }}>
+                  (คลิกที่แท่งกราฟเดือนที่ต้องการ เพื่อกรองข้อมูลกราฟด้านล่าง)
+                </span>
+              )}
             </h4>
             <button
               onClick={() => handleDownloadChartImage('chart-monthly-trends', 'สถิติการรับเลี้ยงรายเดือน')}
@@ -2177,12 +2396,14 @@ const Dashboard = () => {
                 <Tooltip cursor={{ fill: '#fdf2f8' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
                 <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '14px', color: '#374151' }} />
 
-                <Bar name="จำนวนแมวที่เข้าสู่ระบบ (ตัว)" dataKey="added" radius={[4, 4, 0, 0]} barSize={40} onClick={handleBarClick} style={{ cursor: 'pointer' }}>
+                <Bar name="จำนวนแมวที่เข้าสู่ระบบ (ตัว)" dataKey="added" radius={[4, 4, 0, 0]} barSize={40} onClick={(entry) => handleBarClick(entry)} style={{ cursor: 'pointer' }}>
                   {filteredMonthlyData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill="#fca5a5"
-                      opacity={activeShortMonth === 'ทั้งหมด' || activeShortMonth === entry.name ? 0.8 : 0.3}
+                      fill={activeShortMonth === entry.name ? '#f87171' : '#fca5a5'}
+                      stroke={activeShortMonth === entry.name ? '#dc2626' : 'none'}
+                      strokeWidth={activeShortMonth === entry.name ? 2 : 0}
+                      opacity={activeShortMonth === 'ทั้งหมด' || activeShortMonth === entry.name ? 1 : 0.35}
                     />
                   ))}
                   <LabelList dataKey="added" position="top" fill="#fca5a5" fontSize={13} fontWeight={600} />
@@ -2208,7 +2429,7 @@ const Dashboard = () => {
                   </span>
                 ) : (
                   <span style={{ display: 'block', fontSize: '0.8rem', color: '#8b5cf6', marginTop: '4px', fontWeight: 'normal' }}>
-                    (คลิกที่กราฟเพื่อกรองข้อมูลสายพันธุ์)
+                    (คลิกที่กราฟเพื่อกรองข้อมูลผู้ใช้)
                   </span>
                 )}
               </h4>
@@ -2234,14 +2455,16 @@ const Dashboard = () => {
                     dataKey="value"
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     labelLine={false}
-                    onClick={handlePieClick}
+                    onClick={(entry) => handlePieClick(entry)}
                     style={{ cursor: 'pointer' }}
                   >
                     {activeUserTypesData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
-                        opacity={filter === 'All' || filter === entry.name ? 1 : 0.3}
+                        opacity={filter === 'All' || filter === entry.name ? 1 : 0.35}
+                        stroke={filter === entry.name ? '#4f46e5' : 'none'}
+                        strokeWidth={filter === entry.name ? 3 : 0}
                       />
                     ))}
                     <Label
@@ -2265,7 +2488,7 @@ const Dashboard = () => {
                 จำนวนแมวตามสายพันธุ์ยอดฮิต
                 {filter !== 'All' && (
                   <span style={{ color: '#8b5cf6', marginLeft: '8px' }}>
-                    (เฉพาะกลุ่ม: {filter})
+                    (กลุ่ม: {filter})
                   </span>
                 )}
                 {activeShortMonth !== 'ทั้งหมด' && (
@@ -2290,12 +2513,14 @@ const Dashboard = () => {
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dy={10} />
                   <Tooltip cursor={{ fill: '#fdf2f8' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
                   <Legend verticalAlign="top" height={30} iconType="circle" wrapperStyle={{ fontSize: '13px' }} />
-                  <Bar name="จำนวน (ตัว)" dataKey="value" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={30} onClick={handleBreedBarClick} style={{ cursor: 'pointer' }}>
+                  <Bar name="จำนวน (ตัว)" dataKey="value" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={30} onClick={(entry) => handleBreedBarClick(entry)} style={{ cursor: 'pointer' }}>
                     {activeCatBreedsData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill="#8b5cf6"
-                        opacity={breedFilter === 'ทั้งหมด' || breedFilter === entry.name ? 1 : 0.3}
+                        fill={breedFilter === entry.name ? '#6d28d9' : '#8b5cf6'}
+                        opacity={breedFilter === 'ทั้งหมด' || breedFilter === entry.name ? 1 : 0.35}
+                        stroke={breedFilter === entry.name ? '#4c1d95' : 'none'}
+                        strokeWidth={breedFilter === entry.name ? 2 : 0}
                       />
                     ))}
                     <LabelList dataKey="value" position="top" fill="#8b5cf6" fontSize={13} fontWeight={600} />

@@ -2442,18 +2442,18 @@ const Dashboard = () => {
                 <Camera size={14} color="#3b82f6" /> บันทึกรูป
               </button>
             </div>
-            <div style={{ width: '100%', height: 280 }}>
+            <div style={{ width: '100%', height: 310 }}>
               <ResponsiveContainer>
                 <PieChart>
                   <Pie
                     data={activeUserTypesData}
                     cx="50%"
-                    cy="45%"
-                    innerRadius={65}
-                    outerRadius={90}
+                    cy="50%"
+                    innerRadius={52}
+                    outerRadius={76}
                     paddingAngle={5}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
                     labelLine={false}
                     onClick={(entry) => handlePieClick(entry)}
                     style={{ cursor: 'pointer' }}
@@ -2471,11 +2471,11 @@ const Dashboard = () => {
                       value={`${dynamicUsers.toLocaleString()} คน`}
                       position="center"
                       fill="#374151"
-                      style={{ fontSize: '1.5rem', fontWeight: '700' }}
+                      style={{ fontSize: '1.35rem', fontWeight: '700' }}
                     />
                   </Pie>
                   <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
-                  <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '13px' }} />
+                  <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '13px', paddingTop: '10px' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -2506,14 +2506,38 @@ const Dashboard = () => {
                 <Camera size={14} color="#3b82f6" /> บันทึกรูป
               </button>
             </div>
-            <div style={{ width: '100%', height: 280 }}>
+            <div style={{ width: '100%', height: 310 }}>
               <ResponsiveContainer>
-                <BarChart data={activeCatBreedsData} margin={{ top: 20 }}>
+                <BarChart data={activeCatBreedsData} margin={{ top: 20, bottom: 25, left: 0, right: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dy={10} />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    height={45}
+                    tick={({ x, y, payload }) => {
+                      const text = payload.value || '';
+                      return (
+                        <g transform={`translate(${x},${y})`}>
+                          <text
+                            x={0}
+                            y={12}
+                            textAnchor="end"
+                            fill="#6b7280"
+                            fontSize={10.5}
+                            fontWeight={500}
+                            transform="rotate(-20)"
+                          >
+                            {text}
+                          </text>
+                        </g>
+                      );
+                    }}
+                  />
                   <Tooltip cursor={{ fill: '#fdf2f8' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
                   <Legend verticalAlign="top" height={30} iconType="circle" wrapperStyle={{ fontSize: '13px' }} />
-                  <Bar name="จำนวน (ตัว)" dataKey="value" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={30} onClick={(entry) => handleBreedBarClick(entry)} style={{ cursor: 'pointer' }}>
+                  <Bar name="จำนวน (ตัว)" dataKey="value" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={26} onClick={(entry) => handleBreedBarClick(entry)} style={{ cursor: 'pointer' }}>
                     {activeCatBreedsData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
